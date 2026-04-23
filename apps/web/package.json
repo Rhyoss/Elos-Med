@@ -41,6 +41,12 @@
     "@radix-ui/react-switch": "^1.1.0",
     "@radix-ui/react-checkbox": "^1.1.0",
     "date-fns": "^4.1.0",
+    "socket.io-client": "^4.8.0",
+    "@tiptap/react": "^2.10.0",
+    "@tiptap/pm": "^2.10.0",
+    "@tiptap/starter-kit": "^2.10.0",
+    "@tiptap/extension-placeholder": "^2.10.0",
+    "@tiptap/extension-underline": "^2.10.0",
     "@dermaos/shared": "workspace:*",
     "@dermaos/ui": "workspace:*"
   },

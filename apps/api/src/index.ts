@@ -12,6 +12,7 @@ import { db, checkDatabaseHealth } from './db/client.js';
 import { redis, connectRedis, checkRedisHealth } from './db/redis.js';
 import { appRouter, type AppRouter } from './trpc/router.js';
 import { createContext } from './trpc/context.js';
+import { initSocketGateway } from './lib/socket.js';
 
 async function bootstrap() {
   const app = Fastify({
@@ -133,6 +134,10 @@ async function bootstrap() {
   await connectRedis();
 
   await app.listen({ port: env.PORT, host: '0.0.0.0' });
+
+  // Inicializa Socket.io DEPOIS do listen — precisa do http.Server pronto
+  initSocketGateway(app);
+
   logger.info({ port: env.PORT, env: env.NODE_ENV }, 'DermaOS API running');
 }
 

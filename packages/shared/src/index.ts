@@ -2,6 +2,7 @@
 export * from './schemas/auth.schema.js';
 export * from './schemas/patient.schema.js';
 export * from './schemas/appointment.schema.js';
+export * from './schemas/encounter.schema.js';
 
 // Types
 export * from './types/api.types.js';

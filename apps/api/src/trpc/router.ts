@@ -1,12 +1,14 @@
 import { router } from './trpc.js';
-import { authRouter } from '../modules/auth/auth.router.js';
+import { authRouter }       from '../modules/auth/auth.router.js';
+import { patientsRouter }   from '../modules/patients/patients.router.js';
+import { schedulingRouter } from '../modules/scheduling/scheduling.router.js';
+import { clinicalRouter }   from '../modules/clinical/clinical.router.js';
 
-/**
- * Root tRPC router — módulos adicionados aqui conforme implementados.
- */
 export const appRouter = router({
-  auth: authRouter,
-  // clinical: clinicalRouter,
+  auth:       authRouter,
+  patients:   patientsRouter,
+  scheduling: schedulingRouter,
+  clinical:   clinicalRouter,
   // omni: omniRouter,
   // supply: supplyRouter,
   // financial: financialRouter,
