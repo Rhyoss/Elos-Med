@@ -1,0 +1,30 @@
+{
+  "name": "@dermaos/worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "build": "tsc --project tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bullmq": "^5.28.0",
+    "dotenv": "^16.4.0",
+    "ioredis": "^5.4.0",
+    "pg": "^8.13.0",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0",
+    "minio": "^8.0.0",
+    "zod": "^3.24.0",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
+    "@dermaos/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

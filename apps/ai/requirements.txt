@@ -1,0 +1,14 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+pydantic-settings==2.7.0
+httpx==0.28.1
+asyncpg==0.30.0
+redis==5.2.1
+python-jose[cryptography]==3.3.0
+ollama==0.4.4
+numpy==2.2.0
+scikit-learn==1.5.2
+pillow==11.0.0
+python-multipart==0.0.19
+structlog==24.4.0

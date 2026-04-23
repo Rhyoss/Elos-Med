@@ -1,0 +1,83 @@
+# =============================================================================
+# DermaOS — .gitignore
+# =============================================================================
+
+# Environment (NUNCA commitar)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+*.p12
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.egg-info/
+.eggs/
+
+# Turborepo cache
+.turbo/
+
+# Testing
+coverage/
+.nyc_output/
+htmlcov/
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Docker volumes (nunca commitar dados de volumes)
+dermaos_pg_data/
+dermaos_redis_data/
+dermaos_minio_data/
+
+# Logs
+*.log
+logs/
+pino-pretty.log
+
+# Uploads temporários
+uploads/
+tmp/
+
+# SSL certs de desenvolvimento
+nginx/ssl/*.crt
+nginx/ssl/*.key
+nginx/ssl/*.pem
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.cache/
+.hypothesis/
+
+# Misc
+*.tgz
+*.tar.gz
+.vercel
