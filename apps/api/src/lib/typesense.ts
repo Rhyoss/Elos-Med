@@ -81,6 +81,89 @@ export interface TypesenseSearchResult {
   found: number;
 }
 
+/* ── Coleção de produtos DermSupply ─────────────────────────────────────── */
+
+const PRODUCT_COLLECTION = 'supply_products';
+
+export interface ProductDocument {
+  id:            string;
+  clinic_id:     string;
+  name:          string;
+  sku:           string;
+  barcode:       string;
+  brand:         string;
+  category_name: string;
+  is_active:     boolean;
+  created_at:    number;
+}
+
+export async function ensureProductCollection(): Promise<void> {
+  try {
+    await typesenseClient.collections(PRODUCT_COLLECTION).retrieve();
+  } catch {
+    try {
+      await typesenseClient.collections().create({
+        name: PRODUCT_COLLECTION,
+        fields: [
+          { name: 'clinic_id',     type: 'string', facet: true  },
+          { name: 'name',          type: 'string'               },
+          { name: 'sku',           type: 'string'               },
+          { name: 'barcode',       type: 'string', optional: true },
+          { name: 'brand',         type: 'string', optional: true },
+          { name: 'category_name', type: 'string', optional: true },
+          { name: 'is_active',     type: 'bool',   facet: true  },
+          { name: 'created_at',    type: 'int64'                },
+        ],
+        default_sorting_field: 'created_at',
+      });
+      logger.info('Typesense supply_products collection created');
+    } catch (err) {
+      logger.error({ err }, 'Failed to create Typesense supply_products collection');
+    }
+  }
+}
+
+export async function upsertProductDocument(doc: ProductDocument): Promise<void> {
+  try {
+    await typesenseClient.collections(PRODUCT_COLLECTION).documents().upsert(doc);
+  } catch (err) {
+    logger.warn({ err, productId: doc.id }, 'Failed to upsert product to Typesense');
+  }
+}
+
+export async function deleteProductDocument(id: string): Promise<void> {
+  try {
+    await typesenseClient.collections(PRODUCT_COLLECTION).documents(id).delete();
+  } catch {
+    // Silently ignore — product may not have been indexed
+  }
+}
+
+export async function searchProductsInTypesense(
+  query:    string,
+  clinicId: string,
+  page:     number,
+  perPage:  number,
+): Promise<TypesenseSearchResult> {
+  const result = await typesenseClient
+    .collections(PRODUCT_COLLECTION)
+    .documents()
+    .search({
+      q:          query,
+      query_by:   'name,sku,barcode,brand',
+      filter_by:  `clinic_id:=${clinicId} && is_active:=true`,
+      page,
+      per_page:   perPage,
+      prefix:     true,
+      num_typos:  1,
+    });
+
+  return {
+    hits:  (result.hits ?? []) as Array<{ document: { id: string } }>,
+    found: result.found ?? 0,
+  };
+}
+
 export async function searchPatientsInTypesense(
   query:    string,
   clinicId: string,

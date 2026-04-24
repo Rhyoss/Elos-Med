@@ -15,6 +15,8 @@ import {
 import { ROLE_LABELS } from '@dermaos/shared';
 import { useAuth, usePermission } from '@/lib/auth';
 import { initials } from '@/lib/utils';
+import { trpc } from '@/lib/trpc-provider';
+import { useRealtime } from '@/hooks/use-realtime';
 
 /* ── Mapa de labels para breadcrumbs ─────────────────────────────────────── */
 
@@ -96,6 +98,19 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const canAnalytics = usePermission('analytics', 'read');
   const canAdmin     = usePermission('admin', 'read');
 
+  /* Badge de não-lidas no item "Comunicações" (polling + realtime) */
+  const unreadQuery = trpc.omni.unreadCount.useQuery(undefined, {
+    enabled:         canOmni,
+    refetchInterval: 60_000,
+    staleTime:       15_000,
+  });
+  const unreadCount = unreadQuery.data?.count ?? 0;
+  const utils = trpc.useUtils();
+
+  useRealtime(['new_message', 'conversation_read'], () => {
+    if (canOmni) void utils.omni.unreadCount.invalidate();
+  });
+
   /* Nav items filtrados por permissão */
   const navItems = React.useMemo<NavItem[]>(() => {
     const items: NavItem[] = [
@@ -125,6 +140,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         label: 'Comunicações',
         href:  '/comunicacoes',
         icon:  <MessageSquare className="h-5 w-5" aria-hidden="true" />,
+        badge: unreadCount,
       });
     }
 
@@ -165,7 +181,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }
 
     return items;
-  }, [canOmni, canSupply, canFinancial, canAnalytics, canAdmin]);
+  }, [canOmni, canSupply, canFinancial, canAnalytics, canAdmin, unreadCount]);
 
   /* Command Palette */
   const [cmdOpen, setCmdOpen] = React.useState(false);

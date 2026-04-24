@@ -677,6 +677,16 @@ export async function signEncounter(
     const vitalSigns = await loadLatestVitalSigns(client, id, clinicId);
     const encounter  = mapRowToPublic(updated.rows[0]!, vitalSigns);
 
+    // Resolve serviceId do appointment vinculado (para consumo automático do kit)
+    let signedServiceId: string | null = null;
+    if (current.appointment_id) {
+      const apptR = await client.query<{ service_id: string | null }>(
+        `SELECT service_id FROM shared.appointments WHERE id = $1 AND clinic_id = $2`,
+        [current.appointment_id, clinicId],
+      );
+      signedServiceId = apptR.rows[0]?.service_id ?? null;
+    }
+
     setImmediate(() => {
       void eventBus.publish(
         'encounter.signed',
@@ -686,6 +696,7 @@ export async function signEncounter(
           encounterId: encounter.id,
           patientId:   encounter.patientId,
           providerId:  encounter.providerId,
+          serviceId:   signedServiceId,
         },
         { userId },
       );

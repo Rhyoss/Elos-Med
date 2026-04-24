@@ -35,12 +35,7 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  experimental: {
-    // Habilita React Compiler (Next.js 15+)
-    reactCompiler: true,
-    // Otimiza bundle com partial pre-rendering
-    ppr: 'incremental',
-  },
+  experimental: {},
 };
 
 export default nextConfig;

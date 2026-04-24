@@ -13,6 +13,14 @@ import { redis, connectRedis, checkRedisHealth } from './db/redis.js';
 import { appRouter, type AppRouter } from './trpc/router.js';
 import { createContext } from './trpc/context.js';
 import { initSocketGateway } from './lib/socket.js';
+import { ensureClinicalImagesBucket, ensurePrescriptionsBucket, ensureProductImagesBucket } from './lib/minio.js';
+import { registerLesionUploadRoute } from './modules/clinical/lesions/upload.route.js';
+import { registerProductPhotoUploadRoute } from './modules/supply/product-photo.upload.route.js';
+import { ensureProductCollection } from './lib/typesense.js';
+import { registerOmniWebhookRoutes } from './modules/omni/webhooks.route.js';
+import { registerAuroraKnowledgeUploadRoute } from './modules/aurora/admin/upload.route.js';
+import { subscribeOmniRealtime } from './modules/omni/omni.pubsub.js';
+import { subscribeSupplyRealtime } from './modules/supply/supply.pubsub.js';
 
 async function bootstrap() {
   const app = Fastify({
@@ -69,6 +77,18 @@ async function bootstrap() {
       message: 'Muitas requisições. Tente novamente em instantes.',
     }),
   });
+
+  // ─── REST: upload de imagens clínicas (multipart) ─────────────────────────
+  await registerLesionUploadRoute(app);
+
+  // ─── REST: upload de foto de produto (DermSupply) ─────────────────────────
+  await registerProductPhotoUploadRoute(app);
+
+  // ─── REST: upload de documentos da knowledge base da Aurora (multipart) ───
+  await registerAuroraKnowledgeUploadRoute(app);
+
+  // ─── REST: webhooks dos canais de comunicação (WhatsApp/IG/Telegram/Email) ─
+  await registerOmniWebhookRoutes(app);
 
   // ─── tRPC ──────────────────────────────────────────────────────────────────
   await app.register(fastifyTRPCPlugin, {
@@ -132,11 +152,21 @@ async function bootstrap() {
   // ─── Start ─────────────────────────────────────────────────────────────────
 
   await connectRedis();
+  await ensureClinicalImagesBucket();
+  await ensurePrescriptionsBucket();
+  await ensureProductImagesBucket();
+  await ensureProductCollection();
 
   await app.listen({ port: env.PORT, host: '0.0.0.0' });
 
   // Inicializa Socket.io DEPOIS do listen — precisa do http.Server pronto
   initSocketGateway(app);
+
+  // Relay de eventos vindos do worker (mensagens recebidas via webhook)
+  await subscribeOmniRealtime();
+
+  // Relay de alertas de estoque/validade emitidos pelo worker diário
+  await subscribeSupplyRealtime();
 
   logger.info({ port: env.PORT, env: env.NODE_ENV }, 'DermaOS API running');
 }

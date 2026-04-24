@@ -925,6 +925,271 @@ export async function listServices(clinicId: string): Promise<ServiceSummary[]> 
   }));
 }
 
+/* ── Scheduling holds (Aurora — Anexo A §A.2.2 / §A.2.3) ─────────────────── */
+
+const HOLD_TTL_DEFAULT_S = 180;
+const HOLD_TTL_MAX_S     = 600;
+
+export interface ReserveTentativeSlotInput {
+  providerId:     string;
+  scheduledAt:    Date;
+  durationMin:    number;
+  clinicId:       string;
+  conversationId: string;
+  ttlSeconds:     number;
+}
+
+export interface ReserveTentativeSlotResult {
+  holdToken: string;
+  expiresAt: Date;
+}
+
+export interface ConfirmHeldSlotInput {
+  holdToken:      string;
+  clinicId:       string;
+  patientId:      string;
+  serviceId:      string;
+  conversationId: string;
+}
+
+export class SchedulingHoldConflictError extends Error {
+  constructor(message = 'Horário indisponível — selecione outro') {
+    super(message);
+    this.name = 'SchedulingHoldConflictError';
+  }
+}
+
+export class SchedulingHoldExpiredError extends Error {
+  constructor(message = 'Reserva tentativa expirada') {
+    super(message);
+    this.name = 'SchedulingHoldExpiredError';
+  }
+}
+
+export class SchedulingHoldNotFoundError extends Error {
+  constructor(message = 'Reserva tentativa não encontrada') {
+    super(message);
+    this.name = 'SchedulingHoldNotFoundError';
+  }
+}
+
+/**
+ * Reserva tentativa (TTL curto) sem criar Appointment.
+ * Idempotente por (clinic_id, provider_id, scheduled_at). Não persiste PHI.
+ */
+export async function reserveTentativeSlot(
+  input: ReserveTentativeSlotInput,
+): Promise<ReserveTentativeSlotResult> {
+  const ttl = Math.min(
+    Math.max(1, Math.trunc(input.ttlSeconds || HOLD_TTL_DEFAULT_S)),
+    HOLD_TTL_MAX_S,
+  );
+  const scheduledAt = input.scheduledAt;
+  const end         = addMinutes(scheduledAt, input.durationMin);
+
+  return withClinicContext(input.clinicId, async (client) => {
+    // Serializa tentativas concorrentes no mesmo par (provider, slot)
+    const lockKeyText = `${input.clinicId}:${input.providerId}:${scheduledAt.toISOString()}`;
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [lockKeyText]);
+
+    // Conflito com appointment já existente
+    const appointmentConflict = await client.query<{ id: string }>(
+      `SELECT id
+         FROM shared.appointments
+        WHERE clinic_id   = $1
+          AND provider_id = $2
+          AND status = ANY($3::shared.appointment_status[])
+          AND tstzrange(scheduled_at, scheduled_at + (duration_min || ' minutes')::interval, '[)')
+              && tstzrange($4::timestamptz, $5::timestamptz, '[)')
+        LIMIT 1`,
+      [input.clinicId, input.providerId, ACTIVE_STATUSES, scheduledAt, end],
+    );
+    if (appointmentConflict.rows[0]) {
+      throw new SchedulingHoldConflictError();
+    }
+
+    // Limpa hold expirado no mesmo slot (unique constraint impede duplicata)
+    await client.query(
+      `DELETE FROM shared.scheduling_holds
+        WHERE clinic_id   = $1
+          AND provider_id = $2
+          AND scheduled_at = $3
+          AND expires_at  <= NOW()`,
+      [input.clinicId, input.providerId, scheduledAt],
+    );
+
+    const insert = await client.query<{ hold_token: string; expires_at: string }>(
+      `INSERT INTO shared.scheduling_holds (
+         clinic_id, provider_id, conversation_id,
+         scheduled_at, duration_min, expires_at
+       ) VALUES (
+         $1, $2, $3,
+         $4, $5, NOW() + ($6 || ' seconds')::interval
+       )
+       ON CONFLICT (clinic_id, provider_id, scheduled_at) DO NOTHING
+       RETURNING hold_token, expires_at`,
+      [
+        input.clinicId, input.providerId, input.conversationId,
+        scheduledAt, input.durationMin, String(ttl),
+      ],
+    );
+
+    if (!insert.rows[0]) {
+      // Já existe hold ativo (não expirado) para este slot
+      throw new SchedulingHoldConflictError();
+    }
+
+    return {
+      holdToken: insert.rows[0].hold_token,
+      expiresAt: new Date(insert.rows[0].expires_at),
+    };
+  });
+}
+
+/**
+ * Confirma um hold em Appointment definitivo. Atomicamente:
+ *   1. SELECT FOR UPDATE no hold; valida expires_at > now()
+ *   2. pg_advisory_xact_lock(clinic_id, provider_id, scheduled_at)
+ *   3. revalida ausência de conflito em shared.appointments
+ *   4. INSERT shared.appointments (source='whatsapp', conversation_id, status='scheduled')
+ *   5. DELETE do hold
+ *   6. Emite audit.domain_events `appointment.created_via_aurora`
+ */
+export async function confirmHeldSlot(
+  input: ConfirmHeldSlotInput,
+): Promise<AppointmentPublic> {
+  const appointment = await withClinicContext(input.clinicId, async (client) => {
+    // 1. Lock + validação do hold
+    const held = await client.query<{
+      clinic_id: string;
+      provider_id: string;
+      scheduled_at: string;
+      duration_min: number;
+      expires_at: string;
+    }>(
+      `SELECT clinic_id, provider_id, scheduled_at, duration_min, expires_at
+         FROM shared.scheduling_holds
+        WHERE hold_token = $1 AND clinic_id = $2
+        FOR UPDATE`,
+      [input.holdToken, input.clinicId],
+    );
+    if (!held.rows[0]) {
+      throw new SchedulingHoldNotFoundError();
+    }
+    const hold = held.rows[0];
+    if (new Date(hold.expires_at) <= new Date()) {
+      throw new SchedulingHoldExpiredError();
+    }
+
+    const scheduledAt = new Date(hold.scheduled_at);
+    const endsAt      = addMinutes(scheduledAt, hold.duration_min);
+
+    // 2. Advisory lock no par (provider, slot) — mesmo esquema de createAppointment
+    const lockKeyText = `${hold.clinic_id}:${hold.provider_id}:${scheduledAt.toISOString()}`;
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [lockKeyText]);
+
+    // 3. Revalida ausência de conflito em appointments
+    const conflict = await client.query<{ id: string }>(
+      `SELECT id
+         FROM shared.appointments
+        WHERE clinic_id   = $1
+          AND provider_id = $2
+          AND status = ANY($3::shared.appointment_status[])
+          AND tstzrange(scheduled_at, scheduled_at + (duration_min || ' minutes')::interval, '[)')
+              && tstzrange($4::timestamptz, $5::timestamptz, '[)')
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED`,
+      [hold.clinic_id, hold.provider_id, ACTIVE_STATUSES, scheduledAt, endsAt],
+    );
+    if (conflict.rows[0]) {
+      throw new SchedulingHoldConflictError();
+    }
+
+    // 4. INSERT appointment (source whatsapp, origem na conversation da Aurora)
+    const historyEntry = {
+      status:     'scheduled',
+      changed_at: new Date().toISOString(),
+      changed_by: null,
+      via:        'aurora',
+    };
+    const result = await client.query<AppointmentRow>(
+      `INSERT INTO shared.appointments (
+         clinic_id, patient_id, provider_id, service_id,
+         type, scheduled_at, duration_min,
+         status, status_history, source, conversation_id,
+         created_by
+       ) VALUES (
+         $1, $2, $3, $4,
+         'consultation', $5, $6,
+         'scheduled', $7::jsonb, 'whatsapp', $8,
+         NULL
+       )
+       RETURNING *`,
+      [
+        hold.clinic_id, input.patientId, hold.provider_id, input.serviceId,
+        scheduledAt, hold.duration_min,
+        JSON.stringify([historyEntry]), input.conversationId,
+      ],
+    );
+
+    // 5. DELETE do hold consumido
+    await client.query(
+      `DELETE FROM shared.scheduling_holds WHERE hold_token = $1`,
+      [input.holdToken],
+    );
+
+    return mapRow(result.rows[0]!);
+  });
+
+  // 6. audit.domain_events + realtime (fora da transação — best-effort)
+  setImmediate(() => {
+    void eventBus.publish(
+      'appointment.created_via_aurora',
+      input.clinicId,
+      appointment.id,
+      {
+        appointmentId:  appointment.id,
+        patientId:      appointment.patientId,
+        providerId:     appointment.providerId,
+        scheduledAt:    appointment.scheduledAt.toISOString(),
+        conversationId: input.conversationId,
+        holdToken:      input.holdToken,
+      },
+    );
+    emitToClinic(input.clinicId, 'appointment.created', {
+      appointmentId: appointment.id,
+      providerId:    appointment.providerId,
+      scheduledAt:   appointment.scheduledAt.toISOString(),
+    });
+  });
+
+  return appointment;
+}
+
+/** Libera hold (paciente desistiu, timeout interno do bot, fluxo abortado). */
+export async function releaseHold(holdToken: string, clinicId: string): Promise<void> {
+  await withClinicContext(clinicId, async (client) => {
+    await client.query(
+      `DELETE FROM shared.scheduling_holds WHERE hold_token = $1 AND clinic_id = $2`,
+      [holdToken, clinicId],
+    );
+  });
+}
+
+/**
+ * Limpeza periódica de holds expirados. Roda em dermaos_worker (sem RLS).
+ * Não depende de withClinicContext — faz DELETE global por expires_at < NOW().
+ */
+export async function deleteExpiredHolds(): Promise<number> {
+  const result = await db.query<{ hold_token: string }>(
+    `DELETE FROM shared.scheduling_holds WHERE expires_at < NOW() RETURNING hold_token`,
+  );
+  if (result.rowCount && result.rowCount > 0) {
+    logger.info({ deleted: result.rowCount }, 'scheduling_holds.expired_cleanup');
+  }
+  return result.rowCount ?? 0;
+}
+
 /* ── Health / debug ──────────────────────────────────────────────────────── */
 
 export async function pingScheduling(): Promise<boolean> {

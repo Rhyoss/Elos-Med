@@ -1,10 +1,11 @@
 import type { UserRole } from './roles.js';
 import type { Resource, Action, PermissionMap } from '../types/rbac.js';
 
-const ALL_ACTIONS: Action[] = ['read', 'write', 'delete', 'sign', 'approve', 'export', 'ai_config'];
+const ALL_ACTIONS: Action[] = ['read', 'write', 'delete', 'sign', 'approve', 'export', 'ai_config', 'recall'];
 const ALL_RESOURCES: Resource[] = [
   'clinical', 'supply', 'financial', 'omni',
   'analytics', 'admin', 'patients', 'appointments',
+  'traceability',
 ];
 
 function grantAll(): PermissionMap {
@@ -40,10 +41,11 @@ export const DEFAULT_PERMISSIONS: Record<UserRole, PermissionMap> = {
     ['patients',     ['read', 'write']],
     ['appointments', ['read', 'write']],
     ['clinical',     ['read', 'write', 'sign', 'export']],
-    ['supply',       ['read']],
+    ['supply',       ['read', 'write']],
     ['financial',    ['read']],
     ['omni',         ['read']],
     ['analytics',    ['read']],
+    ['traceability', ['read', 'recall', 'export']],
   ),
 
   nurse: grant(
@@ -52,6 +54,7 @@ export const DEFAULT_PERMISSIONS: Record<UserRole, PermissionMap> = {
     ['clinical',     ['read', 'write']],
     ['supply',       ['read', 'write']],
     ['omni',         ['read']],
+    ['traceability', ['read']],
   ),
 
   receptionist: grant(

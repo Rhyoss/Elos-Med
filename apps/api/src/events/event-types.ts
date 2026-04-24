@@ -11,6 +11,7 @@ export const DOMAIN_EVENT_TYPES = [
   'appointment.completed',
   'appointment.no_show',
   'appointment.rescheduled',
+  'appointment.created_via_aurora',
 
   // Encontros clínicos
   'encounter.started',
@@ -18,13 +19,25 @@ export const DOMAIN_EVENT_TYPES = [
   'encounter.signed',
 
   // Prescrições
+  'prescription.created',
+  'prescription.updated',
+  'prescription.signed',
   'prescription.issued',
   'prescription.sent',
+  'prescription.duplicated',
+  'prescription.cancelled',
 
   // Protocolos
+  'protocol.created',
+  'protocol.updated',
   'protocol.started',
   'protocol.session_completed',
+  'protocol.session_corrected',
+  'protocol.session_flagged_review',
   'protocol.completed',
+  'protocol.cancelled',
+  'protocol.paused',
+  'protocol.resumed',
 
   // Biópsias
   'biopsy.collected',
@@ -42,6 +55,14 @@ export const DOMAIN_EVENT_TYPES = [
   'conversation.resolved',
   'conversation.escalated',
   'conversation.ai_responded',
+  'conversation.assigned',
+  'conversation.message_sent',
+  'conversation.message_retried',
+
+  // Aurora — recepcionista virtual
+  'aurora.message_handled',
+  'aurora.guardrail_block',
+  'aurora.transfer_to_human',
 
   // Estoque
   'stock.low_alert',
@@ -91,14 +112,27 @@ export const EVENT_AGGREGATE_MAP: Record<DomainEventType, string> = {
   'appointment.completed':        'appointment',
   'appointment.no_show':          'appointment',
   'appointment.rescheduled':      'appointment',
+  'appointment.created_via_aurora': 'appointment',
   'encounter.started':            'encounter',
   'encounter.completed':          'encounter',
   'encounter.signed':             'encounter',
+  'prescription.created':         'prescription',
+  'prescription.updated':         'prescription',
+  'prescription.signed':          'prescription',
   'prescription.issued':          'prescription',
   'prescription.sent':            'prescription',
+  'prescription.duplicated':      'prescription',
+  'prescription.cancelled':       'prescription',
+  'protocol.created':             'protocol',
+  'protocol.updated':             'protocol',
   'protocol.started':             'protocol',
   'protocol.session_completed':   'protocol',
+  'protocol.session_corrected':   'protocol',
+  'protocol.session_flagged_review': 'protocol',
   'protocol.completed':           'protocol',
+  'protocol.cancelled':           'protocol',
+  'protocol.paused':              'protocol',
+  'protocol.resumed':             'protocol',
   'biopsy.collected':             'biopsy',
   'biopsy.result_received':       'biopsy',
   'biopsy.patient_notified':      'biopsy',
@@ -110,6 +144,12 @@ export const EVENT_AGGREGATE_MAP: Record<DomainEventType, string> = {
   'conversation.resolved':        'conversation',
   'conversation.escalated':       'conversation',
   'conversation.ai_responded':    'conversation',
+  'conversation.assigned':        'conversation',
+  'conversation.message_sent':    'conversation',
+  'conversation.message_retried': 'conversation',
+  'aurora.message_handled':       'conversation',
+  'aurora.guardrail_block':       'conversation',
+  'aurora.transfer_to_human':     'conversation',
   'stock.low_alert':              'product',
   'stock.critical_alert':         'product',
   'stock.lot_expiring':           'inventory_lot',
@@ -155,5 +195,10 @@ export type EventPayloads = {
   'lead.converted': { contactId: string; patientId?: string; cpfHash?: string; phone?: string };
   'appointment.scheduled': { appointmentId: string; procedureType?: string; patientId: string };
   'encounter.completed': { encounterId: string; patientId: string; kitId?: string; providerId: string };
+  'encounter.signed': { encounterId: string; patientId: string; providerId: string; serviceId?: string | null };
+  'protocol.session_completed': {
+    sessionId: string; protocolId: string; patientId: string;
+    performedBy?: string | null; serviceId?: string | null;
+  };
   [key: string]: Record<string, unknown>;
 };

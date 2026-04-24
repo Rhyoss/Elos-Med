@@ -19,6 +19,7 @@ interface PatientTab {
 const TABS: PatientTab[] = [
   { label: 'Perfil',       segment: 'perfil'        },
   { label: 'Prontuário',   segment: 'prontuario'    },
+  { label: 'Prescrições',  segment: 'prescricoes'   },
   { label: 'Imagens',      segment: 'imagens'       },
   { label: 'Protocolos',   segment: 'protocolos'    },
   { label: 'Agendamentos', segment: 'agendamentos'  },

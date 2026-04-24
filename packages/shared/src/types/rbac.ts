@@ -6,7 +6,8 @@ export type Resource =
   | 'analytics'
   | 'admin'
   | 'patients'
-  | 'appointments';
+  | 'appointments'
+  | 'traceability';
 
 export type Action =
   | 'read'
@@ -15,7 +16,8 @@ export type Action =
   | 'sign'
   | 'approve'
   | 'export'
-  | 'ai_config';
+  | 'ai_config'
+  | 'recall';
 
 export interface Permission {
   resource: Resource;
