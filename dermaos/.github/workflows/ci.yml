@@ -1,0 +1,392 @@
+name: CI
+
+on:
+  push:
+    branches: ['main', 'develop', 'feature/**', 'fix/**']
+  pull_request:
+    branches: ['main']
+
+# Cancela runs anteriores do mesmo branch quando há novo push
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write   # necessário para upload de SARIF ao GitHub Security
+
+env:
+  PNPM_VERSION: '9.15.0'
+  NODE_VERSION: '22'
+
+jobs:
+  # ── 0. Security Scan (paralelo — sem deps) ──────────────────────────────────
+  # Gate obrigatório: bloqueia merge se secrets hardcoded ou vulns CRITICAL
+  security-scan:
+    name: Security Scan (Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Scan de código-fonte: segredos hardcoded ────────────────────────────
+      - name: Trivy — scan de secrets no código-fonte
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          exit-code: '1'          # bloqueia se secret encontrado
+          format: table
+
+      # ── Scan de código-fonte: vulnerabilidades em dependências ──────────────
+      - name: Trivy — scan de vulnerabilidades (deps)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          exit-code: '0'          # reporta mas não bloqueia (gate na imagem)
+          format: sarif
+          output: trivy-fs-results.sarif
+
+      - name: Upload SARIF (vulnerabilidades deps) → GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs-results.sarif
+          category: trivy-dependencies
+
+      # ── Build da imagem API para scan de imagem ─────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build imagem API (para scan — sem push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          load: true
+          tags: dermaos-api-scan:${{ github.sha }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      # ── Scan da imagem — gate CRÍTICO: CRITICAL bloqueia merge ─────────────
+      - name: Trivy — scan imagem API (CRITICAL/HIGH bloqueiam)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          image-ref: dermaos-api-scan:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: '1'          # bloqueia merge se CRITICAL ou HIGH
+          format: sarif
+          output: trivy-image-results.sarif
+
+      - name: Upload SARIF (imagem API) → GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image-results.sarif
+          category: trivy-image-api
+
+
+  # ── 1. Lint + Typecheck ─────────────────────────────────────────────────────
+  # Fail-fast: se lint falhar, os outros jobs não rodam (economiza CI minutes)
+  lint-and-typecheck:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Check for test.only / test.skip
+        run: |
+          # Bloqueia commit com test.only ou test.skip
+          if grep -rn --include="*.test.ts" --include="*.spec.ts" \
+               -E "(test|it|describe)\.only|test\.skip" \
+               apps/ packages/ e2e/ 2>/dev/null; then
+            echo "❌ test.only ou test.skip encontrado. Remova antes de commitar."
+            exit 1
+          fi
+          echo "✅ Nenhum test.only/test.skip encontrado"
+
+  # ── 2. Unit Tests ───────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests (API)
+        working-directory: apps/api
+        run: pnpm test:unit --reporter=verbose
+
+      - name: Run unit tests (shared)
+        working-directory: packages/shared
+        run: pnpm test --reporter=verbose
+
+      - name: Generate coverage report
+        working-directory: apps/api
+        run: pnpm test:coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: apps/api/coverage/
+          retention-days: 7
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          working-directory: apps/api
+
+  # ── 3. Integration Tests (com RLS smoke obrigatório) ───────────────────────
+  integration-tests:
+    name: Integration Tests (+ RLS Smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: lint-and-typecheck
+    services:
+      # PostgreSQL usado como fallback quando testcontainers não está disponível em CI
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: dermaos_test
+          POSTGRES_USER: dermaos
+          POSTGRES_PASSWORD: dermaos_test_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://dermaos:dermaos_test_pass@localhost:5432/dermaos_test
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+      JWT_SECRET: ci-jwt-secret-min-32-chars-for-testing!
+      JWT_REFRESH_SECRET: ci-refresh-secret-min-32-chars-for-tests!
+      MASTER_ENCRYPTION_KEY: ${{ secrets.TEST_MASTER_KEY || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }}
+      MASTER_KEY_VERSION: '1'
+      ENCRYPTION_KEY: ${{ secrets.TEST_ENCRYPTION_KEY || 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' }}
+      TENANT_HMAC_SECRET: ci-hmac-secret-for-testing-min-32chars!
+      MINIO_ENDPOINT: localhost
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      TYPESENSE_HOST: localhost
+      TYPESENSE_API_KEY: test-api-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run database migrations
+        run: |
+          # Roda os scripts SQL de init em ordem
+          for f in $(ls db/init/*.sql | sort); do
+            echo "Applying $f..."
+            PGPASSWORD=dermaos_test_pass psql \
+              -h localhost -U dermaos -d dermaos_test \
+              -f "$f" 2>&1
+          done
+
+      - name: Run RLS smoke test (obrigatório — bloqueia merge se falhar)
+        id: rls-smoke
+        working-directory: apps/api
+        run: |
+          pnpm vitest run \
+            --config vitest.integration.config.ts \
+            --reporter=verbose \
+            src/__tests__/integration/rls-smoke.test.ts
+
+      - name: Run integration tests (auth + outros)
+        working-directory: apps/api
+        run: |
+          pnpm vitest run \
+            --config vitest.integration.config.ts \
+            --reporter=verbose \
+            --exclude "**rls-smoke**"
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: apps/api/test-results/
+          retention-days: 7
+
+  # ── 4. Build ────────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Build all packages
+        run: pnpm build
+        env:
+          # Variáveis mínimas para build não falhar
+          DATABASE_URL: postgresql://localhost:5432/build_dummy
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: build-check-secret-min-32-chars-dummy!
+          JWT_REFRESH_SECRET: build-check-refresh-min-32-chars-dummy!
+          MASTER_ENCRYPTION_KEY: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+          ENCRYPTION_KEY: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+          TENANT_HMAC_SECRET: build-hmac-secret-dummy-min-32-chars!!
+          MINIO_ENDPOINT: localhost
+          MINIO_ACCESS_KEY: build
+          MINIO_SECRET_KEY: build
+          TYPESENSE_HOST: localhost
+          TYPESENSE_API_KEY: build
+
+  # ── 5. E2E Tests (apenas em PR para main) ───────────────────────────────────
+  e2e:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # E2E só roda em PRs para main e depende de build + integração estarem OK
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    needs: [build, integration-tests]
+    env:
+      E2E_BASE_URL: http://localhost:3000
+      E2E_ADMIN_EMAIL: admin@dermaos.test
+      E2E_ADMIN_PASS: Admin@12345
+      E2E_DOCTOR_EMAIL: doctor@dermaos.test
+      E2E_DOCTOR_PASS: Doctor@12345
+      E2E_RECEPTIONIST_EMAIL: receptionist@dermaos.test
+      E2E_RECEPTIONIST_PASS: Recep@12345
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm dlx playwright install chromium --with-deps
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: .
+
+      - name: Run E2E tests
+        working-directory: e2e
+        run: pnpm playwright test --project=setup-auth && pnpm playwright test --project=chromium
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 14
+
+      - name: Upload test results (screenshots/videos)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: e2e/test-results/
+          retention-days: 7
+
+      - name: Comment Playwright report link on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🎭 Playwright E2E Report\n[Ver relatório completo](${artifactUrl})`
+            });

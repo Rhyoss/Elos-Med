@@ -1,0 +1,33 @@
+# ── Web ────────────────────────────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+pydantic-settings==2.7.0
+
+# ── HTTP / DB / Cache ──────────────────────────────────────────────────────
+httpx==0.28.1
+asyncpg==0.30.0
+psycopg[binary]==3.2.3
+redis==5.2.1
+
+# ── ML core ────────────────────────────────────────────────────────────────
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+joblib==1.4.2
+
+# ── Forecasting ────────────────────────────────────────────────────────────
+prophet==1.1.6
+
+# ── NLP (CPU only) ────────────────────────────────────────────────────────
+# torch CPU é instalado em camada separada no Dockerfile (--index-url cpu)
+torch==2.5.1
+transformers==4.46.3
+tokenizers==0.20.3
+sentencepiece==0.2.0
+
+# ── LLM ───────────────────────────────────────────────────────────────────
+anthropic==0.40.0
+
+# ── Observabilidade ───────────────────────────────────────────────────────
+structlog==24.4.0
