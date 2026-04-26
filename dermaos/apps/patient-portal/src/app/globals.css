@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens — Paleta DermaOS (Gold + White + Neutrals) ────────────── */
+@theme {
+  --color-gold-50:  #fdf9ee;
+  --color-gold-100: #f9efcc;
+  --color-gold-200: #f3dd99;
+  --color-gold-300: #ebc95e;
+  --color-gold-400: #e3b530;
+  --color-gold-500: #b8860b;  /* gold principal */
+  --color-gold-600: #9a6f09;
+  --color-gold-700: #7a5707;
+  --color-gold-800: #5c4106;
+  --color-gold-900: #3e2c04;
+
+  --color-neutral-50:  #fafafa;
+  --color-neutral-100: #f5f5f5;
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-300: #d4d4d4;
+  --color-neutral-400: #a3a3a3;
+  --color-neutral-500: #737373;
+  --color-neutral-600: #525252;
+  --color-neutral-700: #404040;
+  --color-neutral-800: #262626;
+  --color-neutral-900: #171717;
+
+  /* Safe areas para iPhones com notch */
+  --safe-top:    env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+  --safe-left:   env(safe-area-inset-left);
+  --safe-right:  env(safe-area-inset-right);
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Evita zoom no iOS ao focar inputs */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background-color: #ffffff;
+  color: #171717;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  /* Scroll suave */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #0a0a0a;
+    color: #fafafa;
+  }
+}
+
+/* ─── Touch targets mínimos 44×44px (WCAG 2.1) ──────────────────────────────── */
+
+a, button, [role="button"], input, select, textarea, label {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Links e botões sem min-width visual mas com hit area */
+a {
+  min-width: unset;
+}
+
+/* ─── Foco visível — acessibilidade ─────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid #b8860b;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── Skeleton loading ───────────────────────────────────────────────────────── */
+
+@keyframes skeleton-pulse {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+.skeleton {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  background-color: #e5e5e5;
+  border-radius: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .skeleton {
+    background-color: #262626;
+  }
+}
+
+/* ─── Bottom navigation safe area ───────────────────────────────────────────── */
+
+.bottom-nav {
+  padding-bottom: max(env(safe-area-inset-bottom), 8px);
+}
+
+/* ─── Scrollbar oculta em mobile ─────────────────────────────────────────────── */
+
+.scroll-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -1,0 +1,32 @@
+# ─── Development (hot reload via Next.js dev server) ─────────────────────────
+# Build context: monorepo root (.)
+FROM node:22-alpine AS development
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/ui/package.json ./packages/ui/
+COPY apps/web/package.json ./apps/web/
+
+RUN pnpm install --no-frozen-lockfile
+
+COPY packages/shared/src ./packages/shared/src
+COPY packages/shared/tsconfig.json ./packages/shared/
+COPY packages/ui/src ./packages/ui/src
+COPY packages/ui/tsconfig.json ./packages/ui/
+COPY apps/web/src ./apps/web/src
+COPY apps/web/tsconfig.json ./apps/web/
+COPY apps/web/next.config.ts ./apps/web/
+COPY apps/web/tailwind.config.ts ./apps/web/
+
+WORKDIR /app/apps/web
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=development
+
+EXPOSE 3000
+
+CMD ["pnpm", "dev"]

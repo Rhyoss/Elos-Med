@@ -1,0 +1,293 @@
+name: Deploy
+
+on:
+  push:
+    branches: ['main']
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false   # não cancelar deploy em andamento
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+env:
+  PNPM_VERSION: '9.15.0'
+  NODE_VERSION: '22'
+  REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+  IMAGE_PREFIX: ${{ vars.IMAGE_PREFIX || github.repository_owner }}/dermaos
+
+# ── Apps com Dockerfile Node.js (contexto: raiz) ──────────────────────────────
+# Para adicionar/remover apps, editar apenas esta lista em strategy.matrix
+jobs:
+  # ── 1. Build & Push de todas as imagens ──────────────────────────────────────
+  build-and-push:
+    name: Build & Push — ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - app: api
+            dockerfile: apps/api/Dockerfile
+            context: .
+          - app: web
+            dockerfile: apps/web/Dockerfile
+            context: .
+          - app: worker
+            dockerfile: apps/worker/Dockerfile
+            context: .
+          - app: patient-portal
+            dockerfile: apps/patient-portal/Dockerfile
+            context: .
+          - app: ai
+            dockerfile: apps/ai/Dockerfile
+            context: apps/ai
+
+    outputs:
+      # Exporta a tag do SHA para o job de deploy usar no rollback
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in ao Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extrair metadados (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.app }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # ── Scan de segurança ANTES do push — não publicar imagem vulnerável ─────
+      - name: Build imagem (sem push — para scan)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: ${{ matrix.app }}-prescan:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,scope=${{ matrix.app }},mode=max
+
+      - name: Trivy — scan CRITICAL/HIGH (bloqueia push se encontrar)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          image-ref: ${{ matrix.app }}-prescan:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          format: sarif
+          output: trivy-${{ matrix.app }}.sarif
+
+      - name: Upload SARIF → GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.app }}.sarif
+          category: deploy-trivy-${{ matrix.app }}
+
+      # ── Push somente se scan passou ──────────────────────────────────────────
+      - name: Push imagem ao registry
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,scope=${{ matrix.app }},mode=max
+
+  # ── 2. Deploy Staging (automático após build-and-push) ────────────────────
+  deploy-staging:
+    name: Deploy → Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build-and-push
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy rolling update no servidor de staging
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_PREFIX: ${{ env.IMAGE_PREFIX }}
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: ${{ secrets.STAGING_PORT || 22 }}
+          envs: IMAGE_TAG,REGISTRY,IMAGE_PREFIX
+          script: |
+            set -euo pipefail
+            cd /opt/dermaos
+
+            # Salva tag anterior para rollback
+            PREV_TAG=$(cat .current-image-tag 2>/dev/null || echo "latest")
+            echo "$IMAGE_TAG" > .current-image-tag
+
+            echo "==> Pulling novas imagens (tag: $IMAGE_TAG)..."
+            export IMAGE_TAG REGISTRY IMAGE_PREFIX
+            docker compose -f docker-compose.prod.yml pull \
+              api web worker portal ai
+
+            echo "==> Rolling update: api..."
+            docker compose -f docker-compose.prod.yml up -d --no-deps --wait api
+            # Aguarda health check do novo container
+            for i in $(seq 1 12); do
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' dermaos-api 2>/dev/null || echo "starting")
+              [ "$STATUS" = "healthy" ] && break
+              echo "  api: $STATUS (tentativa $i/12)..."
+              sleep 5
+            done
+            if [ "$(docker inspect --format='{{.State.Health.Status}}' dermaos-api)" != "healthy" ]; then
+              echo "❌ Health check falhou no api — rollback para $PREV_TAG"
+              export IMAGE_TAG=$PREV_TAG
+              docker compose -f docker-compose.prod.yml up -d --no-deps api
+              echo "$PREV_TAG" > .current-image-tag
+              exit 1
+            fi
+
+            echo "==> Rolling update: web, worker, portal, ai..."
+            docker compose -f docker-compose.prod.yml up -d --no-deps --wait \
+              web worker portal ai
+
+            echo "==> Limpando imagens antigas..."
+            docker image prune -f --filter "until=168h"
+
+            echo "✅ Deploy staging concluído (tag: $IMAGE_TAG)"
+
+      - name: Smoke test staging
+        run: |
+          STAGING_URL="${{ vars.STAGING_URL }}"
+          echo "Verificando $STAGING_URL/api/health ..."
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/api/health" || echo "000")
+            [ "$STATUS" = "200" ] && echo "✅ Staging healthy" && exit 0
+            echo "  tentativa $i/10: status $STATUS"
+            sleep 6
+          done
+          echo "❌ Smoke test falhou"
+          exit 1
+
+  # ── 3. Deploy Production (aprovação manual obrigatória) ───────────────────
+  deploy-production:
+    name: Deploy → Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: deploy-staging
+    environment:
+      name: production          # requer aprovação: required_reviewers: 1
+      url: ${{ vars.PRODUCTION_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy rolling update no servidor de produção
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_PREFIX: ${{ env.IMAGE_PREFIX }}
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT || 22 }}
+          envs: IMAGE_TAG,REGISTRY,IMAGE_PREFIX
+          script: |
+            set -euo pipefail
+            cd /opt/dermaos
+
+            PREV_TAG=$(cat .current-image-tag 2>/dev/null || echo "latest")
+            echo "$IMAGE_TAG" > .current-image-tag
+
+            rollback() {
+              echo "❌ Falha detectada — rollback para $PREV_TAG"
+              export IMAGE_TAG=$PREV_TAG
+              docker compose -f docker-compose.prod.yml up -d --no-deps --wait \
+                api web worker portal ai
+              echo "$PREV_TAG" > .current-image-tag
+              exit 1
+            }
+
+            echo "==> Backup automático antes do deploy..."
+            bash scripts/backup.sh || echo "⚠️  Backup falhou (não bloqueio deploy)"
+
+            echo "==> Pulling imagens (tag: $IMAGE_TAG)..."
+            export IMAGE_TAG REGISTRY IMAGE_PREFIX
+            docker compose -f docker-compose.prod.yml pull \
+              api web worker portal ai
+
+            # Rolling update serviço a serviço com health check
+            for SVC in api web worker portal ai; do
+              echo "==> Atualizando $SVC..."
+              docker compose -f docker-compose.prod.yml up -d --no-deps --wait "$SVC" || rollback
+
+              CONTAINER="dermaos-$SVC"
+              for i in $(seq 1 24); do
+                STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo "none")
+                [ "$STATUS" = "healthy" ] || [ "$STATUS" = "none" ] && break
+                echo "  $SVC: $STATUS (tentativa $i/24)..."
+                sleep 5
+              done
+
+              FINAL=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo "none")
+              if [ "$FINAL" = "unhealthy" ]; then
+                rollback
+              fi
+            done
+
+            docker image prune -f --filter "until=168h"
+            echo "✅ Deploy produção concluído (tag: $IMAGE_TAG)"
+
+      - name: Smoke test produção
+        run: |
+          PROD_URL="${{ vars.PRODUCTION_URL }}"
+          echo "Verificando $PROD_URL/api/health e $PROD_URL/api/ready ..."
+          for ENDPOINT in "/api/health" "/api/ready"; do
+            for i in $(seq 1 10); do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_URL$ENDPOINT" || echo "000")
+              [ "$STATUS" = "200" ] && echo "✅ $ENDPOINT OK" && break
+              echo "  tentativa $i/10: status $STATUS"
+              sleep 6
+              [ "$i" = "10" ] && echo "❌ $ENDPOINT falhou" && exit 1
+            done
+          done
+          echo "✅ Produção saudável"
+
+      - name: Notificar deploy bem-sucedido
+        if: success()
+        run: |
+          echo "Deploy produção concluído com sucesso"
+          echo "Tag: ${{ github.sha }}"
+          echo "Commit: ${{ github.event.head_commit.message }}"
+          # Extensível: adicionar curl para Slack/Teams webhook aqui
+
+      - name: Notificar falha e rollback
+        if: failure()
+        run: |
+          echo "❌ Deploy produção FALHOU — rollback executado"
+          echo "Tag tentada: ${{ github.sha }}"
+          # Extensível: adicionar curl para Slack/Teams webhook aqui
