@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@dermaos/ui';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@dermaos/ui';
 import { Plus } from 'lucide-react';
+import { Btn, PageHero } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { keepPreviousData } from '@tanstack/react-query';
 import { AUTOMATION_TRIGGERS, TRIGGER_META, type AutomationTrigger } from '@dermaos/shared';
@@ -64,20 +65,22 @@ export default function AutomacoesPage() {
   const activeCount = automations.filter((a) => a.is_active).length;
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Cabeçalho */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Automações</h1>
-          <p className="text-sm text-muted-foreground">
+    <div style={{ overflowY: 'auto', height: '100%', padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <PageHero
+        eyebrow="GATILHOS · CANAIS · SEQUÊNCIAS"
+        title="Automações"
+        module="aiMod"
+        icon="zap"
+        description={
+          <>
             {automations.length} regra{automations.length !== 1 ? 's' : ''} configurada{automations.length !== 1 ? 's' : ''}
             {activeCount > 0 && ` · ${activeCount} ativa${activeCount !== 1 ? 's' : ''}`}
-          </p>
-        </div>
-        <Button onClick={() => setModalOpen(true)} aria-label="Criar nova automação">
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Nova Automação
-        </Button>
+          </>
+        }
+        actions={<Btn small icon="plus" onClick={() => setModalOpen(true)}>Nova Automação</Btn>}
+      />
+      <div style={{ display: 'none' }}>
+        {/* anchor para diff mínimo abaixo */}
       </div>
 
       {/* Filtros */}
@@ -117,14 +120,15 @@ export default function AutomacoesPage() {
         </Select>
 
         {(triggerFilter !== 'all' || channelFilter !== 'all' || statusFilter !== 'all') && (
-          <Button
+          <Btn
             variant="ghost"
-            size="sm"
+            small
+            icon="x"
             onClick={() => { setTriggerFilter('all'); setChannelFilter('all'); setStatusFilter('all'); }}
             aria-label="Limpar filtros"
           >
             Limpar filtros
-          </Button>
+          </Btn>
         )}
       </div>
 

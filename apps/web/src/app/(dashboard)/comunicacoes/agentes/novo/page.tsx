@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, ChevronLeft, Loader2 } from 'lucide-react';
-import { PageHeader, Button, Card, CardContent, useToast } from '@dermaos/ui';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import { Card, CardContent, useToast } from '@dermaos/ui';
+import { Btn, Glass, PageHero } from '@dermaos/ui/ds';
 import {
   createAgentSchema,
   type CreateAgentInput,
@@ -103,24 +104,26 @@ export default function NovoAgentePage() {
   });
 
   return (
-    <div className="flex flex-col h-full">
-      <PageHeader
-        title="Novo agente"
-        description="Crie um agente da Aurora. Ele começa inativo — configure tudo antes de ligar."
-        actions={
-          <Link href="/comunicacoes/agentes">
-            <Button variant="ghost" size="sm">
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              Voltar
-            </Button>
-          </Link>
-        }
-      />
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <div style={{ padding: '20px 26px 12px', flexShrink: 0 }}>
+        <PageHero
+          eyebrow="AURORA · NOVO AGENTE"
+          title="Novo agente"
+          module="aiMod"
+          icon="zap"
+          description="Crie um agente da Aurora. Ele começa inativo — configure tudo antes de ligar."
+          actions={
+            <Link href="/comunicacoes/agentes" style={{ textDecoration: 'none' }}>
+              <Btn variant="glass" small icon="arrowLeft">Voltar</Btn>
+            </Link>
+          }
+        />
+      </div>
 
-      <form onSubmit={onSubmit} className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-2xl mx-auto flex flex-col gap-4">
-          <Card>
-            <CardContent className="flex flex-col gap-4 p-6">
+      <form onSubmit={onSubmit} style={{ flex: 1, overflowY: 'auto', padding: '0 26px 22px' }}>
+        <div style={{ maxWidth: 700, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Glass style={{ padding: 24 }}>
+            <div className="flex flex-col gap-4">
               <FormField
                 label="Nome do agente"
                 required
@@ -203,27 +206,22 @@ export default function NovoAgentePage() {
                   )}
                 />
               </FormField>
-            </CardContent>
-          </Card>
+            </div>
+          </Glass>
 
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Link href="/comunicacoes/agentes">
-              <Button type="button" variant="ghost" size="sm">Cancelar</Button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, paddingTop: 8 }}>
+            <Link href="/comunicacoes/agentes" style={{ textDecoration: 'none' }}>
+              <Btn type="button" variant="ghost" small>Cancelar</Btn>
             </Link>
-            <Button
+            <Btn
               type="submit"
-              size="sm"
-              disabled={!isValid || createMutation.isPending}
+              small
+              icon="check"
+              disabled={!isValid}
+              loading={createMutation.isPending}
             >
-              {createMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  Criando…
-                </>
-              ) : (
-                'Criar agente'
-              )}
-            </Button>
+              {createMutation.isPending ? 'Criando…' : 'Criar agente'}
+            </Btn>
           </div>
         </div>
       </form>

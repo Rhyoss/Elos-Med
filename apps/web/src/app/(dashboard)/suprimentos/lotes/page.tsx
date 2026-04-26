@@ -18,6 +18,7 @@ import {
   DialogFooter,
   Textarea,
 } from '@dermaos/ui';
+import { Btn, PageHero } from '@dermaos/ui/ds';
 
 function Label({
   htmlFor,
@@ -170,27 +171,25 @@ export default function LotesPage() {
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <SuprimentosTabs />
 
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Lotes & Validades</h1>
-          <p className="text-sm text-muted-foreground">
-            Ordenação FEFO (validade mais próxima primeiro) — lotes ativos com saldo
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
+      <PageHero
+        eyebrow="ORDENAÇÃO FEFO ATIVA"
+        title="Lotes & Validades"
+        module="supply"
+        icon="layers"
+        description="Validade mais próxima primeiro — lotes ativos com saldo"
+        actions={
+          <Btn
+            small
+            icon="plus"
             onClick={() => {
               setContextLot(null);
               setMovementInitial({ type: 'entrada' });
             }}
           >
-            <Plus className="mr-1 h-4 w-4" />
             Nova Movimentação
-          </Button>
-        </div>
-      </div>
+          </Btn>
+        }
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">

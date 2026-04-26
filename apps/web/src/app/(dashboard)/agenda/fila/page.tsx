@@ -6,13 +6,11 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Clock, PlayCircle, CheckCircle2, UserCheck } from 'lucide-react';
+import { cn, useToast } from '@dermaos/ui';
 import {
-  Button,
-  EmptyState,
-  PageHeader,
-  cn,
-  useToast,
-} from '@dermaos/ui';
+  Btn, Glass, Mono, EmptyState,
+  PageHero, formatHeroDate, T,
+} from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { useRealtime } from '@/hooks/use-realtime';
 
@@ -54,29 +52,32 @@ export default function FilaEsperaPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <PageHeader
+    <div style={{ overflowY: 'auto', height: '100%', padding: '22px 26px' }}>
+      <PageHero
+        eyebrow={formatHeroDate(new Date())}
         title="Fila de Espera"
-        description={`${entries.length} paciente${entries.length === 1 ? '' : 's'} aguardando`}
+        module="clinical"
+        icon="clock"
+        description={`${entries.length} paciente${entries.length === 1 ? '' : 's'} aguardando atendimento`}
         actions={
-          <Link href="/agenda">
-            <Button variant="outline" size="sm">Voltar à Agenda</Button>
+          <Link href="/agenda" style={{ textDecoration: 'none' }}>
+            <Btn variant="glass" small icon="arrowLeft">Voltar à Agenda</Btn>
           </Link>
         }
       />
 
       {queueQuery.isLoading ? (
-        <div className="rounded-lg border bg-card p-8 text-center text-sm text-muted-foreground">
-          Carregando fila...
-        </div>
+        <Glass style={{ padding: 32, textAlign: 'center' }}>
+          <Mono size={9} color={T.textMuted}>CARREGANDO FILA…</Mono>
+        </Glass>
       ) : entries.length === 0 ? (
         <EmptyState
-          icon={<UserCheck className="h-12 w-12" />}
+          icon="users"
           title="Fila vazia"
           description="Nenhum paciente fez check-in. Eles aparecerão aqui automaticamente."
         />
       ) : (
-        <ul className="flex flex-col gap-2" aria-label="Fila de espera">
+        <div role="list" aria-label="Fila de espera" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {entries.map((entry, index) => {
             const isInProgress = entry.status === 'in_progress';
             const waiting = entry.waitingMinutes;
@@ -84,63 +85,80 @@ export default function FilaEsperaPage() {
             const checkedInAt = new Date(entry.checkedInAt);
             const scheduledAt = new Date(entry.scheduledAt);
 
+            const accentColor = isInProgress
+              ? T.success
+              : isOverdue
+                ? T.danger
+                : T.clinical.color;
+
             return (
-              <li
+              <Glass
                 key={entry.appointmentId}
-                className={cn(
-                  'flex flex-wrap items-center gap-4 rounded-lg border bg-card p-4 shadow-sm',
-                  isInProgress && 'border-green-500/40 bg-green-50/40',
-                  isOverdue && 'border-red-300 bg-red-50/30',
-                )}
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: 16,
+                  padding: 16,
+                  borderLeft: `3px solid ${accentColor}`,
+                }}
               >
+                {/* Posição na fila */}
                 <div
-                  className={cn(
-                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-semibold',
-                    isInProgress
-                      ? 'bg-green-600 text-white'
-                      : 'bg-primary-100 text-primary-900',
-                  )}
                   aria-label={`Posição ${index + 1} na fila`}
+                  style={{
+                    width: 40,
+                    height: 40,
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    background: isInProgress ? T.success : T.clinical.bg,
+                    color: isInProgress ? '#fff' : T.clinical.color,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    border: isInProgress ? 'none' : `1px solid ${T.clinical.color}30`,
+                  }}
                 >
-                  {isInProgress ? (
-                    <PlayCircle className="h-5 w-5" aria-hidden="true" />
-                  ) : (
-                    index + 1
-                  )}
+                  {isInProgress ? <PlayCircle className="h-5 w-5" aria-hidden="true" /> : index + 1}
                 </div>
 
-                <div className="flex-1 min-w-[220px]">
-                  <p className="font-semibold text-foreground leading-tight">
+                {/* Paciente */}
+                <div style={{ flex: 1, minWidth: 220 }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary, lineHeight: 1.2 }}>
                     {entry.patientName}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <Mono size={9}>
                     {entry.providerName}
-                    {entry.serviceName ? ` • ${entry.serviceName}` : ''}
-                  </p>
+                    {entry.serviceName ? ` · ${entry.serviceName}` : ''}
+                  </Mono>
                 </div>
 
-                <div className="flex flex-col items-start text-xs text-muted-foreground min-w-[150px]">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                    Check-in às {format(checkedInAt, 'HH:mm', { locale: ptBR })}
-                  </span>
-                  <span>
-                    Agendado para {format(scheduledAt, 'HH:mm', { locale: ptBR })}
-                  </span>
+                {/* Horários */}
+                <div style={{ minWidth: 150, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Mono size={9}>
+                    CHECK-IN {format(checkedInAt, 'HH:mm', { locale: ptBR })}
+                  </Mono>
+                  <Mono size={9} color={T.textTertiary}>
+                    AGENDADO {format(scheduledAt, 'HH:mm', { locale: ptBR })}
+                  </Mono>
                 </div>
 
+                {/* Tempo de espera */}
                 <div
-                  className={cn(
-                    'flex items-center gap-1 text-sm font-medium tabular-nums min-w-[90px]',
-                    isOverdue && 'text-danger-700',
-                    isInProgress && 'text-green-700',
-                    !isOverdue && !isInProgress && 'text-foreground',
-                  )}
-                  aria-label={
-                    isInProgress
-                      ? 'Em atendimento'
-                      : `Aguardando há ${waiting} minutos`
-                  }
+                  style={{
+                    minWidth: 90,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 13,
+                    fontVariantNumeric: 'tabular-nums',
+                    fontWeight: 600,
+                    color: accentColor,
+                    fontFamily: "'IBM Plex Sans', sans-serif",
+                  }}
+                  aria-label={isInProgress ? 'Em atendimento' : `Aguardando há ${waiting} minutos`}
                 >
                   {isInProgress ? (
                     <>
@@ -156,30 +174,30 @@ export default function FilaEsperaPage() {
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                {/* Ações */}
+                <div style={{ display: 'flex', gap: 6 }}>
                   {isInProgress ? (
-                    <Link href={`/pacientes/${entry.patientId}/prontuario`}>
-                      <Button size="sm" variant="outline">
-                        Continuar Atendimento
-                      </Button>
+                    <Link href={`/pacientes/${entry.patientId}/prontuario`} style={{ textDecoration: 'none' }}>
+                      <Btn variant="glass" small icon="arrowRight">Continuar</Btn>
                     </Link>
                   ) : (
-                    <Button
-                      size="sm"
+                    <Btn
+                      small
+                      icon="check"
                       onClick={() => handleStart(entry.appointmentId, entry.patientId)}
-                      isLoading={
+                      loading={
                         startMut.isPending &&
                         startMut.variables?.id === entry.appointmentId
                       }
                     >
-                      Iniciar Atendimento
-                    </Button>
+                      Iniciar
+                    </Btn>
                   )}
                 </div>
-              </li>
+              </Glass>
             );
           })}
-        </ul>
+        </div>
       )}
     </div>
   );

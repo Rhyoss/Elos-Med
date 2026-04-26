@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { CalendarClock, Plus, CheckCircle2, Circle, XCircle, CircleAlert } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Circle, XCircle, CircleAlert } from 'lucide-react';
 import {
   Button,
   Badge,
@@ -9,6 +9,7 @@ import {
   LoadingSkeleton,
   useToast,
 } from '@dermaos/ui';
+import { Btn, Mono, T } from '@dermaos/ui/ds';
 import {
   PROTOCOL_STATUS_LABELS,
   PROTOCOL_TYPE_LABELS,
@@ -59,17 +60,20 @@ export default function ProtocolosPage({ params }: { params: PageParams }) {
   }
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
+    <div style={{ padding: '20px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
         <div>
-          <h2 className="text-xl font-semibold">Protocolos & Sessões</h2>
-          <p className="text-sm text-muted-foreground">
+          <Mono size={9} spacing="1.2px" color={T.clinical.color}>TRATAMENTOS &amp; EVOLUÇÃO</Mono>
+          <h2 style={{ fontSize: 18, fontWeight: 700, marginTop: 2, color: T.textPrimary, letterSpacing: '-0.01em' }}>
+            Protocolos &amp; Sessões
+          </h2>
+          <p style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>
             Tratamentos ativos, sessões realizadas e evolução.
           </p>
         </div>
-        <Button size="sm" onClick={() => setNewOpen(true)} disabled={!providerId}>
-          <Plus className="h-4 w-4" aria-hidden="true" /> Novo protocolo
-        </Button>
+        <Btn small icon="plus" onClick={() => setNewOpen(true)} disabled={!providerId}>
+          Novo protocolo
+        </Btn>
       </div>
 
       <div className="flex gap-2 text-sm">

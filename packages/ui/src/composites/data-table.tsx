@@ -288,11 +288,12 @@ export function DataTable<TData>({
               </tr>
             ) : enableVirtualization && virtualItems ? (
               <>
-                {virtualItems[0]?.start > 0 && (
-                  <tr style={{ height: virtualItems[0].start }} aria-hidden="true" />
+                {(virtualItems[0]?.start ?? 0) > 0 && (
+                  <tr style={{ height: virtualItems[0]!.start }} aria-hidden="true" />
                 )}
                 {virtualItems.map((vItem) => {
                   const row = rows[vItem.index];
+                  if (!row) return null;
                   return (
                     <tr
                       key={row.id}

@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { loginSchema } from '@dermaos/shared';
 import type { z } from 'zod';
+import { Btn, Input, Field, Mono, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { useAuthStore } from '@/stores/auth-store';
 import { getPermissionsForRole } from '@dermaos/shared';
@@ -22,12 +23,11 @@ export default function LoginPage() {
         {
           id: data.user.id,
           clinicId: data.user.clinicId,
+          clinicSlug: data.user.clinicSlug,
           name: data.user.name,
           email: data.user.email,
           role: data.user.role,
           avatarUrl: null,
-          crm: null,
-          specialty: null,
         },
         {
           id: data.user.clinicId,
@@ -55,122 +55,112 @@ export default function LoginPage() {
   };
 
   const isLocked = loginMutation.error?.data?.code === 'TOO_MANY_REQUESTS';
+  const isPending = isSubmitting || loginMutation.isPending;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div
-            className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary mb-4"
-            aria-hidden="true"
-          >
-            <span className="text-primary-foreground font-bold text-xl">D</span>
-          </div>
-          <h1 className="text-2xl font-semibold">DermaOS</h1>
-          <p className="text-muted-foreground text-sm mt-1">Faça login na sua clínica</p>
-        </div>
-
-        {/* Formulário */}
-        <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            noValidate
-            aria-label="Formulário de login"
-          >
-            <div className="space-y-4">
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-1.5">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  autoFocus
-                  aria-required="true"
-                  aria-describedby={errors.email ? 'email-error' : undefined}
-                  aria-invalid={!!errors.email}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1
-                             disabled:opacity-50"
-                  disabled={isLocked || loginMutation.isPending}
-                  {...register('email')}
-                />
-                {errors.email && (
-                  <p id="email-error" className="mt-1 text-xs text-destructive" role="alert" aria-live="polite">
-                    {errors.email.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Senha */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium mb-1.5">
-                  Senha
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  aria-required="true"
-                  aria-describedby={errors.password ? 'password-error' : undefined}
-                  aria-invalid={!!errors.password}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1
-                             disabled:opacity-50"
-                  disabled={isLocked || loginMutation.isPending}
-                  {...register('password')}
-                />
-                {errors.password && (
-                  <p id="password-error" className="mt-1 text-xs text-destructive" role="alert" aria-live="polite">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Erro de autenticação */}
-              {loginMutation.error && (
-                <div
-                  className={`rounded-md border px-3 py-2.5 ${
-                    isLocked
-                      ? 'bg-warning/10 border-warning/20'
-                      : 'bg-destructive/10 border-destructive/20'
-                  }`}
-                  role="alert"
-                  aria-live="assertive"
-                >
-                  <p className={`text-sm ${isLocked ? 'text-warning' : 'text-destructive'}`}>
-                    {loginMutation.error.message}
-                  </p>
-                </div>
-              )}
-
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={isSubmitting || loginMutation.isPending || isLocked}
-                aria-busy={isSubmitting || loginMutation.isPending}
-                className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium
-                           hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
-                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loginMutation.isPending ? 'Entrando...' : isLocked ? 'Conta bloqueada' : 'Entrar'}
-              </button>
-            </div>
-          </form>
-
-          <div className="mt-4 text-center">
-            <a
-              href="/esqueci-senha"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Esqueceu a senha?
-            </a>
-          </div>
-        </div>
+    <>
+      <div style={{ marginBottom: 20 }}>
+        <Mono size={9} spacing="1.3px" color={T.primary}>FAÇA LOGIN NA SUA CLÍNICA</Mono>
+        <h1
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+            color: T.textPrimary,
+            letterSpacing: '-0.01em',
+            lineHeight: 1.2,
+            marginTop: 4,
+          }}
+        >
+          Bem-vindo de volta
+        </h1>
       </div>
-    </div>
+
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        aria-label="Formulário de login"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Field
+            label="Email"
+            icon="mail"
+            error={errors.email?.message}
+          >
+            <Input
+              type="email"
+              autoComplete="email"
+              autoFocus
+              placeholder="seu@clinica.com.br"
+              aria-required
+              error={!!errors.email}
+              disabled={isLocked || isPending}
+              {...register('email')}
+            />
+          </Field>
+
+          <Field
+            label="Senha"
+            icon="lock"
+            error={errors.password?.message}
+          >
+            <Input
+              type="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              aria-required
+              error={!!errors.password}
+              disabled={isLocked || isPending}
+              {...register('password')}
+            />
+          </Field>
+
+          {/* Erro de autenticação */}
+          {loginMutation.error && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              style={{
+                padding: '10px 12px',
+                borderRadius: T.r.md,
+                background: isLocked ? T.warningBg : T.dangerBg,
+                border: `1px solid ${isLocked ? T.warningBorder : T.dangerBorder}`,
+                color: isLocked ? T.warning : T.danger,
+                fontSize: 12,
+                lineHeight: 1.5,
+                fontFamily: "'IBM Plex Sans', sans-serif",
+              }}
+            >
+              {loginMutation.error.message}
+            </div>
+          )}
+
+          <Btn
+            type="submit"
+            disabled={isLocked}
+            loading={isPending}
+            style={{ width: '100%', marginTop: 4 }}
+          >
+            {isLocked ? 'Conta bloqueada' : 'Entrar'}
+          </Btn>
+        </div>
+      </form>
+
+      <div style={{ marginTop: 16, textAlign: 'center' }}>
+        <a
+          href="/forgot-password"
+          style={{
+            fontSize: 12,
+            color: T.textMuted,
+            textDecoration: 'none',
+            fontFamily: "'IBM Plex Sans', sans-serif",
+            transition: 'color 0.15s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = T.primary; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = T.textMuted; }}
+        >
+          Esqueceu a senha?
+        </a>
+      </div>
+    </>
   );
 }

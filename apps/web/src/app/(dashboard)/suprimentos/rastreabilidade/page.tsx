@@ -5,7 +5,8 @@ import {
   Button, Input, Badge,
   DialogRoot, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@dermaos/ui';
-import { Search, FileDown, ShieldAlert, Download } from 'lucide-react';
+import { Btn, PageHero } from '@dermaos/ui/ds';
+import { Search, ShieldAlert, Download } from 'lucide-react';
 import { trpc } from '@/lib/trpc-provider';
 import { useDebounce } from '@/lib/utils';
 import { usePermission } from '@/lib/auth';
@@ -108,20 +109,20 @@ export default function RastreabilidadePage() {
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <SuprimentosTabs />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Rastreabilidade ANVISA</h1>
-          <p className="text-sm text-muted-foreground">
-            Consulte o uso bidirecional entre lotes e pacientes.
-          </p>
-        </div>
-        {canExport && rows.length > 0 && (
-          <Button size="sm" onClick={() => setConfirmOpen(true)}>
-            <FileDown className="mr-1 h-4 w-4" />
-            Gerar Relatório ANVISA
-          </Button>
-        )}
-      </div>
+      <PageHero
+        eyebrow="RASTREABILIDADE BIDIRECIONAL"
+        title="Rastreabilidade ANVISA"
+        module="supply"
+        icon="shield"
+        description="Consulte o uso bidirecional entre lotes e pacientes"
+        actions={
+          canExport && rows.length > 0 ? (
+            <Btn small icon="download" onClick={() => setConfirmOpen(true)}>
+              Gerar Relatório ANVISA
+            </Btn>
+          ) : null
+        }
+      />
 
       {!canRecall && (
         <div className="rounded-md border border-warning-200 bg-warning-50 p-3 text-xs text-warning-900 flex items-start gap-2">

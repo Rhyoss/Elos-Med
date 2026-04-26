@@ -2,8 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input } from '@dermaos/ui';
-import { Plus, Search } from 'lucide-react';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@dermaos/ui';
+import { Plus } from 'lucide-react';
+import { Btn, Input as DSInput, PageHero } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { keepPreviousData } from '@tanstack/react-query';
 import { TemplateCard } from './_components/template-card';
@@ -60,45 +61,43 @@ export default function TemplatesPage() {
   const defaultCount = templates.filter((t) => t.is_default).length;
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Cabeçalho */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Biblioteca de Templates</h1>
-          <p className="text-sm text-muted-foreground">
+    <div style={{ overflowY: 'auto', height: '100%', padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <PageHero
+        eyebrow="BIBLIOTECA DE MENSAGENS"
+        title="Templates"
+        module="aiMod"
+        icon="file"
+        description={
+          <>
             {templates.length} template{templates.length !== 1 ? 's' : ''}
             {defaultCount > 0 && ` · ${defaultCount} padrão${defaultCount !== 1 ? 's' : ''}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => seedMutation.mutate()}
-            disabled={seedMutation.isPending}
-            aria-label="Criar templates padrão do sistema"
-          >
-            {seedMutation.isPending ? 'Criando…' : 'Carregar padrões'}
-          </Button>
-          <Link href="/comunicacoes/templates/novo">
-            <Button aria-label="Criar novo template">
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Novo Template
-            </Button>
-          </Link>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <>
+            <Btn
+              variant="glass"
+              small
+              icon="download"
+              onClick={() => seedMutation.mutate()}
+              loading={seedMutation.isPending}
+              aria-label="Carregar templates padrão"
+            >
+              {seedMutation.isPending ? 'Criando…' : 'Carregar padrões'}
+            </Btn>
+            <Link href="/comunicacoes/templates/novo" style={{ textDecoration: 'none' }}>
+              <Btn small icon="plus">Novo Template</Btn>
+            </Link>
+          </>
+        }
+      />
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-3" role="group" aria-label="Filtros de templates">
-        <div className="relative">
-          <Search
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
+      {/* Filtros DS */}
+      <div role="group" aria-label="Filtros de templates" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ width: 240 }}>
+          <DSInput
+            leadingIcon="search"
             type="search"
-            className="pl-8 w-56"
             placeholder="Buscar templates…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -118,14 +117,15 @@ export default function TemplatesPage() {
         </Select>
 
         {(channel !== 'all' || debouncedSearch) && (
-          <Button
+          <Btn
             variant="ghost"
-            size="sm"
+            small
+            icon="x"
             onClick={() => { setChannel('all'); setSearch(''); }}
             aria-label="Limpar filtros"
           >
             Limpar filtros
-          </Button>
+          </Btn>
         )}
       </div>
 

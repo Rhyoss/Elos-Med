@@ -1,14 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { Download, FileText, Plus, Send, Copy, XCircle } from 'lucide-react';
+import { Download, FileText, Send, Copy, XCircle } from 'lucide-react';
 import {
   Button,
   Badge,
-  EmptyState,
   LoadingSkeleton,
   useToast,
 } from '@dermaos/ui';
+import { Btn, Mono, EmptyState as DSEmptyState, T } from '@dermaos/ui/ds';
 import {
   PRESCRIPTION_STATUS_LABELS,
   PRESCRIPTION_TYPE_LABELS,
@@ -71,28 +71,30 @@ export default function PrescricoesPage({ params }: { params: PageParams }) {
   }
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
+    <div style={{ padding: '20px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
         <div>
-          <h2 className="text-xl font-semibold">Prescrições</h2>
-          <p className="text-sm text-muted-foreground">
+          <Mono size={9} spacing="1.2px" color={T.clinical.color}>RECEITUÁRIO ELETRÔNICO</Mono>
+          <h2 style={{ fontSize: 18, fontWeight: 700, marginTop: 2, color: T.textPrimary, letterSpacing: '-0.01em' }}>
+            Prescrições
+          </h2>
+          <p style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>
             Histórico de receitas emitidas para o paciente.
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)} size="sm">
-          <Plus className="h-4 w-4" aria-hidden="true" /> Nova prescrição
-        </Button>
+        <Btn small icon="plus" onClick={() => setModalOpen(true)}>Nova prescrição</Btn>
       </div>
 
       {listQuery.isLoading ? (
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {Array.from({ length: 3 }).map((_, i) => (
             <LoadingSkeleton key={i} className="h-12 w-full rounded-md" />
           ))}
         </div>
       ) : prescriptions.length === 0 ? (
-        <EmptyState
-          icon={<FileText className="h-8 w-8" aria-hidden="true" />}
+        <DSEmptyState
+          icon="file"
+          label="SEM PRESCRIÇÕES"
           title="Nenhuma prescrição registrada"
           description="Clique em 'Nova prescrição' para iniciar."
         />

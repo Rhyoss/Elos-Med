@@ -1,19 +1,18 @@
 'use client';
 
 import * as React from 'react';
-import { Search, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Input, Mono, T } from '@dermaos/ui/ds';
 
 export type AssignmentFilter = 'mine' | 'team' | 'ai' | 'unassigned' | 'all';
 export type ChannelTypeFilter = 'whatsapp' | 'instagram' | 'email' | 'sms' | 'webchat' | 'phone' | 'all';
 
 export interface FiltersBarProps {
-  assignment:     AssignmentFilter;
-  onAssignment:   (value: AssignmentFilter) => void;
-  channelType:    ChannelTypeFilter;
-  onChannelType:  (value: ChannelTypeFilter) => void;
-  search:         string;
-  onSearch:       (value: string) => void;
+  assignment:    AssignmentFilter;
+  onAssignment:  (value: AssignmentFilter) => void;
+  channelType:   ChannelTypeFilter;
+  onChannelType: (value: ChannelTypeFilter) => void;
+  search:        string;
+  onSearch:      (value: string) => void;
 }
 
 const ASSIGNMENT_OPTIONS: Array<{ value: AssignmentFilter; label: string }> = [
@@ -34,6 +33,44 @@ const CHANNEL_OPTIONS: Array<{ value: ChannelTypeFilter; label: string }> = [
   { value: 'phone',     label: 'Telefone' },
 ];
 
+function PillToggle({
+  active,
+  size,
+  onClick,
+  children,
+  pressed,
+}: {
+  active: boolean;
+  size: 'sm' | 'xs';
+  onClick: () => void;
+  children: React.ReactNode;
+  pressed: boolean;
+}) {
+  const isLarge = size === 'sm';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={pressed}
+      style={{
+        padding: isLarge ? '4px 12px' : '2px 10px',
+        borderRadius: T.r.pill,
+        background: active ? T.primary : T.glass,
+        color: active ? T.textInverse : T.textSecondary,
+        border: `1px solid ${active ? T.primary : T.glassBorder}`,
+        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontSize: isLarge ? 11 : 10,
+        fontWeight: active ? 600 : 500,
+        cursor: 'pointer',
+        transition: 'all 0.15s',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function FiltersBar({
   assignment,
   onAssignment,
@@ -53,70 +90,65 @@ export function FiltersBar({
     setLocalSearch(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      // Mínimo 3 caracteres (ou vazio para limpar)
       if (value.length === 0 || value.length >= 3) onSearch(value);
     }, 300);
   }
 
   return (
-    <div className="flex flex-col gap-2 border-b border-border bg-background p-3">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-        <input
-          value={localSearch}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder="Buscar por nome ou telefone (mín. 3)…"
-          className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-9 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          aria-label="Buscar conversas"
-        />
-        {localSearch && (
-          <button
-            type="button"
-            onClick={() => handleSearchChange('')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label="Limpar busca"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        padding: '10px 12px',
+        borderBottom: `1px solid ${T.divider}`,
+        background: T.glass,
+        backdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+        WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+        flexShrink: 0,
+      }}
+    >
+      <Input
+        leadingIcon="search"
+        type="search"
+        value={localSearch}
+        onChange={(e) => handleSearchChange(e.target.value)}
+        placeholder="Buscar por nome ou telefone (mín. 3)…"
+        aria-label="Buscar conversas"
+      />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Mono size={7} spacing="1px">ATRIBUIÇÃO</Mono>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {ASSIGNMENT_OPTIONS.map((opt) => (
+            <PillToggle
+              key={opt.value}
+              active={assignment === opt.value}
+              pressed={assignment === opt.value}
+              size="sm"
+              onClick={() => onAssignment(opt.value)}
+            >
+              {opt.label}
+            </PillToggle>
+          ))}
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-1">
-        {ASSIGNMENT_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onAssignment(opt.value)}
-            className={cn(
-              'rounded-full px-3 py-1 text-xs transition-colors',
-              assignment === opt.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/70',
-            )}
-            aria-pressed={assignment === opt.value}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-1">
-        {CHANNEL_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChannelType(opt.value)}
-            className={cn(
-              'rounded-full border px-2.5 py-0.5 text-[10px] transition-colors',
-              channelType === opt.value
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border text-muted-foreground hover:bg-muted/60',
-            )}
-            aria-pressed={channelType === opt.value}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Mono size={7} spacing="1px">CANAL</Mono>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {CHANNEL_OPTIONS.map((opt) => (
+            <PillToggle
+              key={opt.value}
+              active={channelType === opt.value}
+              pressed={channelType === opt.value}
+              size="xs"
+              onClick={() => onChannelType(opt.value)}
+            >
+              {opt.label}
+            </PillToggle>
+          ))}
+        </div>
       </div>
     </div>
   );

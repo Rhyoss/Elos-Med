@@ -4,44 +4,33 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Phone,
-  Search,
-  UserPlus,
-  X,
-} from 'lucide-react';
-import {
-  PageHeader,
-  Button,
-  Badge,
-  DataTable,
-  type ColumnDef,
-  LoadingSkeleton,
-  EmptyState,
-} from '@dermaos/ui';
+  Glass, Btn, Mono, Badge, Ico, Input, Select, Skeleton, EmptyState,
+  PageHero, T,
+} from '@dermaos/ui/ds';
 import { keepPreviousData } from '@tanstack/react-query';
 import { trpc } from '@/lib/trpc-provider';
 
-/* ── Tipos ──────────────────────────────────────────────────────────────── */
+/**
+ * Pacientes & Leads — DS table inline + side detail panel.
+ *
+ * Phase-4 reskin: tabela DS própria (substitui legacy DataTable),
+ * search/filtros DS, painel lateral DS quando uma linha é selecionada.
+ * Mantém `trpc.patients.list` com todos os filtros (search debounced,
+ * status, source, paginação server-side).
+ */
 
 interface PatientRow {
   id:          string;
   name:        string;
   cpfMasked:   string | null;
   age:         number | null;
-  gender:      string | null;
   phone:       string | null;
   status:      string;
   lastVisitAt: Date | null;
+  /** Stand-in for "Diagnóstico" column — usa primeira alergia até Phase 5
+   *  ligar `encounters.latestDiagnosis`. */
   allergies:   string[];
-  createdAt:   Date;
 }
-
-/* ── Helpers ─────────────────────────────────────────────────────────────── */
 
 const STATUS_LABELS: Record<string, string> = {
   active:      'Ativo',
@@ -51,154 +40,43 @@ const STATUS_LABELS: Record<string, string> = {
   transferred: 'Transferido',
 };
 
-const STATUS_VARIANTS: Record<string, 'success' | 'neutral' | 'danger' | 'warning'> = {
+const STATUS_BADGE: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
   active:      'success',
-  inactive:    'neutral',
+  inactive:    'default',
   blocked:     'danger',
   deceased:    'warning',
-  transferred: 'neutral',
+  transferred: 'default',
 };
 
-function Initials({ name }: { name: string }) {
-  const parts = name.trim().split(' ');
-  const text  = [parts[0]?.[0], parts[parts.length - 1]?.[0]].filter(Boolean).join('').toUpperCase();
-  return (
-    <span
-      className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-primary-700 text-xs font-semibold shrink-0"
-      aria-hidden="true"
-    >
-      {text}
-    </span>
-  );
-}
+const SOURCE_OPTIONS = [
+  { value: 'whatsapp',  label: 'WhatsApp'   },
+  { value: 'google',    label: 'Google'     },
+  { value: 'referral',  label: 'Indicação'  },
+  { value: 'walk_in',   label: 'Presencial' },
+  { value: 'instagram', label: 'Instagram'  },
+  { value: 'facebook',  label: 'Facebook'   },
+  { value: 'site',      label: 'Site'       },
+];
 
 function formatDate(d: Date | string | null | undefined): string {
   if (!d) return '—';
   const date = d instanceof Date ? d : new Date(d);
   if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(date);
 }
 
-/* ── Colunas da tabela ───────────────────────────────────────────────────── */
-
-function buildColumns(onView: (id: string) => void): ColumnDef<PatientRow>[] {
-  return [
-    {
-      id:     'patient',
-      header: 'Paciente',
-      cell:   ({ row }) => (
-        <div className="flex items-center gap-3">
-          <Initials name={row.original.name} />
-          <div className="flex flex-col min-w-0">
-            <span className="font-medium text-foreground truncate">{row.original.name}</span>
-            <span className="text-xs text-muted-foreground">{row.original.cpfMasked ?? '—'}</span>
-          </div>
-        </div>
-      ),
-      size: 260,
-    },
-    {
-      id:     'age',
-      header: 'Idade',
-      cell:   ({ row }) => (
-        <span className="text-sm text-foreground">
-          {row.original.age != null ? `${row.original.age} anos` : '—'}
-        </span>
-      ),
-      size: 90,
-    },
-    {
-      id:     'phone',
-      header: 'Telefone',
-      cell:   ({ row }) => (
-        <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          {row.original.phone ? (
-            <>
-              <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              {row.original.phone}
-            </>
-          ) : '—'}
-        </span>
-      ),
-      size: 160,
-    },
-    {
-      id:     'lastVisit',
-      header: 'Última visita',
-      cell:   ({ row }) => (
-        <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          {row.original.lastVisitAt ? (
-            <>
-              <Calendar className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              {formatDate(row.original.lastVisitAt)}
-            </>
-          ) : '—'}
-        </span>
-      ),
-      size: 160,
-    },
-    {
-      id:     'status',
-      header: 'Status',
-      cell:   ({ row }) => (
-        <Badge
-          variant={STATUS_VARIANTS[row.original.status] ?? 'neutral'}
-          dot
-          size="sm"
-        >
-          {STATUS_LABELS[row.original.status] ?? row.original.status}
-        </Badge>
-      ),
-      size: 110,
-    },
-    {
-      id:     'actions',
-      header: '',
-      cell:   ({ row }) => (
-        <div className="flex items-center gap-2 justify-end">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => { e.stopPropagation(); onView(row.original.id); }}
-            aria-label={`Ver perfil de ${row.original.name}`}
-          >
-            Ver Perfil
-          </Button>
-          <Link href={`/agenda?paciente=${row.original.id}`} onClick={(e) => e.stopPropagation()}>
-            <Button variant="outline" size="sm">Agendar</Button>
-          </Link>
-        </div>
-      ),
-      size: 180,
-    },
-  ];
-}
-
-/* ── Filtros ─────────────────────────────────────────────────────────────── */
-
-const SOURCE_OPTIONS = [
-  { value: 'whatsapp',  label: 'WhatsApp'    },
-  { value: 'google',    label: 'Google'       },
-  { value: 'referral',  label: 'Indicação'    },
-  { value: 'walk_in',   label: 'Presencial'   },
-  { value: 'instagram', label: 'Instagram'    },
-  { value: 'facebook',  label: 'Facebook'     },
-  { value: 'site',      label: 'Site'         },
-];
-
-/* ── Página principal ────────────────────────────────────────────────────── */
+const PAGE_SIZE = 20;
 
 export default function PacientesPage() {
   const router = useRouter();
 
-  const [search,    setSearch]    = React.useState('');
+  const [search,         setSearch]         = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
-  const [status,    setStatus]    = React.useState('');
-  const [source,    setSource]    = React.useState('');
-  const [page,      setPage]      = React.useState(1);
-  const PAGE_SIZE = 20;
+  const [status,         setStatus]         = React.useState('');
+  const [source,         setSource]         = React.useState('');
+  const [page,           setPage]           = React.useState(1);
+  const [selected,       setSelected]       = React.useState<PatientRow | null>(null);
 
-  // Debounce search input
   React.useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearch(search);
@@ -207,13 +85,13 @@ export default function PacientesPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  // Reset page when filters change
   React.useEffect(() => { setPage(1); }, [status, source]);
 
   const { data, isLoading, isFetching } = trpc.patients.list.useQuery(
     {
       search:   debouncedSearch || undefined,
-      status:   (status || undefined) as 'active' | 'inactive' | 'blocked' | 'deceased' | 'transferred' | 'merged' | undefined,
+      status:   (status || undefined) as
+        | 'active' | 'inactive' | 'blocked' | 'deceased' | 'transferred' | 'merged' | undefined,
       source:   source || undefined,
       page,
       pageSize: PAGE_SIZE,
@@ -224,24 +102,27 @@ export default function PacientesPage() {
   );
 
   const patients: PatientRow[] = React.useMemo(
-    () =>
-      (data?.data ?? []).map((p) => ({
-        ...p,
-        lastVisitAt: p.lastVisitAt ? new Date(p.lastVisitAt) : null,
-        createdAt:   p.createdAt   ? new Date(p.createdAt)   : new Date(),
-      })),
+    () => (data?.data ?? []).map((p) => ({
+      id:          p.id,
+      name:        p.name,
+      cpfMasked:   p.cpfMasked,
+      age:         p.age,
+      phone:       p.phone,
+      status:      p.status,
+      lastVisitAt: p.lastVisitAt ? new Date(p.lastVisitAt) : null,
+      allergies:   p.allergies ?? [],
+    })),
     [data],
   );
 
+  /** Diagnóstico stand-in — primeira alergia, fallback "—". */
+  function diagOf(p: PatientRow): string {
+    return p.allergies.length > 0 ? p.allergies[0]! : '—';
+  }
+
   const total      = data?.total      ?? 0;
   const totalPages = data?.totalPages ?? 1;
-
-  const columns = React.useMemo(
-    () => buildColumns((id) => router.push(`/pacientes/${id}/perfil`)),
-    [router],
-  );
-
-  const hasActiveFilters = debouncedSearch || status || source;
+  const hasFilters = !!(debouncedSearch || status || source);
 
   function clearFilters() {
     setSearch('');
@@ -251,141 +132,286 @@ export default function PacientesPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <PageHeader
-        title="Pacientes"
-        description="Gerencie o cadastro e histórico de todos os pacientes"
-        actions={
-          <Link href="/pacientes/novo">
-            <Button size="sm" aria-label="Cadastrar novo paciente">
-              <UserPlus className="h-4 w-4" aria-hidden="true" />
-              Novo Paciente
-            </Button>
-          </Link>
-        }
-      />
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+      {/* Lista principal */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div style={{ padding: '20px 26px 12px', flexShrink: 0 }}>
+          <PageHero
+            eyebrow="PRONTUÁRIO ELETRÔNICO"
+            title="Pacientes & Leads"
+            module="clinical"
+            icon="user"
+            actions={
+              <Link href="/pacientes/novo" style={{ textDecoration: 'none' }}>
+                <Btn small icon="plus">Novo Paciente</Btn>
+              </Link>
+            }
+          />
 
-      <div className="flex flex-col gap-4 p-6 flex-1 min-h-0">
-        {/* Barra de busca e filtros */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Busca */}
-          <div className="relative flex-1 min-w-[200px] max-w-[360px]">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              placeholder="Buscar por nome, CPF ou telefone…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-input bg-background
-                         placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              aria-label="Buscar pacientes"
-            />
-          </div>
+          {/* Toolbar */}
+          <Glass style={{ padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <div style={{ flex: 1, minWidth: 220, maxWidth: 360 }}>
+              <Input
+                leadingIcon="search"
+                type="search"
+                placeholder="Buscar nome, CPF ou telefone…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Buscar pacientes"
+              />
+            </div>
 
-          {/* Filtro Status */}
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            aria-label="Filtrar por status"
-          >
-            <option value="">Todos os status</option>
-            <option value="active">Ativo</option>
-            <option value="inactive">Inativo</option>
-            <option value="blocked">Bloqueado</option>
-            <option value="transferred">Transferido</option>
-          </select>
+            <div style={{ minWidth: 160 }}>
+              <Select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
+                <option value="">Todos os status</option>
+                <option value="active">Ativo</option>
+                <option value="inactive">Inativo</option>
+                <option value="blocked">Bloqueado</option>
+                <option value="transferred">Transferido</option>
+              </Select>
+            </div>
 
-          {/* Filtro Origem */}
-          <select
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            aria-label="Filtrar por origem"
-          >
-            <option value="">Todas as origens</option>
-            {SOURCE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+            <div style={{ minWidth: 160 }}>
+              <Select value={source} onChange={(e) => setSource(e.target.value)} aria-label="Origem">
+                <option value="">Todas as origens</option>
+                {SOURCE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </Select>
+            </div>
 
-          {/* Limpar filtros */}
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} aria-label="Limpar filtros">
-              <X className="h-4 w-4" aria-hidden="true" />
-              Limpar
-            </Button>
-          )}
+            {hasFilters && (
+              <Btn variant="ghost" small icon="x" onClick={clearFilters}>Limpar</Btn>
+            )}
 
-          {/* Contador */}
-          {!isLoading && (
-            <span className="ml-auto text-sm text-muted-foreground" aria-live="polite">
-              {total} {total === 1 ? 'paciente' : 'pacientes'}
-              {isFetching && !isLoading && ' · Atualizando…'}
-            </span>
-          )}
+            {!isLoading && (
+              <span style={{ marginLeft: 'auto' }}>
+                <Mono size={9}>
+                  {total} {total === 1 ? 'PACIENTE' : 'PACIENTES'}
+                  {isFetching && !isLoading && ' · ATUALIZANDO'}
+                </Mono>
+              </span>
+            )}
+          </Glass>
         </div>
 
         {/* Tabela */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 26px 22px', minHeight: 0 }}>
+          <Glass style={{ padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {['Prontuário', 'Paciente', 'Idade', 'Diagnóstico', 'Última', 'Status', ''].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: '9px 16px',
+                        textAlign: 'left',
+                        fontSize: 8,
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        letterSpacing: '1.1px',
+                        color: T.textMuted,
+                        fontWeight: 500,
+                        borderBottom: `1px solid ${T.divider}`,
+                        background: T.metalGrad,
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 1,
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading
+                  ? Array.from({ length: 8 }).map((_, i) => (
+                      <tr key={i} style={{ borderBottom: `1px solid ${T.divider}` }}>
+                        {Array.from({ length: 7 }).map((__, j) => (
+                          <td key={j} style={{ padding: '11px 16px' }}>
+                            <Skeleton height={12} delay={i * 80} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  : patients.map((p, i) => (
+                      <tr
+                        key={p.id}
+                        onClick={() => setSelected(p)}
+                        style={{
+                          borderBottom: `1px solid ${T.divider}`,
+                          background: selected?.id === p.id
+                            ? T.primaryBg
+                            : i % 2 === 0
+                              ? 'transparent'
+                              : 'rgba(255,255,255,0.22)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <td style={{ padding: '11px 16px' }}>
+                          <Mono size={9}>{p.id.slice(0, 8).toUpperCase()}</Mono>
+                        </td>
+                        <td style={{ padding: '11px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: T.r.sm,
+                                background: T.clinical.bg,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Ico name="user" size={12} color={T.clinical.color} />
+                            </div>
+                            <div>
+                              <p style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary }}>{p.name}</p>
+                              <Mono size={8}>{p.cpfMasked ?? '—'}</Mono>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '11px 16px', fontSize: 12, color: T.textSecondary }}>
+                          {p.age != null ? `${p.age} anos` : '—'}
+                        </td>
+                        <td style={{ padding: '11px 16px', fontSize: 11, color: T.textSecondary }}>
+                          {diagOf(p)}
+                        </td>
+                        <td style={{ padding: '11px 16px' }}>
+                          <Mono size={9}>{formatDate(p.lastVisitAt)}</Mono>
+                        </td>
+                        <td style={{ padding: '11px 16px' }}>
+                          <Badge variant={STATUS_BADGE[p.status] ?? 'default'}>
+                            {STATUS_LABELS[p.status] ?? p.status}
+                          </Badge>
+                        </td>
+                        <td style={{ padding: '11px 16px' }}>
+                          <Ico
+                            name="arrowRight"
+                            size={13}
+                            color={selected?.id === p.id ? T.primary : T.textMuted}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+              </tbody>
+            </table>
+
+            {!isLoading && patients.length === 0 && (
+              <EmptyState
+                icon="users"
+                title={hasFilters ? 'Nenhum paciente corresponde aos filtros' : 'Nenhum paciente cadastrado'}
+                description={hasFilters
+                  ? 'Tente limpar os filtros ou ajustar a busca.'
+                  : 'Cadastre o primeiro paciente da clínica.'}
+                action={!hasFilters
+                  ? <Link href="/pacientes/novo" style={{ textDecoration: 'none' }}><Btn small icon="plus">Novo Paciente</Btn></Link>
+                  : <Btn variant="ghost" small onClick={clearFilters}>Limpar filtros</Btn>}
+              />
+            )}
+          </Glass>
+
+          {/* Paginação */}
+          {!isLoading && total > PAGE_SIZE && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+              <Mono size={9}>PÁGINA {page} DE {totalPages}</Mono>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <Btn variant="ghost" small icon="arrowLeft" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+                  Anterior
+                </Btn>
+                <Btn variant="ghost" small icon="arrowRight" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+                  Próxima
+                </Btn>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Painel lateral de detalhes */}
+      {selected && (
         <div
-          className="cursor-pointer"
-          onClick={(e) => {
-            const row = (e.target as HTMLElement).closest('tr[aria-selected]') as HTMLElement | null;
-            if (!row) return;
-            const idx = row.closest('tbody')?.children
-              ? Array.from(row.closest('tbody')!.children).indexOf(row)
-              : -1;
-            if (idx >= 0 && patients[idx]) {
-              router.push(`/pacientes/${patients[idx]!.id}/perfil`);
-            }
+          style={{
+            width: 280,
+            borderLeft: `1px solid ${T.divider}`,
+            background: 'rgba(255,255,255,0.30)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            overflowY: 'auto',
+            flexShrink: 0,
           }}
         >
-          <DataTable<PatientRow>
-            data={patients}
-            columns={columns}
-            isLoading={isLoading}
-            emptyTitle="Nenhum paciente encontrado"
-            emptyDescription={
-              hasActiveFilters
-                ? 'Tente ajustar os filtros ou limpar a busca.'
-                : 'Cadastre o primeiro paciente da clínica.'
-            }
-            emptyAction={
-              !hasActiveFilters
-                ? { label: 'Novo Paciente', onClick: () => router.push('/pacientes/novo') }
-                : undefined
-            }
-            exportFilename="pacientes"
-            stickyHeader
-          />
-        </div>
-
-        {/* Paginação externa (server-side) */}
-        {!isLoading && total > PAGE_SIZE && (
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-sm text-muted-foreground">
-              Página {page} de {totalPages}
-            </span>
-            <div className="flex items-center gap-1" role="navigation" aria-label="Paginação de pacientes">
-              <Button variant="ghost" size="icon" onClick={() => setPage(1)} disabled={page <= 1} aria-label="Primeira página">
-                <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => setPage((p) => p - 1)} disabled={page <= 1} aria-label="Página anterior">
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages} aria-label="Próxima página">
-                <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => setPage(totalPages)} disabled={page >= totalPages} aria-label="Última página">
-                <ChevronsRight className="h-4 w-4" aria-hidden="true" />
-              </Button>
+          <div
+            style={{
+              padding: '14px 16px',
+              borderBottom: `1px solid ${T.divider}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>Prontuário</span>
+            <button
+              onClick={() => setSelected(null)}
+              aria-label="Fechar painel"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
+            >
+              <Ico name="x" size={15} color={T.textMuted} />
+            </button>
+          </div>
+          <div style={{ padding: 16 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: T.r.lg,
+                background: T.clinical.bg,
+                border: `1px solid ${T.clinical.color}18`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 12,
+              }}
+            >
+              <Ico name="user" size={22} color={T.clinical.color} />
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, marginBottom: 2 }}>{selected.name}</p>
+            <Mono size={9}>{selected.id.slice(0, 8).toUpperCase()}{selected.age != null ? ` · ${selected.age} anos` : ''}</Mono>
+            <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {([
+                ['CPF',             selected.cpfMasked ?? '—'],
+                ['Diagnóstico',     diagOf(selected)],
+                ['Telefone',        selected.phone ?? '—'],
+                ['Status',          STATUS_LABELS[selected.status] ?? selected.status],
+                ['Última consulta', formatDate(selected.lastVisitAt)],
+              ] as const).map(([k, v]) => (
+                <div
+                  key={k}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: T.r.md,
+                    background: T.glass,
+                    border: `1px solid ${T.glassBorder}`,
+                  }}
+                >
+                  <Mono size={7}>{k.toUpperCase()}</Mono>
+                  <p style={{ fontSize: 12, color: T.textPrimary, marginTop: 2 }}>{v}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <Btn small icon="edit" onClick={() => router.push(`/pacientes/${selected.id}/perfil`)}>
+                Abrir prontuário
+              </Btn>
+              <Link href={`/agenda?paciente=${selected.id}`} style={{ textDecoration: 'none' }}>
+                <Btn variant="glass" small icon="calendar" style={{ width: '100%' }}>Agendar</Btn>
+              </Link>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

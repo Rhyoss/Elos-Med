@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Plus, Bot, Power } from 'lucide-react';
 import {
-  PageHeader,
   Button,
   Badge,
   DataTable,
@@ -14,6 +13,7 @@ import {
   Switch,
   useToast,
 } from '@dermaos/ui';
+import { Btn, PageHero } from '@dermaos/ui/ds';
 import type { AiAgentSummary, AiAgentType, AiAgentModel } from '@dermaos/shared';
 import { trpc } from '@/lib/trpc-provider';
 import { usePermission } from '@/lib/auth';
@@ -182,23 +182,25 @@ export default function AgentesPage() {
   );
 
   return (
-    <div className="flex flex-col h-full">
-      <PageHeader
-        title="Agentes IA"
-        description="Configure e gerencie os agentes da Aurora"
-        actions={
-          canConfigure ? (
-            <Link href="/comunicacoes/agentes/novo">
-              <Button size="sm">
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Novo agente
-              </Button>
-            </Link>
-          ) : null
-        }
-      />
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <div style={{ padding: '20px 26px 12px', flexShrink: 0 }}>
+        <PageHero
+          eyebrow="AURORA · ASSISTENTES IA"
+          title="Agentes IA"
+          module="aiMod"
+          icon="zap"
+          description="Configure e gerencie os agentes da Aurora"
+          actions={
+            canConfigure ? (
+              <Link href="/comunicacoes/agentes/novo" style={{ textDecoration: 'none' }}>
+                <Btn small icon="plus">Novo agente</Btn>
+              </Link>
+            ) : null
+          }
+        />
+      </div>
 
-      <div className="flex flex-col gap-4 p-6 flex-1 min-h-0">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '0 26px 22px', minHeight: 0 }}>
         {!isLoading && agents.length === 0 ? (
           <EmptyState
             title="Nenhum agente configurado"

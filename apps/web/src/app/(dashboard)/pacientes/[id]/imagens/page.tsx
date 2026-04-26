@@ -1,9 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Plus } from 'lucide-react';
 import {
-  Button,
   DialogRoot,
   DialogContent,
   DialogHeader,
@@ -12,6 +10,7 @@ import {
   LoadingSkeleton,
   useToast,
 } from '@dermaos/ui';
+import { Btn, Mono, T } from '@dermaos/ui/ds';
 import type { BodyRegion, LesionStatus } from '@dermaos/shared';
 import { trpc } from '@/lib/trpc-provider';
 import { useRealtime } from '@/hooks/use-realtime';
@@ -163,22 +162,35 @@ export default function ImagensPage({
   /* ── Render ───────────────────────────────────────────────────────── */
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-6 py-3">
+      {/* Header DS */}
+      <header
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 12,
+          padding: '14px 26px',
+          borderBottom: `1px solid ${T.divider}`,
+          background: T.glass,
+          backdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+          WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+        }}
+      >
         <div>
-          <h1 className="text-base font-semibold text-foreground">Imagens & Lesões</h1>
-          <p className="text-xs text-muted-foreground">
+          <Mono size={9} spacing="1.2px" color={T.clinical.color}>BODY MAP &amp; LESÕES</Mono>
+          <h2 style={{ fontSize: 16, fontWeight: 700, marginTop: 2, color: T.textPrimary, letterSpacing: '-0.01em' }}>
+            Imagens &amp; Lesões
+          </h2>
+          <p style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
             Body map, timeline de lesões e galeria de fotos clínicas.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <StatusFilterTabs value={statusFilter} onChange={setStatusFilter} />
-          <Button
-            size="sm"
-            onClick={() => { setUploadRegion(undefined); setUploadOpen(true); }}
-          >
-            <Plus size={14} /> Adicionar imagem
-          </Button>
+          <Btn small icon="plus" onClick={() => { setUploadRegion(undefined); setUploadOpen(true); }}>
+            Adicionar imagem
+          </Btn>
         </div>
       </header>
 
