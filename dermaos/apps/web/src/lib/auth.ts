@@ -1,0 +1,72 @@
+'use client';
+
+import { useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { type Resource, type Action, checkPermission } from '@dermaos/shared';
+import { useAuthStore } from '@/stores/auth-store';
+import { trpc } from '@/lib/trpc-provider';
+
+/**
+ * Hook principal de autenticação.
+ * Sincroniza a query auth.me com o Zustand store.
+ */
+export function useAuth() {
+  const store = useAuthStore();
+  const router = useRouter();
+
+  const meQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+  });
+
+  useEffect(() => {
+    if (meQuery.data) {
+      store.setSession(meQuery.data.user, meQuery.data.clinic, meQuery.data.permissions);
+    } else if (meQuery.isError) {
+      store.clearSession();
+    }
+
+    if (!meQuery.isLoading) {
+      store.setHydrated();
+    }
+  }, [meQuery.data, meQuery.isError, meQuery.isLoading]);
+
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSuccess: () => {
+      store.clearSession();
+      router.push('/login');
+    },
+  });
+
+  const logout = useCallback(() => {
+    logoutMutation.mutate();
+  }, [logoutMutation]);
+
+  return {
+    user: store.user,
+    clinic: store.clinic,
+    permissions: store.permissions,
+    isAuthenticated: store.isAuthenticated,
+    isLoading: meQuery.isLoading || !store.isHydrated,
+    isLoggingOut: logoutMutation.isPending,
+    logout,
+    refetch: meQuery.refetch,
+  };
+}
+
+/**
+ * Verifica se o usuário autenticado tem uma permissão específica.
+ */
+export function usePermission(resource: Resource, action: Action): boolean {
+  const permissions = useAuthStore((s) => s.permissions);
+  return checkPermission(permissions, resource, action);
+}
+
+/**
+ * Retorna true se o usuário tem TODAS as permissões especificadas.
+ */
+export function usePermissions(checks: [Resource, Action][]): boolean {
+  const permissions = useAuthStore((s) => s.permissions);
+  return checks.every(([resource, action]) => checkPermission(permissions, resource, action));
+}

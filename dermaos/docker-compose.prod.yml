@@ -1,0 +1,500 @@
+name: dermaos
+
+# Uso:
+#   IMAGE_TAG=<sha> REGISTRY=ghcr.io IMAGE_PREFIX=org/dermaos \
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Variáveis de ambiente: via arquivo .env (nunca hardcoded aqui).
+# .env NÃO é commitado no repositório. Use .env.example como template.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "5"
+
+x-restart: &default-restart
+  restart: unless-stopped
+
+services:
+  # ─── PostgreSQL 16 + pgvector ──────────────────────────────────────────────
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: dermaos-db
+    <<: *default-restart
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dermaos}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - dermaos_pg_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    command: >
+      postgres
+        -c shared_buffers=512MB
+        -c work_mem=64MB
+        -c effective_cache_size=1536MB
+        -c max_parallel_workers_per_gather=4
+        -c max_connections=200
+        -c wal_buffers=16MB
+        -c checkpoint_completion_target=0.9
+        -c random_page_cost=1.1
+        -c effective_io_concurrency=200
+        -c log_min_duration_statement=1000
+        -c log_line_prefix='%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-dermaos}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging: *default-logging
+    networks:
+      - dermaos-internal    # sem acesso externo direto
+
+  # ─── Redis 7 ───────────────────────────────────────────────────────────────
+  cache:
+    image: redis:7-alpine
+    container_name: dermaos-cache
+    <<: *default-restart
+    command: >
+      redis-server
+        --requirepass ${REDIS_PASSWORD}
+        --maxmemory 512mb
+        --maxmemory-policy allkeys-lru
+        --appendonly yes
+        --appendfsync everysec
+        --save 900 1
+        --save 300 10
+        --save 60 10000
+    volumes:
+      - dermaos_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging: *default-logging
+    networks:
+      - dermaos-internal
+
+  # ─── MinIO (S3-compatible) ─────────────────────────────────────────────────
+  storage:
+    image: minio/minio:latest
+    container_name: dermaos-storage
+    <<: *default-restart
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_CONSOLE_URL:-http://localhost:9001}
+    volumes:
+      - dermaos_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging: *default-logging
+    networks:
+      - dermaos-internal
+
+  # Cria buckets MinIO no primeiro boot (job one-off — sem restart)
+  storage-init:
+    image: minio/mc:latest
+    container_name: dermaos-storage-init
+    depends_on:
+      storage:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ENDPOINT: http://storage:9000
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://storage:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+        mc mb --ignore-existing local/clinical-images;
+        mc mb --ignore-existing local/documents;
+        mc mb --ignore-existing local/exports;
+        mc mb --ignore-existing local/avatars;
+        mc mb --ignore-existing local/backups;
+        mc anonymous set download local/avatars;
+        echo 'MinIO buckets ready.';
+        exit 0;
+      "
+    restart: "no"
+    networks:
+      - dermaos-internal
+
+  # ─── Typesense 27 ──────────────────────────────────────────────────────────
+  search:
+    image: typesense/typesense:27.1
+    container_name: dermaos-search
+    <<: *default-restart
+    command: >
+      --data-dir=/data
+      --api-key=${TYPESENSE_API_KEY}
+      --listen-port=8108
+      --enable-cors
+    volumes:
+      - dermaos_typesense_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8108/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging: *default-logging
+    networks:
+      - dermaos-internal
+
+  # ─── Ollama (LLM local — dados PHI nunca saem do servidor) ────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: dermaos-ollama
+    <<: *default-restart
+    volumes:
+      - dermaos_ollama_models:/root/.ollama
+    environment:
+      OLLAMA_KEEP_ALIVE: "24h"
+      OLLAMA_NUM_PARALLEL: "2"
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    logging: *default-logging
+    networks:
+      - dermaos-internal
+
+  # ─── API Backend (Fastify + tRPC) ──────────────────────────────────────────
+  api:
+    image: ${REGISTRY:-}${IMAGE_PREFIX:-dermaos}/api:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runner
+    container_name: dermaos-api
+    <<: *default-restart
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dermaos}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@cache:6379
+      MINIO_ENDPOINT: storage
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      TYPESENSE_HOST: search
+      TYPESENSE_PORT: 8108
+      TYPESENSE_API_KEY: ${TYPESENSE_API_KEY}
+      OLLAMA_BASE_URL: http://ollama:11434
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      MASTER_KEY_VERSION: ${MASTER_KEY_VERSION:-1}
+      TENANT_HMAC_SECRET: ${TENANT_HMAC_SECRET}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+    healthcheck:
+      test: ["/nodejs/bin/node", "-e",
+             "require('http').get('http://localhost:3001/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging: *default-logging
+    networks:
+      - dermaos-internal    # NÃO exposto diretamente — acesso apenas via nginx
+
+  # ─── Web Frontend (Next.js 15) ─────────────────────────────────────────────
+  web:
+    image: ${REGISTRY:-}${IMAGE_PREFIX:-dermaos}/web:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: runner
+    container_name: dermaos-web
+    <<: *default-restart
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
+      NEXT_PUBLIC_STORAGE_URL: ${NEXT_PUBLIC_STORAGE_URL}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging: *default-logging
+    networks:
+      - dermaos-internal
+
+  # ─── Portal do Paciente (Next.js PWA mobile-first) ────────────────────────
+  portal:
+    image: ${REGISTRY:-}${IMAGE_PREFIX:-dermaos}/patient-portal:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/patient-portal/Dockerfile
+      target: runner
+    container_name: dermaos-portal
+    <<: *default-restart
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_PORTAL_URL: ${PORTAL_URL}
+      NEXT_PUBLIC_CAPTCHA_SITE_KEY: ${NEXT_PUBLIC_CAPTCHA_SITE_KEY}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging: *default-logging
+    networks:
+      - dermaos-internal
+
+  # ─── Worker (BullMQ background jobs) ──────────────────────────────────────
+  worker:
+    image: ${REGISTRY:-}${IMAGE_PREFIX:-dermaos}/worker:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+      target: runner
+    container_name: dermaos-worker
+    <<: *default-restart
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dermaos}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@cache:6379
+      MINIO_ENDPOINT: storage
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      MASTER_KEY_VERSION: ${MASTER_KEY_VERSION:-1}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY}
+    healthcheck:
+      test: ["/nodejs/bin/node", "-e",
+             "const fs=require('fs');try{const s=fs.statSync('/tmp/worker-heartbeat');process.exit(Date.now()-s.mtimeMs>120000?1:0)}catch(e){process.exit(1)}"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+    logging: *default-logging
+    networks:
+      - dermaos-internal
+
+  # ─── AI Service (Python FastAPI) ───────────────────────────────────────────
+  ai:
+    image: ${REGISTRY:-}${IMAGE_PREFIX:-dermaos}/ai:${IMAGE_TAG:-latest}
+    build:
+      context: apps/ai
+      dockerfile: Dockerfile
+    container_name: dermaos-ai
+    <<: *default-restart
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dermaos}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@cache:6379
+      OLLAMA_BASE_URL: http://ollama:11434
+      AI_SERVICE_KEY: ${AI_SERVICE_KEY}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY}
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    logging: *default-logging
+    networks:
+      - dermaos-internal
+
+  # ─── Nginx Reverse Proxy + SSL ─────────────────────────────────────────────
+  # Único serviço exposto na rede pública — todas as rotas passam por aqui
+  proxy:
+    image: nginx:alpine
+    container_name: dermaos-proxy
+    <<: *default-restart
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certs:/etc/letsencrypt:ro
+      - certbot-webroot:/var/www/certbot:ro
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
+    networks:
+      - dermaos-internal   # alcança serviços de backend
+      - dermaos-public     # aceita conexões externas
+
+  # ─── Certbot (renovação automática de certificados Let's Encrypt) ──────────
+  certbot:
+    image: certbot/certbot:latest
+    container_name: dermaos-certbot
+    volumes:
+      - certs:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+    # Tenta renovar a cada 12 horas; certbot só renova se vencer em < 30 dias
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+        while :; do
+          certbot renew --webroot -w /var/www/certbot --quiet;
+          sleep 12h & wait $${!};
+        done"
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - dermaos-public    # precisa alcançar servidores Let's Encrypt (internet)
+
+# ─── Redes ────────────────────────────────────────────────────────────────────
+networks:
+  dermaos-internal:
+    driver: bridge
+    internal: true    # bloqueia conexões externas — apenas nginx pode alcançar
+  dermaos-public:
+    driver: bridge
+
+# ─── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  dermaos_pg_data:
+    driver: local
+  dermaos_redis_data:
+    driver: local
+  dermaos_minio_data:
+    driver: local
+  dermaos_typesense_data:
+    driver: local
+  dermaos_ollama_models:
+    driver: local
+  certs:
+    driver: local
+  certbot-webroot:
+    driver: local

@@ -1,0 +1,225 @@
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
+  darkMode: 'class',
+  content: [
+    './src/**/*.{ts,tsx}',
+    '../../packages/ui/src/**/*.{ts,tsx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        background:   'hsl(var(--background))',
+        foreground:   'hsl(var(--foreground))',
+        card: {
+          DEFAULT:    'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+        popover: {
+          DEFAULT:    'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
+        primary: {
+          DEFAULT:    'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+          100: 'hsl(var(--primary-100))',
+          200: 'hsl(var(--primary-200))',
+          300: 'hsl(var(--primary-300))',
+          400: 'hsl(var(--primary-400))',
+          500: 'hsl(var(--primary-500))',
+          600: 'hsl(var(--primary-600))',
+          700: 'hsl(var(--primary-700))',
+          800: 'hsl(var(--primary-800))',
+          900: 'hsl(var(--primary-900))',
+        },
+        gold: {
+          DEFAULT:    'hsl(var(--gold-600))',
+          foreground: 'hsl(var(--gold-foreground))',
+          100: 'hsl(var(--gold-100))',
+          200: 'hsl(var(--gold-200))',
+          300: 'hsl(var(--gold-300))',
+          400: 'hsl(var(--gold-400))',
+          500: 'hsl(var(--gold-500))',
+          600: 'hsl(var(--gold-600))',
+          700: 'hsl(var(--gold-700))',
+          800: 'hsl(var(--gold-800))',
+          900: 'hsl(var(--gold-900))',
+        },
+        secondary: {
+          DEFAULT:    'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        muted: {
+          DEFAULT:    'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT:    'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        destructive: {
+          DEFAULT:    'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        danger: {
+          DEFAULT:    'hsl(var(--danger))',
+          foreground: 'hsl(var(--danger-foreground))',
+          100: 'hsl(var(--danger-100))',
+          500: 'hsl(var(--danger-500))',
+          700: 'hsl(var(--danger-700))',
+        },
+        success: {
+          DEFAULT:    'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+          100: 'hsl(var(--success-100))',
+          500: 'hsl(var(--success-500))',
+          700: 'hsl(var(--success-700))',
+        },
+        warning: {
+          DEFAULT:    'hsl(var(--warning))',
+          foreground: 'hsl(var(--warning-foreground))',
+          100: 'hsl(var(--warning-100))',
+          500: 'hsl(var(--warning-500))',
+          700: 'hsl(var(--warning-700))',
+        },
+        info: {
+          DEFAULT:    'hsl(var(--info))',
+          foreground: 'hsl(var(--info-foreground))',
+          100: 'hsl(var(--info-100))',
+          500: 'hsl(var(--info-500))',
+          700: 'hsl(var(--info-700))',
+        },
+        clinical: {
+          50:  'hsl(var(--clinical-50))',
+          100: 'hsl(var(--clinical-100))',
+          200: 'hsl(var(--clinical-200))',
+          500: 'hsl(var(--clinical-500))',
+          600: 'hsl(var(--clinical-600))',
+          700: 'hsl(var(--clinical-700))',
+          900: 'hsl(var(--clinical-900))',
+        },
+        ai: {
+          DEFAULT:    'hsl(var(--ai))',
+          foreground: 'hsl(var(--ai-foreground))',
+          100: 'hsl(var(--ai-100))',
+          500: 'hsl(var(--ai-500))',
+          700: 'hsl(var(--ai-700))',
+        },
+        supply: {
+          DEFAULT:    'hsl(var(--supply))',
+          foreground: 'hsl(var(--supply-foreground))',
+          100: 'hsl(var(--supply-100))',
+          500: 'hsl(var(--supply-500))',
+          700: 'hsl(var(--supply-700))',
+        },
+        financial: {
+          DEFAULT:    'hsl(var(--financial))',
+          foreground: 'hsl(var(--financial-foreground))',
+          100: 'hsl(var(--financial-100))',
+          500: 'hsl(var(--financial-500))',
+          700: 'hsl(var(--financial-700))',
+        },
+        channel: {
+          whatsapp:  'hsl(var(--channel-whatsapp))',
+          instagram: 'hsl(var(--channel-instagram))',
+          facebook:  'hsl(var(--channel-facebook))',
+          email:     'hsl(var(--channel-email))',
+          phone:     'hsl(var(--channel-phone))',
+          sms:       'hsl(var(--channel-sms))',
+        },
+        border:     'hsl(var(--border))',
+        input:      'hsl(var(--input))',
+        ring:       'hsl(var(--ring))',
+        sidebar:    'hsl(var(--bg-sidebar))',
+      },
+      backgroundColor: {
+        app:      'hsl(var(--bg-app))',
+        hover:    'hsl(var(--bg-hover))',
+        selected: 'hsl(var(--bg-selected))',
+        overlay:  'hsl(var(--bg-overlay))',
+      },
+      borderRadius: {
+        sm:   'var(--radius-sm)',
+        md:   'var(--radius-md)',
+        lg:   'var(--radius-lg)',
+        xl:   'var(--radius-xl)',
+        full: 'var(--radius-full)',
+      },
+      fontFamily: {
+        sans: ['var(--font-ibm-plex-sans)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-ibm-plex-mono)', 'ui-monospace', 'monospace'],
+      },
+      fontSize: {
+        '2xs': ['0.625rem', { lineHeight: '0.875rem' }],
+      },
+      spacing: {
+        sidebar: 'var(--sidebar-width)',
+        topbar:  'var(--topbar-height)',
+      },
+      zIndex: {
+        base:           'var(--z-base)',
+        raised:         'var(--z-raised)',
+        dropdown:       'var(--z-dropdown)',
+        sticky:         'var(--z-sticky)',
+        overlay:        'var(--z-overlay)',
+        modal:          'var(--z-modal)',
+        toast:          'var(--z-toast)',
+        tooltip:        'var(--z-tooltip)',
+        'critical-alert': 'var(--z-critical-alert)',
+      },
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
+        xl: 'var(--shadow-xl)',
+      },
+      keyframes: {
+        'fade-in': {
+          from: { opacity: '0', transform: 'translateY(4px)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
+        },
+        'slide-in-right': {
+          from: { opacity: '0', transform: 'translateX(16px)' },
+          to:   { opacity: '1', transform: 'translateX(0)' },
+        },
+        'slide-in-from-right': {
+          from: { transform: 'translateX(100%)' },
+          to:   { transform: 'translateX(0)' },
+        },
+        'slide-out-to-right': {
+          from: { transform: 'translateX(0)' },
+          to:   { transform: 'translateX(100%)' },
+        },
+        'accordion-down': {
+          from: { height: '0' },
+          to:   { height: 'var(--radix-accordion-content-height)' },
+        },
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to:   { height: '0' },
+        },
+        'toast-slide-in': {
+          from: { transform: 'translateX(calc(100% + 1rem))', opacity: '0' },
+          to:   { transform: 'translateX(0)', opacity: '1' },
+        },
+        'toast-slide-out': {
+          from: { transform: 'translateX(0)', opacity: '1' },
+          to:   { transform: 'translateX(calc(100% + 1rem))', opacity: '0' },
+        },
+      },
+      animation: {
+        'fade-in':             'fade-in 150ms ease-out',
+        'slide-in-right':      'slide-in-right 200ms ease-out',
+        'slide-in-from-right': 'slide-in-from-right 200ms cubic-bezier(0, 0, 0.2, 1)',
+        'slide-out-to-right':  'slide-out-to-right 200ms cubic-bezier(0.4, 0, 1, 1)',
+        'accordion-down':      'accordion-down 200ms ease-out',
+        'accordion-up':        'accordion-up 200ms ease-out',
+        'toast-slide-in':      'toast-slide-in 200ms cubic-bezier(0, 0, 0.2, 1)',
+        'toast-slide-out':     'toast-slide-out 200ms cubic-bezier(0.4, 0, 1, 1)',
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;

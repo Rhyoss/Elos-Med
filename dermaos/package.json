@@ -1,0 +1,44 @@
+{
+  "name": "dermaos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DermaOS — Plataforma all-in-one para clínicas dermatológicas",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:integration": "pnpm --filter @dermaos/api test:integration",
+    "test:e2e": "playwright test --config e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test --config e2e/playwright.config.ts --ui",
+    "test:coverage": "pnpm --filter @dermaos/api test:coverage",
+    "test:all": "pnpm test:unit && pnpm test:integration && pnpm test:e2e",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:migrate": "pnpm --filter @dermaos/api migrate",
+    "db:seed": "pnpm --filter @dermaos/api exec tsx ../../scripts/seed-rich.ts",
+    "db:seed:recreate": "pnpm --filter @dermaos/api exec tsx ../../scripts/seed-rich.ts --recreate",
+    "smoke": "bash scripts/smoke-test.sh",
+    "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile dev up -d",
+    "docker:prod": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:reset": "docker compose down -v && docker compose up -d"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^9.4.0",
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.10.0",
+    "argon2": "^0.41.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

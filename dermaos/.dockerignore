@@ -1,0 +1,60 @@
+# Dependências (instaladas nos stages de build)
+node_modules/
+**/node_modules/
+
+# Variáveis de ambiente — nunca em imagem
+.env
+.env.*
+!.env.example
+
+# Controle de versão
+.git/
+.gitignore
+.gitattributes
+
+# Artefatos de build (recriados nos stages)
+dist/
+**/dist/
+.next/
+**/.next/
+build/
+
+# Testes e cobertura
+coverage/
+**/coverage/
+test-results/
+playwright-report/
+e2e/
+
+# Cache de ferramentas
+.turbo/
+**/.turbo/
+.eslintcache
+*.tsbuildinfo
+
+# Documentação
+docs/
+*.md
+!apps/ai/requirements.txt
+
+# Arquivos de desenvolvimento
+*.test.ts
+*.spec.ts
+*.test.tsx
+*.spec.tsx
+Dockerfile.dev
+docker-compose.dev.yml
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
