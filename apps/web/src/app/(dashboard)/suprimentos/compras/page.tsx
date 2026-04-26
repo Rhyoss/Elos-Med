@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Button } from '@dermaos/ui';
-import { Plus, ShoppingCart, Package, CheckSquare } from 'lucide-react';
+import { Plus, Package, CheckSquare } from 'lucide-react';
 import { cn } from '@dermaos/ui';
+import { Btn, PageHero } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import type { PurchaseSuggestion } from '@dermaos/shared';
 import { SuprimentosTabs } from '../_components/suprimentos-tabs';
@@ -73,26 +73,27 @@ export default function ComprasPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-0">
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
       <SuprimentosTabs />
 
-      <div className="flex flex-col gap-6 p-6">
-        {/* Cabeçalho */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">Compras</h1>
-            <p className="text-sm text-muted-foreground">
-              Gerencie sugestões automáticas e requisições de compra
-            </p>
-          </div>
-          <Button
-            onClick={() => { setPrefillItems([]); setNewSheetOpen(true); }}
-            aria-label="Criar nova requisição de compra"
-          >
-            <Plus className="mr-2 size-4" aria-hidden="true" />
-            Nova Requisição
-          </Button>
-        </div>
+      <div style={{ padding: '20px 26px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <PageHero
+          eyebrow="REQUISIÇÕES DE COMPRA"
+          title="Compras"
+          module="supply"
+          icon="creditCard"
+          description="Gerencie sugestões automáticas e requisições de compra"
+          actions={
+            <Btn
+              small
+              icon="plus"
+              onClick={() => { setPrefillItems([]); setNewSheetOpen(true); }}
+              aria-label="Criar nova requisição de compra"
+            >
+              Nova Requisição
+            </Btn>
+          }
+        />
 
         {/* Sub-tabs */}
         <nav

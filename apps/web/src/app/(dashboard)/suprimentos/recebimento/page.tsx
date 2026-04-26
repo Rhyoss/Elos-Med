@@ -3,7 +3,8 @@
 import * as React from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@dermaos/ui';
-import { ArrowLeft, Package, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Btn, PageHero } from '@dermaos/ui/ds';
+import { Package, CheckCircle, AlertTriangle } from 'lucide-react';
 import { trpc } from '@/lib/trpc-provider';
 import { ORDER_STATUS_LABELS, type PurchaseOrder } from '@dermaos/shared';
 import { SuprimentosTabs } from '../_components/suprimentos-tabs';
@@ -80,33 +81,35 @@ export default function RecebimentoPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-6 p-6">
-        {/* Cabeçalho */}
-        <div className="flex items-center gap-4">
-          {orderId && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => router.replace('/suprimentos/recebimento')}
-              aria-label="Voltar para lista de recebimentos"
-            >
-              <ArrowLeft className="mr-1 size-4" aria-hidden="true" />
-              Voltar
-            </Button>
-          )}
-          <div>
-            <h1 className="text-xl font-semibold">
-              {orderId && order
-                ? `Recebimento — Pedido ${order.orderNumber ?? order.id.slice(0, 8)}`
-                : 'Recebimento de NF'}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {orderId
-                ? `Fornecedor: ${order?.supplierName ?? '...'}`
-                : 'Pedidos aguardando conferência de recebimento'}
-            </p>
-          </div>
-        </div>
+      <div style={{ padding: '20px 26px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <PageHero
+          eyebrow="CONFERÊNCIA DE NOTAS FISCAIS"
+          title={
+            orderId && order
+              ? `Recebimento — Pedido ${order.orderNumber ?? order.id.slice(0, 8)}`
+              : 'Recebimento de NF'
+          }
+          module="supply"
+          icon="box"
+          description={
+            orderId
+              ? `Fornecedor: ${order?.supplierName ?? '…'}`
+              : 'Pedidos aguardando conferência de recebimento'
+          }
+          actions={
+            orderId ? (
+              <Btn
+                variant="glass"
+                small
+                icon="arrowLeft"
+                onClick={() => router.replace('/suprimentos/recebimento')}
+                aria-label="Voltar para lista de recebimentos"
+              >
+                Voltar
+              </Btn>
+            ) : null
+          }
+        />
 
         {/* Lista de pedidos pendentes */}
         {!orderId && (

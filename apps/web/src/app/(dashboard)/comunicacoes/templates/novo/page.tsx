@@ -3,8 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Button } from '@dermaos/ui';
-import { ArrowLeft } from 'lucide-react';
+import { Btn, PageHero, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { TemplateEditor } from '../_components/template-editor';
 import type { CreateTemplateInput } from '@dermaos/shared';
@@ -25,29 +24,39 @@ export default function TemplateNovoPage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/comunicacoes/templates" aria-label="Voltar para templates">
-          <Button size="icon-sm" variant="ghost">
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </Link>
-        <h1 className="text-lg font-semibold">Novo Template</h1>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <div style={{ padding: '20px 26px 12px', flexShrink: 0 }}>
+        <PageHero
+          eyebrow="NOVO TEMPLATE · BIBLIOTECA"
+          title="Novo Template"
+          module="aiMod"
+          icon="file"
+          actions={
+            <Link href="/comunicacoes/templates" style={{ textDecoration: 'none' }}>
+              <Btn variant="glass" small icon="arrowLeft">Voltar</Btn>
+            </Link>
+          }
+        />
+        {createMutation.isError && (
+          <div
+            role="alert"
+            style={{
+              marginTop: 10,
+              padding: '10px 12px',
+              borderRadius: T.r.md,
+              background: T.dangerBg,
+              border: `1px solid ${T.dangerBorder}`,
+              color: T.danger,
+              fontSize: 12,
+              lineHeight: 1.5,
+            }}
+          >
+            {createMutation.error.message}
+          </div>
+        )}
       </div>
 
-      {/* Erro */}
-      {createMutation.isError && (
-        <div
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          role="alert"
-        >
-          {createMutation.error.message}
-        </div>
-      )}
-
-      {/* Editor */}
-      <div className="flex min-h-0 flex-1">
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, padding: '0 26px 22px' }}>
         <TemplateEditor
           mode="create"
           isSaving={createMutation.isPending}

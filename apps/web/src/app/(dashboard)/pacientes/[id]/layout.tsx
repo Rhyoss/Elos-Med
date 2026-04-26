@@ -3,12 +3,11 @@
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar } from 'lucide-react';
-import { AllergyBanner, Button, LoadingSkeleton } from '@dermaos/ui';
-import { cn } from '@/lib/utils';
+import { AllergyBanner } from '@dermaos/ui';
+import { Btn, Mono, Skeleton, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 
-/* ── Tabs ────────────────────────────────────────────────────────────────── */
+/* ── Tabs ────────────────────────────────────────────────────────────── */
 
 interface PatientTab {
   label:   string;
@@ -28,21 +27,29 @@ const TABS: PatientTab[] = [
   { label: 'Insumos',      segment: 'insumos'       },
 ];
 
-/* ── Skeleton ────────────────────────────────────────────────────────────── */
+/* ── Skeleton header ─────────────────────────────────────────────────── */
 
 function PatientHeaderSkeleton() {
   return (
-    <div className="flex items-center gap-4 px-6 py-4 border-b border-border bg-card">
-      <LoadingSkeleton className="h-14 w-14 rounded-full shrink-0" />
-      <div className="flex flex-col gap-2 flex-1">
-        <LoadingSkeleton className="h-5 w-48 rounded" />
-        <LoadingSkeleton className="h-4 w-32 rounded" />
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        padding: '14px 26px',
+        borderBottom: `1px solid ${T.divider}`,
+      }}
+    >
+      <Skeleton width={56} height={56} radius={28} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+        <Skeleton width={200} height={18} />
+        <Skeleton width={140} height={12} delay={80} />
       </div>
     </div>
   );
 }
 
-/* ── Header do paciente ──────────────────────────────────────────────────── */
+/* ── Header DS ───────────────────────────────────────────────────────── */
 
 interface PatientInfo {
   name:      string;
@@ -74,58 +81,108 @@ function PatientHeader({ patient, patientId }: { patient: PatientInfo; patientId
     .slice(0, 2);
 
   const meta = [
-    patient.age  != null ? `${patient.age} anos` : null,
-    patient.gender ? GENDER_LABELS[patient.gender] : null,
+    patient.age != null ? `${patient.age} anos` : null,
+    patient.gender ? GENDER_LABELS[patient.gender] ?? patient.gender : null,
     patient.bloodType ? `Tipo ${patient.bloodType}` : null,
-  ].filter(Boolean).join(' · ');
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <>
-      <div className="flex items-center gap-4 px-6 py-4 bg-card border-b border-border">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          padding: '14px 26px',
+          borderBottom: `1px solid ${T.divider}`,
+          background: T.glass,
+          backdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+          WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+        }}
+      >
         {/* Avatar */}
         {patient.photoUrl ? (
           <img
             src={patient.photoUrl}
             alt=""
-            aria-hidden="true"
-            className="h-14 w-14 rounded-full object-cover ring-2 ring-primary-200 shrink-0"
+            aria-hidden
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: `2px solid ${T.clinical.color}30`,
+              flexShrink: 0,
+            }}
           />
         ) : (
           <span
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-semibold text-lg ring-2 ring-primary-200"
-            aria-hidden="true"
+            aria-hidden
+            style={{
+              width: 56,
+              height: 56,
+              flexShrink: 0,
+              borderRadius: '50%',
+              background: T.clinical.bg,
+              border: `2px solid ${T.clinical.color}30`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: T.clinical.color,
+              fontWeight: 700,
+              fontSize: 20,
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              letterSpacing: '-0.02em',
+            }}
           >
             {initials}
           </span>
         )}
 
         {/* Info */}
-        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-          <h1 className="text-lg font-semibold text-foreground truncate">{patient.name}</h1>
-          {meta && <p className="text-sm text-muted-foreground">{meta}</p>}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Mono size={9} spacing="1.2px" color={T.clinical.color}>
+            PRONTUÁRIO {patientId.slice(0, 8).toUpperCase()}
+          </Mono>
+          <h1
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              color: T.textPrimary,
+              letterSpacing: '-0.01em',
+              lineHeight: 1.15,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {patient.name}
+          </h1>
+          {meta && (
+            <p style={{ fontSize: 12, color: T.textSecondary }}>{meta}</p>
+          )}
         </div>
 
         {/* CTA */}
-        <Button
-          size="sm"
+        <Btn
+          small
+          icon="calendar"
           onClick={() => router.push(`/agenda?paciente=${patientId}`)}
-          className="shrink-0"
           aria-label={`Nova consulta para ${patient.name}`}
         >
-          <Calendar className="h-4 w-4" aria-hidden="true" />
           Nova Consulta
-        </Button>
+        </Btn>
       </div>
 
-      {/* Banner de alergias — prioridade crítica */}
-      {patient.allergies.length > 0 && (
-        <AllergyBanner allergies={patient.allergies} />
-      )}
+      {/* Banner de alergias — composite legacy preservado (já forest-themed via globals.css) */}
+      {patient.allergies.length > 0 && <AllergyBanner allergies={patient.allergies} />}
     </>
   );
 }
 
-/* ── Tabs de navegação ───────────────────────────────────────────────────── */
+/* ── Tabs DS ─────────────────────────────────────────────────────────── */
 
 function PatientTabs({ patientId, tabs }: { patientId: string; tabs: PatientTab[] }) {
   const pathname = usePathname();
@@ -137,7 +194,13 @@ function PatientTabs({ patientId, tabs }: { patientId: string; tabs: PatientTab[
   return (
     <nav
       aria-label="Seções do paciente"
-      className="flex overflow-x-auto border-b border-border bg-card px-6 scrollbar-none"
+      style={{
+        display: 'flex',
+        overflowX: 'auto',
+        borderBottom: `1px solid ${T.divider}`,
+        padding: '0 26px',
+        gap: 4,
+      }}
     >
       {tabs.map((tab) => {
         const active = isActive(tab.segment);
@@ -145,18 +208,43 @@ function PatientTabs({ patientId, tabs }: { patientId: string; tabs: PatientTab[
           <Link
             key={tab.segment}
             href={`/pacientes/${patientId}/${tab.segment}`}
-            className={cn(
-              'flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-3 pt-3 text-sm font-medium transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              active
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
-            )}
             aria-current={active ? 'page' : undefined}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '10px 14px',
+              whiteSpace: 'nowrap',
+              borderBottom: active
+                ? `2px solid ${T.clinical.color}`
+                : '2px solid transparent',
+              marginBottom: -1,
+              color: active ? T.textPrimary : T.textMuted,
+              transition: 'all 0.15s',
+              textDecoration: 'none',
+            }}
           >
-            {tab.label}
+            <Mono
+              size={10}
+              spacing="0.8px"
+              color={active ? T.clinical.color : 'inherit'}
+              weight={active ? 600 : 500}
+            >
+              {tab.label.toUpperCase()}
+            </Mono>
             {tab.badge != null && tab.badge > 0 && (
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+              <span
+                style={{
+                  padding: '0 6px',
+                  borderRadius: T.r.pill,
+                  background: active ? T.clinical.bg : T.glass,
+                  border: `1px solid ${active ? `${T.clinical.color}30` : T.glassBorder}`,
+                  fontSize: 9,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontWeight: 600,
+                  color: active ? T.clinical.color : T.textMuted,
+                }}
+              >
                 {tab.badge}
               </span>
             )}
@@ -167,7 +255,7 @@ function PatientTabs({ patientId, tabs }: { patientId: string; tabs: PatientTab[
   );
 }
 
-/* ── Layout principal ────────────────────────────────────────────────────── */
+/* ── Layout principal ────────────────────────────────────────────────── */
 
 export default function PatientLayout({
   children,
@@ -181,8 +269,8 @@ export default function PatientLayout({
   const { data, isLoading } = trpc.patients.getById.useQuery(
     { id },
     {
-      enabled:          !!id,
-      staleTime:        30_000,
+      enabled: !!id,
+      staleTime: 30_000,
       refetchOnWindowFocus: false,
     },
   );
@@ -204,16 +292,12 @@ export default function PatientLayout({
       };
 
   return (
-    <div className="flex flex-col h-full">
-      {isLoading ? (
-        <PatientHeaderSkeleton />
-      ) : (
-        <PatientHeader patient={patientInfo} patientId={id} />
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {isLoading ? <PatientHeaderSkeleton /> : <PatientHeader patient={patientInfo} patientId={id} />}
 
       <PatientTabs patientId={id} tabs={TABS} />
 
-      <div className="flex-1 overflow-y-auto">
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {children}
       </div>
     </div>

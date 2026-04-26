@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Badge, Button, Input } from '@dermaos/ui';
-import { User, Phone, Mail, UserPlus, X } from 'lucide-react';
+import { Btn, Badge, Input, Mono, Ico, T } from '@dermaos/ui/ds';
 import { formatRelativeTime } from '../_lib/relative-time';
 
 export interface ContactContext {
@@ -39,6 +38,15 @@ export interface ContactPanelProps {
   isUpdatingTags?:  boolean;
 }
 
+const SECTION: React.CSSProperties = {
+  padding: '14px 16px',
+  borderBottom: `1px solid ${T.divider}`,
+};
+
+const SECTION_LABEL: React.CSSProperties = {
+  marginBottom: 8,
+};
+
 export function ContactPanel({
   context,
   onUpdateTags,
@@ -70,70 +78,133 @@ export function ContactPanel({
   const isLead = !context.patientId;
 
   return (
-    <aside className="flex h-full flex-col overflow-y-auto border-l border-border bg-background">
-      <header className="border-b border-border p-4">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <User className="h-5 w-5" aria-hidden="true" />
+    <aside
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflowY: 'auto',
+        borderLeft: `1px solid ${T.divider}`,
+        background: 'rgba(255,255,255,0.30)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
+    >
+      {/* Header */}
+      <header style={SECTION}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: T.primaryBg,
+              border: `1px solid ${T.primaryBorder}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Ico name="user" size={18} color={T.primary} />
           </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-sm font-medium text-foreground">{context.name}</h3>
-            <div className="flex items-center gap-1">
-              {isLead ? (
-                <Badge variant="neutral" size="sm">Lead</Badge>
-              ) : (
-                <Badge variant="success" size="sm">Paciente</Badge>
-              )}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h3
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: T.textPrimary,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                lineHeight: 1.25,
+              }}
+            >
+              {context.name}
+            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+              {isLead ? <Badge dot={false}>Lead</Badge> : <Badge variant="success" dot={false}>Paciente</Badge>}
               {context.leadScore != null && (
-                <Badge variant="info" size="sm">Score {context.leadScore}</Badge>
+                <Badge variant="info" dot={false}>Score {context.leadScore}</Badge>
               )}
             </div>
           </div>
         </div>
 
-        <dl className="space-y-1 text-xs">
+        <dl style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {context.phone && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Phone className="h-3 w-3" aria-hidden="true" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: T.textSecondary }}>
+              <Ico name="phone" size={11} color={T.textMuted} />
               <dd>{context.phone}</dd>
             </div>
           )}
           {context.email && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Mail className="h-3 w-3" aria-hidden="true" />
-              <dd className="truncate">{context.email}</dd>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: T.textSecondary }}>
+              <Ico name="mail" size={11} color={T.textMuted} />
+              <dd
+                style={{
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {context.email}
+              </dd>
             </div>
           )}
         </dl>
       </header>
 
       {/* Tags */}
-      <section className="border-b border-border p-4">
-        <h4 className="mb-2 text-xs font-medium text-muted-foreground">Tags</h4>
-        <div className="mb-2 flex flex-wrap gap-1">
+      <section style={SECTION}>
+        <div style={SECTION_LABEL}>
+          <Mono size={8} spacing="1.1px">TAGS</Mono>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
           {localTags.length === 0 ? (
-            <span className="text-xs text-muted-foreground">Sem tags</span>
+            <Mono size={9}>SEM TAGS</Mono>
           ) : (
             localTags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '3px 8px',
+                  borderRadius: T.r.pill,
+                  background: T.primaryBg,
+                  border: `1px solid ${T.primaryBorder}`,
+                  color: T.primary,
+                  fontSize: 10,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontWeight: 500,
+                }}
               >
                 {tag}
                 <button
                   type="button"
                   onClick={() => removeTag(tag)}
                   aria-label={`Remover tag ${tag}`}
-                  className="hover:text-danger-600"
                   disabled={isUpdatingTags}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: T.primary,
+                    opacity: isUpdatingTags ? 0.4 : 0.7,
+                  }}
                 >
-                  <X className="h-3 w-3" />
+                  <Ico name="x" size={10} color="currentColor" />
                 </button>
               </span>
             ))
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Input
             value={newTag}
             onChange={(e) => setNewTag(e.target.value)}
@@ -145,33 +216,38 @@ export function ContactPanel({
             }}
             placeholder="Nova tag…"
             maxLength={50}
-            className="h-8 text-xs"
             disabled={isUpdatingTags || localTags.length >= 20}
+            style={{ fontSize: 11, padding: '6px 10px' }}
           />
-          <Button
-            size="sm"
-            variant="outline"
+          <Btn
+            variant="glass"
+            small
+            icon="plus"
+            iconOnly
             onClick={addTag}
             disabled={!newTag.trim() || isUpdatingTags}
-          >
-            Adicionar
-          </Button>
+            aria-label="Adicionar tag"
+          />
         </div>
       </section>
 
-      {/* Paciente / Lead */}
+      {/* Paciente */}
       {context.patient ? (
         <>
-          <section className="border-b border-border p-4">
-            <h4 className="mb-2 text-xs font-medium text-muted-foreground">Histórico clínico</h4>
-            <dl className="grid grid-cols-2 gap-2 text-xs">
+          <section style={SECTION}>
+            <div style={SECTION_LABEL}>
+              <Mono size={8} spacing="1.1px">HISTÓRICO CLÍNICO</Mono>
+            </div>
+            <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <div>
-                <dt className="text-muted-foreground">Consultas</dt>
-                <dd className="font-medium">{context.patient.totalVisits}</dd>
+                <Mono size={7}>CONSULTAS</Mono>
+                <dd style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, marginTop: 2 }}>
+                  {context.patient.totalVisits}
+                </dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">Última visita</dt>
-                <dd className="font-medium">
+                <Mono size={7}>ÚLTIMA VISITA</Mono>
+                <dd style={{ fontSize: 12, fontWeight: 500, color: T.textPrimary, marginTop: 2 }}>
                   {context.patient.lastVisitAt
                     ? formatRelativeTime(context.patient.lastVisitAt)
                     : 'nunca'}
@@ -181,32 +257,54 @@ export function ContactPanel({
           </section>
 
           {context.patient.nextAppointment && (
-            <section className="border-b border-border p-4">
-              <h4 className="mb-2 text-xs font-medium text-muted-foreground">Próxima consulta</h4>
-              <p className="text-sm font-medium">
+            <section style={SECTION}>
+              <div style={SECTION_LABEL}>
+                <Mono size={8} spacing="1.1px" color={T.clinical.color}>PRÓXIMA CONSULTA</Mono>
+              </div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>
                 {new Intl.DateTimeFormat('pt-BR', {
-                  day:   '2-digit',
+                  day: '2-digit',
                   month: '2-digit',
-                  year:  'numeric',
-                  hour:  '2-digit',
-                  minute:'2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
                 }).format(context.patient.nextAppointment.scheduledAt)}
               </p>
-              <p className="text-xs text-muted-foreground">{context.patient.nextAppointment.type}</p>
+              <p style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+                {context.patient.nextAppointment.type}
+              </p>
             </section>
           )}
 
           {context.patient.recentEncounters.length > 0 && (
-            <section className="border-b border-border p-4">
-              <h4 className="mb-2 text-xs font-medium text-muted-foreground">
-                Atendimentos recentes
-              </h4>
-              <ul className="space-y-2 text-xs">
+            <section style={SECTION}>
+              <div style={SECTION_LABEL}>
+                <Mono size={8} spacing="1.1px">ATENDIMENTOS RECENTES</Mono>
+              </div>
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {context.patient.recentEncounters.map((e) => (
-                  <li key={e.id} className="flex justify-between gap-2">
-                    <span className="truncate">{e.summary ?? 'sem resumo'}</span>
-                    <time className="flex-none text-muted-foreground">
-                      {formatRelativeTime(e.encounteredAt)}
+                  <li
+                    key={e.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: 6,
+                      fontSize: 11,
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: T.textPrimary,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        flex: 1,
+                      }}
+                    >
+                      {e.summary ?? 'sem resumo'}
+                    </span>
+                    <time>
+                      <Mono size={8}>{formatRelativeTime(e.encounteredAt)}</Mono>
                     </time>
                   </li>
                 ))}
@@ -215,15 +313,14 @@ export function ContactPanel({
           )}
         </>
       ) : (
-        <section className="border-b border-border p-4">
-          <p className="mb-2 text-xs text-muted-foreground">
-            Este contato ainda é um lead. Vincule-o a um paciente do cadastro
-            para unificar o histórico clínico.
+        <section style={SECTION}>
+          <p style={{ fontSize: 11, color: T.textSecondary, marginBottom: 10, lineHeight: 1.5 }}>
+            Este contato ainda é um <strong>lead</strong>. Vincule-o a um paciente do
+            cadastro para unificar o histórico clínico.
           </p>
-          <Button size="sm" variant="outline" onClick={onLinkToPatient} className="w-full">
-            <UserPlus className="h-4 w-4" aria-hidden="true" />
+          <Btn variant="glass" small icon="user" onClick={onLinkToPatient} style={{ width: '100%' }}>
             Vincular a paciente
-          </Button>
+          </Btn>
         </section>
       )}
     </aside>

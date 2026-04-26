@@ -8,7 +8,10 @@
     ".": "./src/index.ts",
     "./primitives": "./src/primitives/index.ts",
     "./composites": "./src/composites/index.ts",
-    "./layouts": "./src/layouts/index.ts"
+    "./layouts": "./src/layouts/index.ts",
+    "./ds": "./src/ds/index.ts",
+    "./tokens": "./src/tokens.ts",
+    "./tokens.css": "./src/tokens.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -1,8 +1,6 @@
 'use client';
 
-import { cn } from '@/lib/utils';
-import { Bot, Check, CheckCheck, AlertCircle, Clock } from 'lucide-react';
-import { AiBadge } from '@dermaos/ui';
+import { Mono, Ico, T } from '@dermaos/ui/ds';
 import { formatClockTime } from '../_lib/relative-time';
 
 export interface MessageBubbleProps {
@@ -23,25 +21,37 @@ export interface MessageBubbleProps {
 function StatusIcon({ status }: { status: MessageBubbleProps['message']['status'] }) {
   switch (status) {
     case 'pending':
-      return <Clock     className="h-3 w-3 text-muted-foreground" aria-label="Enviando" />;
+      return <Ico name="clock" size={11} color={T.textMuted} />;
     case 'sent':
-      return <Check     className="h-3 w-3 text-muted-foreground" aria-label="Enviada" />;
+      return <Ico name="check" size={11} color={T.textMuted} />;
     case 'delivered':
-      return <CheckCheck className="h-3 w-3 text-muted-foreground" aria-label="Entregue" />;
+      return <Ico name="check" size={11} color={T.textMuted} sw={2.4} />;
     case 'read':
-      return <CheckCheck className="h-3 w-3 text-primary"         aria-label="Lida" />;
+      return <Ico name="check" size={11} color={T.primary} sw={2.4} />;
     case 'failed':
-      return <AlertCircle className="h-3 w-3 text-danger-500"     aria-label="Falha no envio" />;
+      return <Ico name="alert" size={11} color={T.danger} />;
     default:
       return null;
   }
 }
 
 export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
+  /* Mensagens "system" — separador centralizado. */
   if (message.senderType === 'system') {
     return (
-      <div className="my-2 flex justify-center">
-        <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+      <div style={{ margin: '8px 0', display: 'flex', justifyContent: 'center' }}>
+        <span
+          style={{
+            padding: '3px 12px',
+            borderRadius: T.r.pill,
+            background: T.glass,
+            border: `1px solid ${T.glassBorder}`,
+            fontSize: 10,
+            color: T.textMuted,
+            fontFamily: "'IBM Plex Mono', monospace",
+            letterSpacing: '0.6px',
+          }}
+        >
           {message.content}
         </span>
       </div>
@@ -50,39 +60,115 @@ export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
 
   const isInbound = message.senderType === 'patient';
   const isAI      = message.senderType === 'ai_agent';
+  const isNote    = message.isInternalNote;
+
+  /* Cores e geometry da bolha — match S04 reference. */
+  let bubbleBg: string;
+  let bubbleBorder: string;
+  let radius: string;
+  if (isInbound) {
+    bubbleBg = T.glass;
+    bubbleBorder = T.glassBorder;
+    radius = `${T.r.sm}px ${T.r.lg}px ${T.r.lg}px ${T.r.lg}px`;
+  } else if (isAI) {
+    bubbleBg = T.aiBg;
+    bubbleBorder = T.aiBorder;
+    radius = `${T.r.lg}px ${T.r.sm}px ${T.r.lg}px ${T.r.lg}px`;
+  } else if (isNote) {
+    bubbleBg = T.warningBg;
+    bubbleBorder = T.warningBorder;
+    radius = `${T.r.lg}px ${T.r.sm}px ${T.r.lg}px ${T.r.lg}px`;
+  } else {
+    bubbleBg = T.primaryBg;
+    bubbleBorder = T.primaryBorder;
+    radius = `${T.r.lg}px ${T.r.sm}px ${T.r.lg}px ${T.r.lg}px`;
+  }
 
   return (
-    <div className={cn('mb-3 flex', isInbound ? 'justify-start' : 'justify-end')}>
-      <div className="flex max-w-[75%] flex-col">
-        <div className="mb-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          {isAI && <AiBadge size="inline" />}
-          {!isInbound && !isAI && message.senderName && (
-            <span>{message.senderName}</span>
-          )}
-          {message.isInternalNote && (
-            <span className="rounded-sm bg-warning-100 px-1 text-warning-700">
-              nota interna
-            </span>
-          )}
-        </div>
-
+    <div
+      style={{
+        marginBottom: 10,
+        display: 'flex',
+        flexDirection: isInbound ? 'row' : 'row-reverse',
+        gap: 7,
+        alignItems: 'flex-end',
+      }}
+    >
+      {isAI && (
         <div
-          className={cn(
-            'relative rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words',
-            isInbound
-              ? 'rounded-bl-sm bg-muted text-foreground'
-              : isAI
-              ? 'rounded-br-sm bg-ai-100 text-ai-900'
-              : message.isInternalNote
-              ? 'rounded-br-sm bg-warning-50 text-warning-900 border border-warning-200'
-              : 'rounded-br-sm bg-primary text-primary-foreground',
-          )}
+          aria-hidden
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: '50%',
+            background: T.aiBg,
+            border: `1px solid ${T.aiBorder}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Ico name="zap" size={10} color={T.ai} />
+        </div>
+      )}
+
+      <div style={{ maxWidth: '72%', display: 'flex', flexDirection: 'column' }}>
+        {/* Sender / nota header */}
+        {(isAI || (!isInbound && message.senderName) || isNote) && (
+          <div style={{ display: 'flex', gap: 5, marginBottom: 2, fontSize: 10, color: T.textMuted, alignItems: 'center', justifyContent: isInbound ? 'flex-start' : 'flex-end' }}>
+            {isAI && (
+              <span
+                style={{
+                  padding: '0 6px',
+                  borderRadius: 3,
+                  background: T.aiBg,
+                  color: T.ai,
+                  fontSize: 8,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontWeight: 600,
+                  letterSpacing: '0.6px',
+                }}
+              >
+                AURORA IA
+              </span>
+            )}
+            {!isInbound && !isAI && message.senderName && (
+              <span style={{ fontSize: 10, color: T.textMuted }}>{message.senderName}</span>
+            )}
+            {isNote && (
+              <span
+                style={{
+                  padding: '0 6px',
+                  borderRadius: 3,
+                  background: T.warningBg,
+                  color: T.warning,
+                  fontSize: 8,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontWeight: 600,
+                  letterSpacing: '0.6px',
+                }}
+              >
+                NOTA INTERNA
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Bubble */}
+        <div
+          style={{
+            padding: '8px 12px',
+            borderRadius: radius,
+            background: bubbleBg,
+            border: `1px solid ${bubbleBorder}`,
+          }}
         >
           {message.contentType === 'image' && message.mediaUrl && (
             <img
               src={message.mediaUrl}
               alt={message.content ?? 'imagem'}
-              className="mb-1 max-h-64 rounded-lg"
+              style={{ marginBottom: 4, maxHeight: 256, borderRadius: T.r.md, display: 'block' }}
             />
           )}
           {message.contentType === 'document' && message.mediaUrl && (
@@ -90,17 +176,47 @@ export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
               href={message.mediaUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mb-1 block underline"
+              style={{
+                marginBottom: 4,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                color: T.primary,
+                textDecoration: 'underline',
+                fontSize: 12,
+              }}
             >
+              <Ico name="file" size={12} color={T.primary} />
               Ver documento
             </a>
           )}
-          {message.content && <p>{message.content}</p>}
+          {message.content && (
+            <p
+              style={{
+                fontSize: 12,
+                color: T.textPrimary,
+                lineHeight: 1.55,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {message.content}
+            </p>
+          )}
 
-          <div className="mt-1 flex items-center justify-end gap-1">
-            <time dateTime={message.createdAt.toISOString()} className="text-[10px] opacity-70">
+          <div
+            style={{
+              marginTop: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 4,
+            }}
+          >
+            <Mono size={7}>
               {formatClockTime(message.createdAt)}
-            </time>
+              {isAI && ' · AURORA IA'}
+            </Mono>
             {!isInbound && <StatusIcon status={message.status} />}
           </div>
         </div>
@@ -109,7 +225,18 @@ export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
           <button
             type="button"
             onClick={() => onRetry(message.id)}
-            className="mt-1 self-end text-[10px] text-danger-600 underline"
+            style={{
+              marginTop: 4,
+              alignSelf: 'flex-end',
+              fontSize: 10,
+              color: T.danger,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              padding: 0,
+              fontFamily: "'IBM Plex Sans', sans-serif",
+            }}
           >
             Reenviar
           </button>
@@ -119,15 +246,39 @@ export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
   );
 }
 
+/** Separador inserido quando atendimento transita de IA para humano. */
 export function AITransitionSeparator() {
   return (
-    <div className="my-4 flex items-center gap-2" role="separator">
-      <div className="h-px flex-1 bg-border" />
-      <span className="flex items-center gap-1 rounded-full bg-ai-100 px-2 py-0.5 text-[10px] text-ai-700">
-        <Bot className="h-3 w-3" aria-hidden="true" />
-        Atendimento transferido para humano
+    <div
+      role="separator"
+      style={{
+        margin: '14px 0',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}
+    >
+      <div style={{ flex: 1, height: 1, background: T.divider }} />
+      <span
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '3px 10px',
+          borderRadius: T.r.pill,
+          background: T.aiBg,
+          border: `1px solid ${T.aiBorder}`,
+          fontSize: 10,
+          color: T.ai,
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontWeight: 500,
+          letterSpacing: '0.6px',
+        }}
+      >
+        <Ico name="zap" size={10} color={T.ai} />
+        TRANSFERIDO PARA HUMANO
       </span>
-      <div className="h-px flex-1 bg-border" />
+      <div style={{ flex: 1, height: 1, background: T.divider }} />
     </div>
   );
 }

@@ -1,0 +1,39 @@
+import * as React from 'react';
+import { T } from '../../tokens.js';
+
+export interface MonoProps {
+  children?: React.ReactNode;
+  size?: number;
+  color?: string;
+  spacing?: string;
+  weight?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+export function Mono({
+  children,
+  size = 10,
+  color,
+  spacing = '1.1px',
+  weight = 500,
+  className,
+  style,
+}: MonoProps) {
+  return (
+    <span
+      className={className}
+      style={{
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontWeight: weight,
+        fontSize: size,
+        letterSpacing: spacing,
+        color: color ?? T.textMuted,
+        lineHeight: 1.2,
+        ...style,
+      }}
+    >
+      {children}
+    </span>
+  );
+}

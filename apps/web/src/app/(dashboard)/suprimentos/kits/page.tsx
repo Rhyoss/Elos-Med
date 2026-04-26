@@ -6,6 +6,7 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
   DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '@dermaos/ui';
+import { Btn, PageHero } from '@dermaos/ui/ds';
 import { Plus, Pencil, Archive, MoreVertical, Search, PackageOpen } from 'lucide-react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -102,26 +103,23 @@ export default function KitsPage() {
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <SuprimentosTabs />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Kits de Procedimento</h1>
-          <p className="text-sm text-muted-foreground">
-            Configure insumos padrão por tipo de procedimento
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/suprimentos/kits/consumir" passHref>
-            <Button variant="outline" size="sm">
-              <PackageOpen className="mr-1 h-4 w-4" />
-              Registrar Consumo
-            </Button>
-          </Link>
-          <Button size="sm" onClick={() => { setEditingKitId(null); setEditorOpen(true); }}>
-            <Plus className="mr-1 h-4 w-4" />
-            Novo Kit
-          </Button>
-        </div>
-      </div>
+      <PageHero
+        eyebrow="INSUMOS POR PROCEDIMENTO"
+        title="Kits de Procedimento"
+        module="supply"
+        icon="layers"
+        description="Configure insumos padrão por tipo de procedimento"
+        actions={
+          <>
+            <Link href="/suprimentos/kits/consumir" passHref style={{ textDecoration: 'none' }}>
+              <Btn variant="glass" small icon="box">Registrar Consumo</Btn>
+            </Link>
+            <Btn small icon="plus" onClick={() => { setEditingKitId(null); setEditorOpen(true); }}>
+              Novo Kit
+            </Btn>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1">

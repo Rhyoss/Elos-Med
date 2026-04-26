@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Badge } from '@dermaos/ui';
+import { Btn as DSBtn, Mono, Ico, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { useRealtime } from '@/hooks/use-realtime';
 import { useAuth } from '@/lib/auth';
@@ -270,8 +271,122 @@ export default function ComunicacoesPage() {
       }
     : null;
 
+  /* ── Channels strip (reference 68px) — counts derivados das conversas
+        carregadas; click filtra `channelType`. Aurora ao fundo abre /agentes. */
+  const CH_KEYS: Array<{ id: string; type: 'whatsapp' | 'instagram' | 'email' | 'sms'; label: string }> = [
+    { id: 'WA', type: 'whatsapp',  label: 'WhatsApp'  },
+    { id: 'IG', type: 'instagram', label: 'Instagram' },
+    { id: 'EM', type: 'email',     label: 'Email'     },
+    { id: 'SM', type: 'sms',       label: 'SMS'       },
+  ];
+  const channelCounts = React.useMemo(() => {
+    const counts: Record<string, number> = { whatsapp: 0, instagram: 0, email: 0, sms: 0 };
+    for (const c of accumulated) {
+      const k = String(c.channelType).toLowerCase();
+      if (k in counts && c.unreadCount > 0) counts[k] = (counts[k] ?? 0) + c.unreadCount;
+    }
+    return counts;
+  }, [accumulated]);
+
   return (
-    <div className="grid h-[calc(100vh-var(--topbar-h,64px))] grid-cols-1 overflow-hidden md:grid-cols-[320px_1fr] xl:grid-cols-[320px_1fr_320px]">
+    /* Phase-4 reskin: outer chrome no padrão DS (canais 68px + lista 320px +
+       chat 1fr + contexto 280px no xl). Sub-componentes Tailwind dentro de
+       cada coluna ficam para Phase 5 (FiltersBar, ConversationList, Thread,
+       Composer, ContactPanel). */
+    <div className="grid h-full grid-cols-1 overflow-hidden md:grid-cols-[68px_320px_1fr] xl:grid-cols-[68px_320px_1fr_280px]">
+      {/* Coluna 0: Strip de canais (DS) */}
+      <aside
+        aria-label="Canais"
+        style={{
+          borderRight: `1px solid ${T.divider}`,
+          background: T.metalGrad,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '12px 8px',
+          gap: 6,
+          flexShrink: 0,
+        }}
+      >
+        <Mono size={7} spacing="1px">CANAIS</Mono>
+        {CH_KEYS.map((ch) => {
+          const active = channelType === ch.type;
+          const count = channelCounts[ch.type] ?? 0;
+          return (
+            <button
+              key={ch.id}
+              type="button"
+              onClick={() => updateParams({ channelType: active ? null : ch.type })}
+              aria-pressed={active}
+              aria-label={`${ch.label}${count > 0 ? ` (${count} não lidas)` : ''}`}
+              title={ch.label}
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: T.r.md,
+                background: active ? T.primaryBg : T.glass,
+                border: `1px solid ${active ? T.primaryBorder : T.glassBorder}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                padding: 0,
+              }}
+            >
+              <Mono size={9} color={active ? T.primary : T.textSecondary}>{ch.id}</Mono>
+              {count > 0 && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    top: 2,
+                    right: 2,
+                    minWidth: 14,
+                    height: 14,
+                    padding: '0 4px',
+                    borderRadius: 999,
+                    background: T.danger,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: 7, fontWeight: 700, color: '#fff' }}>
+                    {count > 99 ? '99+' : count}
+                  </span>
+                </span>
+              )}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => router.push('/comunicacoes/agentes')}
+          aria-label="Agentes IA Aurora"
+          title="Aurora — Agentes IA"
+          style={{
+            marginTop: 'auto',
+            width: 42,
+            height: 42,
+            borderRadius: T.r.md,
+            background: T.aiBg,
+            border: `1px solid ${T.aiBorder}`,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 2,
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
+          <Ico name="zap" size={14} color={T.ai} />
+          <Mono size={6} color={T.ai}>AURORA</Mono>
+        </button>
+      </aside>
+
       {/* Coluna 1: Lista + filtros */}
       <section
         className="flex min-h-0 flex-col border-r border-border bg-background"
@@ -316,36 +431,45 @@ export default function ComunicacoesPage() {
           </div>
         ) : (
           <>
-            <header className="flex items-center justify-between gap-3 border-b border-border p-3">
-              <div className="flex min-w-0 items-center gap-3">
+            <header
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '12px 18px',
+                borderBottom: `1px solid ${T.divider}`,
+                background: T.glass,
+                backdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+                WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                 <ChannelIcon type={conversation.channelType} className="h-5 w-5 text-muted-foreground" />
-                <div className="min-w-0">
-                  <h2 className="truncate text-sm font-medium">{conversation.contactName}</h2>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {conversation.channelName}
-                    {conversation.assignedToName && ` · ${conversation.assignedToName}`}
-                  </p>
+                <div style={{ minWidth: 0 }}>
+                  <h2 style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {conversation.contactName}
+                  </h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.success }} />
+                    <Mono size={8}>
+                      {conversation.channelName}
+                      {conversation.assignedToName && ` · ${conversation.assignedToName}`}
+                    </Mono>
+                  </div>
                 </div>
                 {conversation.status === 'resolved' && (
                   <Badge variant="success" size="sm">Resolvida</Badge>
                 )}
               </div>
-              <div className="flex flex-none gap-1">
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 {!conversation.assignedToName && (
-                  <Button size="sm" variant="outline" onClick={handleAssumeSelf}>
-                    <UserPlus className="h-4 w-4" aria-hidden="true" />
-                    Assumir
-                  </Button>
+                  <DSBtn variant="glass" small icon="user" onClick={handleAssumeSelf}>Assumir</DSBtn>
                 )}
-                <Button size="sm" variant="outline" disabled title="Escalar (em breve)">
-                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                  Escalar
-                </Button>
+                <DSBtn variant="glass" small icon="arrowRight" disabled title="Escalar (em breve)">Escalar</DSBtn>
                 {conversation.status !== 'resolved' && (
-                  <Button size="sm" onClick={handleResolve}>
-                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                    Resolver
-                  </Button>
+                  <DSBtn small icon="check" onClick={handleResolve}>Resolver</DSBtn>
                 )}
               </div>
             </header>

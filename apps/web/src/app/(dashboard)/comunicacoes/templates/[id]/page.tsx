@@ -3,8 +3,8 @@
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Button, Badge } from '@dermaos/ui';
-import { ArrowLeft } from 'lucide-react';
+import { Badge } from '@dermaos/ui';
+import { Btn, Glass, Mono, PageHero, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { TemplateEditor } from '../_components/template-editor';
 import type { UpdateTemplateInput } from '@dermaos/shared';
@@ -50,69 +50,95 @@ export default function TemplateEditPage() {
 
   if (query.isLoading) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-label="Carregando…" />
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div
+          aria-label="Carregando…"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            border: `2px solid ${T.primary}`,
+            borderTopColor: 'transparent',
+            animation: 'ds-spin 0.7s linear infinite',
+          }}
+        />
       </div>
     );
   }
 
   if (query.isError || !template) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 p-6">
-        <p className="text-sm text-destructive">Template não encontrado.</p>
-        <Button variant="outline" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Voltar
-        </Button>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 }}>
+        <Mono size={9} color={T.danger}>TEMPLATE NÃO ENCONTRADO</Mono>
+        <Btn variant="glass" icon="arrowLeft" onClick={() => router.back()}>Voltar</Btn>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
-      {/* Breadcrumb / header */}
-      <div className="flex items-center gap-3">
-        <Link href="/comunicacoes/templates" aria-label="Voltar para templates">
-          <Button size="icon-sm" variant="ghost">
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </Link>
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="truncate text-lg font-semibold">{template.name}</h1>
-          {template.channel_type && (
-            <Badge variant="outline" size="sm">
-              {CHANNEL_LABEL[template.channel_type] ?? template.channel_type}
-            </Badge>
-          )}
-          {template.is_default && (
-            <Badge variant="outline" size="sm">Padrão</Badge>
-          )}
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <div style={{ padding: '20px 26px 12px', flexShrink: 0 }}>
+        <PageHero
+          eyebrow="EDITOR DE TEMPLATE"
+          title={
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              {template.name}
+              {template.channel_type && (
+                <Badge variant="outline" size="sm">
+                  {CHANNEL_LABEL[template.channel_type] ?? template.channel_type}
+                </Badge>
+              )}
+              {template.is_default && <Badge variant="outline" size="sm">Padrão</Badge>}
+            </span>
+          }
+          module="aiMod"
+          icon="file"
+          actions={
+            <Link href="/comunicacoes/templates" style={{ textDecoration: 'none' }}>
+              <Btn variant="glass" small icon="arrowLeft">Voltar</Btn>
+            </Link>
+          }
+        />
+
+        {(updateMutation.isSuccess || restoreMutation.isSuccess) && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              marginTop: 10,
+              padding: '10px 12px',
+              borderRadius: T.r.md,
+              background: T.successBg,
+              border: `1px solid ${T.successBorder}`,
+              color: T.success,
+              fontSize: 12,
+              lineHeight: 1.5,
+            }}
+          >
+            Template salvo com sucesso.
+          </div>
+        )}
+
+        {(updateMutation.isError || restoreMutation.isError) && (
+          <div
+            role="alert"
+            style={{
+              marginTop: 10,
+              padding: '10px 12px',
+              borderRadius: T.r.md,
+              background: T.dangerBg,
+              border: `1px solid ${T.dangerBorder}`,
+              color: T.danger,
+              fontSize: 12,
+              lineHeight: 1.5,
+            }}
+          >
+            {updateMutation.error?.message ?? restoreMutation.error?.message}
+          </div>
+        )}
       </div>
 
-      {/* Feedback de sucesso */}
-      {(updateMutation.isSuccess || restoreMutation.isSuccess) && (
-        <div
-          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
-          role="status"
-          aria-live="polite"
-        >
-          Template salvo com sucesso.
-        </div>
-      )}
-
-      {/* Feedback de erro */}
-      {(updateMutation.isError || restoreMutation.isError) && (
-        <div
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          role="alert"
-        >
-          {updateMutation.error?.message ?? restoreMutation.error?.message}
-        </div>
-      )}
-
-      {/* Editor */}
-      <div className="flex min-h-0 flex-1">
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, padding: '0 26px 22px' }}>
         <TemplateEditor
           template={template}
           mode="edit"

@@ -1,0 +1,187 @@
+/* ============================================================================
+   ElosMed "Quite Clear" Design System — CSS variables
+   Mirrors `tokens.ts` 1:1. Namespace: --ds-*
+   ============================================================================ */
+
+:root {
+  /* ── Core colors ────────────────────────────────────────────────── */
+  --ds-color-primary:        #174D38;
+  --ds-color-primary-light:  #246652;
+  --ds-color-primary-dark:   #0E3325;
+  --ds-color-accent:         #4D1717;
+  --ds-color-accent-light:   #6B2222;
+  --ds-color-accent-dark:    #3A1010;
+  --ds-color-surface:        #F2F2F2;
+  --ds-color-border-gray:    #CBCBCB;
+
+  /* ── Tints ──────────────────────────────────────────────────────── */
+  --ds-color-primary-bg:     rgba(23,77,56,0.06);
+  --ds-color-primary-border: rgba(23,77,56,0.18);
+  --ds-color-primary-ring:   rgba(23,77,56,0.10);
+  --ds-color-accent-bg:      rgba(77,23,23,0.06);
+  --ds-color-accent-border:  rgba(77,23,23,0.18);
+
+  /* ── Text ───────────────────────────────────────────────────────── */
+  --ds-text-primary:    #1A1A1A;
+  --ds-text-secondary:  #4A4A4A;
+  --ds-text-tertiary:   #6E6E6E;
+  --ds-text-muted:      #8E8E8E;
+  --ds-text-inverse:    #FAFAFA;
+  --ds-text-link:       #174D38;
+
+  /* ── Semantic ───────────────────────────────────────────────────── */
+  --ds-success-fg:      #1B7A4A;
+  --ds-success-bg:      rgba(27,122,74,0.06);
+  --ds-success-border:  rgba(27,122,74,0.18);
+  --ds-warning-fg:      #7A5E12;
+  --ds-warning-bg:      rgba(122,94,18,0.06);
+  --ds-warning-border:  rgba(122,94,18,0.18);
+  --ds-danger-fg:       #9A2020;
+  --ds-danger-bg:       rgba(154,32,32,0.06);
+  --ds-danger-border:   rgba(154,32,32,0.18);
+  --ds-info-fg:         #2A4A7A;
+  --ds-info-bg:         rgba(42,74,122,0.06);
+  --ds-info-border:     rgba(42,74,122,0.18);
+  --ds-ai-fg:           #3A3A7A;
+  --ds-ai-bg:           rgba(58,58,122,0.06);
+  --ds-ai-border:       rgba(58,58,122,0.18);
+
+  /* ── Modules ────────────────────────────────────────────────────── */
+  --ds-clinical-color:    #174D38;
+  --ds-clinical-bg:       rgba(23,77,56,0.06);
+  --ds-clinical-border:   rgba(23,77,56,0.18);
+  --ds-aimod-color:       #3A3A7A;
+  --ds-aimod-bg:          rgba(58,58,122,0.06);
+  --ds-aimod-border:      rgba(58,58,122,0.18);
+  --ds-supply-color:      #6A4A1A;
+  --ds-supply-bg:         rgba(106,74,26,0.06);
+  --ds-supply-border:     rgba(106,74,26,0.18);
+  --ds-financial-color:   #1A4A5A;
+  --ds-financial-bg:      rgba(26,74,90,0.06);
+  --ds-financial-border:  rgba(26,74,90,0.18);
+  --ds-accentmod-color:   #4D1717;
+  --ds-accentmod-bg:      rgba(77,23,23,0.06);
+  --ds-accentmod-border:  rgba(77,23,23,0.18);
+
+  /* ── Divider / skeleton ─────────────────────────────────────────── */
+  --ds-divider:   rgba(200,200,200,0.45);
+  --ds-skeleton:  rgba(200,200,200,0.18);
+
+  /* ── Typography ─────────────────────────────────────────────────── */
+  --ds-font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --ds-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --ds-fs-display:   32px;
+  --ds-fs-h1:        24px;
+  --ds-fs-h2:        20px;
+  --ds-fs-h3:        16px;
+  --ds-fs-body-lg:   15px;
+  --ds-fs-body:      13px;
+  --ds-fs-caption:   11px;
+
+  --ds-fs-mono-xl:   22px;
+  --ds-fs-mono-l:    16px;
+  --ds-fs-mono-m:    12px;
+  --ds-fs-mono-s:    10px;
+  --ds-fs-mono-xs:   9px;
+
+  --ds-fw-regular:   400;
+  --ds-fw-medium:    500;
+  --ds-fw-semibold:  600;
+  --ds-fw-bold:      700;
+
+  --ds-lh-tight:     1.0;
+  --ds-lh-snug:      1.25;
+  --ds-lh-normal:    1.5;
+  --ds-lh-relaxed:   1.65;
+
+  /* ── Spacing (4px base) ─────────────────────────────────────────── */
+  --ds-sp-1:   4px;
+  --ds-sp-2:   8px;
+  --ds-sp-3:  12px;
+  --ds-sp-4:  16px;
+  --ds-sp-5:  20px;
+  --ds-sp-6:  24px;
+  --ds-sp-8:  32px;
+  --ds-sp-10: 40px;
+  --ds-sp-12: 48px;
+  --ds-sp-16: 64px;
+
+  /* ── Border radius ──────────────────────────────────────────────── */
+  --ds-r-xs:     4px;
+  --ds-r-sm:     6px;
+  --ds-r-md:    10px;
+  --ds-r-lg:    16px;
+  --ds-r-xl:    22px;
+  --ds-r-xxl:   28px;
+  --ds-r-pill:  999px;
+
+  /* ── Shadows / elevation ────────────────────────────────────────── */
+  --ds-shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+  --ds-shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.03);
+  --ds-shadow-lg: 0 12px 36px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  --ds-shadow-xl: 0 24px 64px rgba(0,0,0,0.10), 0 8px 20px rgba(0,0,0,0.05);
+
+  /* ── Glass surface ──────────────────────────────────────────────── */
+  --ds-glass-bg:           rgba(255,255,255,0.42);
+  --ds-glass-bg-hover:     rgba(255,255,255,0.58);
+  --ds-glass-border:       rgba(220,220,220,0.68);
+  --ds-glass-blur:         24px;
+  --ds-glass-saturate:     170%;
+  --ds-glass-shadow:       0 1px 0 rgba(255,255,255,0.92) inset, 0 18px 48px rgba(0,0,0,0.06), 0 3px 10px rgba(0,0,0,0.03);
+  --ds-glass-shadow-hover: 0 1px 0 rgba(255,255,255,0.94) inset, 0 24px 56px rgba(0,0,0,0.09), 0 6px 14px rgba(0,0,0,0.04);
+
+  /* ── Metal surface (matte brushed nickel) ───────────────────────── */
+  --ds-metal-grad:
+    linear-gradient(180deg,
+      rgba(255,255,255,0.58)   0%, rgba(215,215,215,0.30)  14%,
+      rgba(200,200,200,0.14)  30%, rgba(225,225,225,0.20)  46%,
+      rgba(200,200,200,0.12)  60%, rgba(235,235,235,0.24)  74%,
+      rgba(255,255,255,0.42)  88%, rgba(215,215,215,0.26) 100%);
+  --ds-metal-border:    rgba(190,190,190,0.52);
+  --ds-metal-highlight: linear-gradient(180deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.06) 42%, transparent 100%);
+  --ds-metal-sheen:     repeating-linear-gradient(90deg, transparent 0px, rgba(255,255,255,0.022) 1px, transparent 2px, transparent 8px);
+
+  /* ── Inputs ─────────────────────────────────────────────────────── */
+  --ds-input-bg:          rgba(255,255,255,0.62);
+  --ds-input-border:      rgba(200,200,200,0.80);
+  --ds-input-focus:       #174D38;
+  --ds-input-focus-ring:  rgba(23,77,56,0.10);
+
+  /* ── Gradients ──────────────────────────────────────────────────── */
+  --ds-grad-primary: linear-gradient(135deg, #0E3325, #174D38, #1D5A42);
+  --ds-grad-accent:  linear-gradient(135deg, #3A1010, #4D1717, #5E1E1E);
+  --ds-grad-bg:      linear-gradient(155deg, #F6F6F6 0%, #EDEDED 100%);
+  --ds-bg-orb-1:     radial-gradient(circle, rgba(23,77,56,0.10) 0%, transparent 70%);
+  --ds-bg-orb-2:     radial-gradient(circle, rgba(77,23,23,0.06) 0%, transparent 70%);
+
+  /* ── Z-index scale ──────────────────────────────────────────────── */
+  --ds-z-base:           0;
+  --ds-z-raised:         10;
+  --ds-z-dropdown:       100;
+  --ds-z-sticky:         200;
+  --ds-z-overlay:        300;
+  --ds-z-modal:          400;
+  --ds-z-toast:          500;
+  --ds-z-tooltip:        600;
+  --ds-z-critical-alert: 700;
+
+  /* ── Motion ─────────────────────────────────────────────────────── */
+  --ds-duration-fast:   100ms;
+  --ds-duration-normal: 200ms;
+  --ds-duration-slow:   350ms;
+  --ds-ease-standard:   cubic-bezier(0.4, 0, 0.2, 1);
+  --ds-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --ds-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ── Shimmer keyframe (used by Skeleton) ──────────────────────────── */
+@keyframes ds-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+/* ── Spin keyframe (used by Btn loading) ──────────────────────────── */
+@keyframes ds-spin {
+  to { transform: rotate(360deg); }
+}
