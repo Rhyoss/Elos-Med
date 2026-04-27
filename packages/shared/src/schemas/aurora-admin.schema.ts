@@ -12,7 +12,7 @@
  */
 
 import { z } from 'zod';
-import { channelTypeSchema } from './omni.schema.js';
+import { channelTypeSchema } from './omni.schema';
 
 /* ── Enums da Aurora ────────────────────────────────────────────────────── */
 

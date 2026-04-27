@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isValidCNPJ } from '../utils/validators.js';
+import { isValidCNPJ } from '../utils/validators';
 
 /* ── Constantes de domínio ────────────────────────────────────────────────── */
 

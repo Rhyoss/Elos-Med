@@ -3,9 +3,9 @@
 import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
-import { cn } from '../utils.js';
-import { Button } from './button.js';
-import { Input } from './input.js';
+import { cn } from '../utils';
+import { Button } from './button';
+import { Input } from './input';
 
 /* ── Primitivos base ─────────────────────────────────────────────────────── */
 

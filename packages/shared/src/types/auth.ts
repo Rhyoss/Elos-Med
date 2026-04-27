@@ -1,4 +1,4 @@
-import type { UserRole } from '../constants/roles.js';
+import type { UserRole } from '../constants/roles';
 
 export interface JWTPayload {
   sub: string;

@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { cn } from '../utils.js';
-import { Button } from '../primitives/button.js';
+import { cn } from '../utils';
+import { Button } from '../primitives/button';
 
 export interface EmptyStateAction {
   label: string;

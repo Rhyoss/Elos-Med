@@ -1,26 +1,26 @@
 // Schemas Zod
-export * from './schemas/auth.schema.js';
-export * from './schemas/patient.schema.js';
-export * from './schemas/appointment.schema.js';
-export * from './schemas/encounter.schema.js';
-export * from './schemas/lesion.schema.js';
-export * from './schemas/prescription.schema.js';
-export * from './schemas/protocol.schema.js';
-export * from './schemas/omni.schema.js';
-export * from './schemas/aurora-admin.schema.js';
-export * from './schemas/automations.schema.js';
-export * from './schemas/supply.schema.js';
-export * from './schemas/purchase.schema.js';
-export * from './schemas/kits.schema.js';
+export * from './schemas/auth.schema';
+export * from './schemas/patient.schema';
+export * from './schemas/appointment.schema';
+export * from './schemas/encounter.schema';
+export * from './schemas/lesion.schema';
+export * from './schemas/prescription.schema';
+export * from './schemas/protocol.schema';
+export * from './schemas/omni.schema';
+export * from './schemas/aurora-admin.schema';
+export * from './schemas/automations.schema';
+export * from './schemas/supply.schema';
+export * from './schemas/purchase.schema';
+export * from './schemas/kits.schema';
 
 // Types
-export * from './types/api.types.js';
-export * from './types/auth.js';
-export * from './types/rbac.js';
+export * from './types/api.types';
+export * from './types/auth';
+export * from './types/rbac';
 
 // Constants
-export * from './constants/roles.js';
-export * from './constants/permissions.js';
+export * from './constants/roles';
+export * from './constants/permissions';
 
 // Utils
-export * from './utils/validators.js';
+export * from './utils/validators';

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { cn } from '../utils.js';
-import { Card, CardContent } from '../primitives/card.js';
+import { cn } from '../utils';
+import { Card, CardContent } from '../primitives/card';
 
 /* ── Sparkline SVG puro (sem deps externas) ──────────────────────────────── */
 

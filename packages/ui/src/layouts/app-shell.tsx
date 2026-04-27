@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { cn } from '../utils.js';
-import { Sidebar, type SidebarProps } from './sidebar.js';
-import { TopBar, type TopBarProps } from './top-bar.js';
-import { Toaster } from '../primitives/toast.js';
+import { cn } from '../utils';
+import { Sidebar, type SidebarProps } from './sidebar';
+import { TopBar, type TopBarProps } from './top-bar';
+import { Toaster } from '../primitives/toast';
 
 /* ── Tipos ──────────────────────────────────────────────────────────────── */
 

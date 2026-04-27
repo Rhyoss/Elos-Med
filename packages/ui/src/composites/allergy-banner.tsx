@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { cn } from '../utils.js';
+import { cn } from '../utils';
 
 export interface AllergyBannerProps {
   allergies: string[];

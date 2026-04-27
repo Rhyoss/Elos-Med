@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { cn } from '../utils.js';
-import { Button } from '../primitives/button.js';
+import { cn } from '../utils';
+import { Button } from '../primitives/button';
 
 /* ── Tipos ──────────────────────────────────────────────────────────────── */
 

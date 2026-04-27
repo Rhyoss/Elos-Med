@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import { Bell, Search, ChevronRight, LogOut, User, Settings } from 'lucide-react';
-import { cn } from '../utils.js';
-import { Button } from '../primitives/button.js';
+import { cn } from '../utils';
+import { Button } from '../primitives/button';
 import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuLabel,
-} from '../primitives/dropdown-menu.js';
+} from '../primitives/dropdown-menu';
 
 /* ── Tipos ──────────────────────────────────────────────────────────────── */
 

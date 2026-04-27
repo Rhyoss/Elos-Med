@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Sparkles } from 'lucide-react';
-import { cn } from '../utils.js';
-import { Tooltip } from '../primitives/tooltip.js';
+import { cn } from '../utils';
+import { Tooltip } from '../primitives/tooltip';
 
 export interface AiBadgeProps {
   size?: 'inline' | 'standalone';

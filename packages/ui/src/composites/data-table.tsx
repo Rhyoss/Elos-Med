@@ -22,11 +22,11 @@ import {
   ChevronsLeft, ChevronsRight,
   Download,
 } from 'lucide-react';
-import { cn } from '../utils.js';
-import { Button } from '../primitives/button.js';
-import { Checkbox } from '../primitives/checkbox.js';
-import { EmptyState } from './empty-state.js';
-import { LoadingSkeleton } from './loading-skeleton.js';
+import { cn } from '../utils';
+import { Button } from '../primitives/button';
+import { Checkbox } from '../primitives/checkbox';
+import { EmptyState } from './empty-state';
+import { LoadingSkeleton } from './loading-skeleton';
 
 /* ── Tipos ──────────────────────────────────────────────────────────────── */
 

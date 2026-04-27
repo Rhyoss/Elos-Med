@@ -1,5 +1,5 @@
-import type { UserRole } from './roles.js';
-import type { Resource, Action, PermissionMap } from '../types/rbac.js';
+import type { UserRole } from './roles';
+import type { Resource, Action, PermissionMap } from '../types/rbac';
 
 const ALL_ACTIONS: Action[] = ['read', 'write', 'delete', 'sign', 'approve', 'export', 'ai_config', 'recall'];
 const ALL_RESOURCES: Resource[] = [

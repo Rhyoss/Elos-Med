@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Command } from 'cmdk';
 import { Search, Clock, User, Calendar, Package, Zap, X } from 'lucide-react';
-import { cn } from '../utils.js';
+import { cn } from '../utils';
 
 /* ── Tipos ──────────────────────────────────────────────────────────────── */
 

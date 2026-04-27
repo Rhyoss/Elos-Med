@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { cn } from '../utils.js';
+import { cn } from '../utils';
 import {
   Home, Users, Calendar, MessageSquare,
   Package, DollarSign, BarChart3, Settings,

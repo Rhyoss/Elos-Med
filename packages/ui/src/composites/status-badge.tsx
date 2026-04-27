@@ -1,11 +1,11 @@
 import * as React from 'react';
-import { cn } from '../utils.js';
+import { cn } from '../utils';
 import type {
   AppointmentStatus,
   PurchaseStatus,
   InventoryStatus,
   AnyStatus,
-} from './status-badge.types.js';
+} from './status-badge.types';
 
 /* ── Configurações de aparência ──────────────────────────────────────────── */
 

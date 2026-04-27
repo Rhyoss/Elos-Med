@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { create } from 'zustand';
 import { X, CheckCircle, AlertTriangle, XCircle, Info } from 'lucide-react';
-import { cn } from '../utils.js';
+import { cn } from '../utils';
 
 /* ── Tipos ──────────────────────────────────────────────────────────────── */
 
