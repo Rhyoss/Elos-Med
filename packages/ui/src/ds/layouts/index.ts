@@ -1,2 +1,2 @@
-export * from './Sidebar.js';
-export * from './Shell.js';
+export * from './Sidebar';
+export * from './Shell';

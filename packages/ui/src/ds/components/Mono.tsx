@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { T } from '../../tokens.js';
+import { T } from '../../tokens';
 
 export interface MonoProps {
   children?: React.ReactNode;

@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { T } from '../../tokens.js';
+import { T } from '../../tokens';
 
 export interface GlassProps {
   children?: React.ReactNode;

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { EmptyState, type EmptyStateProps } from './EmptyState.js';
+import { EmptyState, type EmptyStateProps } from './EmptyState';
 
 export type ErrorStateProps = Omit<EmptyStateProps, 'tone'>;
 

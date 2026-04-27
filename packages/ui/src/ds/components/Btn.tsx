@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
-import { T } from '../../tokens.js';
-import { Ico, type IcoName } from './Ico.js';
+import { T } from '../../tokens';
+import { Ico, type IcoName } from './Ico';
 
 export type BtnVariant = 'primary' | 'accent' | 'glass' | 'ghost' | 'danger';
 

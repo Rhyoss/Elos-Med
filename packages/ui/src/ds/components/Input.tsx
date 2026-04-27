@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
-import { T } from '../../tokens.js';
-import { Ico, type IcoName } from './Ico.js';
+import { T } from '../../tokens';
+import { Ico, type IcoName } from './Ico';
 
 // ── Shared style ─────────────────────────────────────────────────────
 function fieldStyle(focused: boolean, error: boolean | string | undefined): React.CSSProperties {

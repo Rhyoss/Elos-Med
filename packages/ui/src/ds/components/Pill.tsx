@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { T } from '../../tokens.js';
-import { Mono } from './Mono.js';
+import { T } from '../../tokens';
+import { Mono } from './Mono';
 
 export interface PillProps {
   children?: React.ReactNode;

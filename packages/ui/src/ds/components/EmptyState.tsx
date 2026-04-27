@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { T } from '../../tokens.js';
-import { Glass } from './Glass.js';
-import { Mono } from './Mono.js';
-import { Ico, type IcoName } from './Ico.js';
+import { T } from '../../tokens';
+import { Glass } from './Glass';
+import { Mono } from './Mono';
+import { Ico, type IcoName } from './Ico';
 
 export interface EmptyStateProps {
   /** Eyebrow label rendered above the figure (defaults to "ESTADO VAZIO"). */

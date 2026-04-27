@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
-import { T } from '../../tokens.js';
-import { Sidebar, type SidebarProps } from './Sidebar.js';
+import { T } from '../../tokens';
+import { Sidebar, type SidebarProps } from './Sidebar';
 
 export interface ShellProps extends Omit<SidebarProps, 'className'> {
   children: React.ReactNode;

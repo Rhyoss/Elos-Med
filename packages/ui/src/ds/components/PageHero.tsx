@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { T } from '../../tokens.js';
-import { Mono } from './Mono.js';
-import { Ico, type IcoName } from './Ico.js';
+import { T } from '../../tokens';
+import { Mono } from './Mono';
+import { Ico, type IcoName } from './Ico';
 
 export interface PageHeroProps {
   /** Eyebrow label rendered above the title (e.g. data Mono uppercase). */

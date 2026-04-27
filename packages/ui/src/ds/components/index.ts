@@ -1,31 +1,31 @@
 // Surfaces & layout primitives
-export * from './Glass.js';
-export * from './Divider.js';
-export * from './PageHero.js';
+export * from './Glass';
+export * from './Divider';
+export * from './PageHero';
 
 // Typography
-export * from './Mono.js';
+export * from './Mono';
 
 // Status & labels
-export * from './Badge.js';
-export * from './MetalTag.js';
-export * from './Pill.js';
+export * from './Badge';
+export * from './MetalTag';
+export * from './Pill';
 
 // Iconography
-export * from './Ico.js';
+export * from './Ico';
 
 // Actions
-export * from './Btn.js';
+export * from './Btn';
 
 // Form fields
-export * from './Input.js';
-export * from './Toggle.js';
+export * from './Input';
+export * from './Toggle';
 
 // Data display
-export * from './Stat.js';
-export * from './Bar.js';
+export * from './Stat';
+export * from './Bar';
 
 // State (loading / empty / error)
-export * from './Skeleton.js';
-export * from './EmptyState.js';
-export * from './ErrorState.js';
+export * from './Skeleton';
+export * from './EmptyState';
+export * from './ErrorState';

@@ -1,8 +1,8 @@
 'use client';
 import * as React from 'react';
-import { T } from '../../tokens.js';
-import { Ico, type IcoName } from '../components/Ico.js';
-import { Mono } from '../components/Mono.js';
+import { T } from '../../tokens';
+import { Ico, type IcoName } from '../components/Ico';
+import { Mono } from '../components/Mono';
 
 export type ShellModule =
   | 'clinical'

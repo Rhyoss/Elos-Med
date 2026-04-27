@@ -5,8 +5,8 @@
 //
 //   import { Glass, Btn, Stat, Mono, T } from '@dermaos/ui/ds';
 //
-export * from './components/index.js';
-export * from './layouts/index.js';
+export * from './components/index';
+export * from './layouts/index';
 
 // Re-export tokens for convenience — the canonical source remains
 // '@dermaos/ui/tokens' / '@dermaos/ui'.
@@ -24,4 +24,4 @@ export {
   motion,
   type Theme,
   type Tokens,
-} from '../tokens.js';
+} from '../tokens';
