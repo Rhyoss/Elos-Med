@@ -51,19 +51,10 @@ export type PrescriptionDeliveryStatus = z.infer<typeof prescriptionDeliveryStat
 
 // Campo comum: sanitizar texto livre removendo tags HTML suspeitas via .transform
 // (O server faz nova validação/sanitização; client apenas evita submissões óbvias.)
-const noHtmlTags = (s: string) => !/<\s*(script|iframe|object|embed)/i.test(s);
 const safeText = (max: number, min = 0) =>
-  z.string()
-   .trim()
-   .min(min)
-   .max(max)
-   .refine(noHtmlTags, { message: 'Texto contém marcações não permitidas' });
+  z.string().trim().min(min).max(max);
 const safeTextMin = (max: number, minVal: number, msg?: string) =>
-  z.string()
-   .trim()
-   .min(minVal, msg)
-   .max(max)
-   .refine(noHtmlTags, { message: 'Texto contém marcações não permitidas' });
+  z.string().trim().min(minVal, msg).max(max);
 
 export const topicaItemSchema = z.object({
   type:         z.literal('topica'),
