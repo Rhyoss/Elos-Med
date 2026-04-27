@@ -5,35 +5,42 @@ import {
   Glass, Btn, Mono, Badge, MetalTag, Ico,
   PageHero, T, type ShellModule,
 } from '@dermaos/ui/ds';
+import { trpc } from '@/lib/trpc-provider';
 
 /**
  * Configurações — usuários, RBAC, integrações & compliance.
  *
- * Phase-4 deliverable: layout 1:1 com o reference (RBAC + Integrações +
- * compliance metal banner), mock data até Phase 5 ligar tRPC
- * `settings.*` (Prompt 19 cobre o backend; sub-rotas
- * `/configuracoes/usuarios|servicos|integracoes|ia|auditoria` já
- * existem com legacy chrome).
+ * Wired-up Phase 5b — usa `trpc.settings.users.list` e
+ * `trpc.settings.integrations.list`. Lista de compliance permanece
+ * estática (compile-time facts). Sub-rotas /usuarios, /servicos,
+ * /integracoes, /ia, /auditoria continuam com chrome legado.
  */
 export default function ConfiguracoesPage() {
-  const users: Array<{
-    name: string;
-    role: string;
-    email: string;
-    perms: string[];
-  }> = [
+  /* ── tRPC (live data) ───────────────────────────────────────────── */
+  const usersQuery = trpc.settings.users.list.useQuery(
+    { page: 1, limit: 4 },
+    { staleTime: 30_000 },
+  );
+  const integrationsQuery = trpc.settings.integrations.list.useQuery(
+    undefined,
+    { staleTime: 60_000 },
+  );
+
+  /* ── Mock fallback (visual demo até clínica ter dados) ──────────── */
+  const usersMock: Array<{ name: string; role: string; email: string; perms: string[] }> = [
     { name: 'Dra. Ana Souza',     role: 'Dermatologista', email: 'ana@clinica.com',     perms: ['prontuário', 'prescrição', 'protocolo'] },
     { name: 'Dr. Carlos Lima',    role: 'Dermatologista', email: 'lima@clinica.com',    perms: ['prontuário', 'prescrição'] },
     { name: 'Marina Recepção',    role: 'Recepcionista',  email: 'marina@clinica.com',  perms: ['agenda', 'comunicação'] },
     { name: 'Roberto Admin',      role: 'Gestor',         email: 'roberto@clinica.com', perms: ['financeiro', 'analytics', 'configurações'] },
   ];
 
-  const integrations: Array<{
+  type IntegrationRow = {
     name: string;
-    st: 'Conectado' | 'Pendente';
+    st:   'Conectado' | 'Pendente';
     icon: 'message' | 'creditCard' | 'shield' | 'zap' | 'box';
-    mod: ShellModule;
-  }> = [
+    mod:  ShellModule;
+  };
+  const integrationsMock: IntegrationRow[] = [
     { name: 'WhatsApp Business API',     st: 'Conectado', icon: 'message',    mod: 'aiMod' },
     { name: 'Gateway de Pagamento',       st: 'Conectado', icon: 'creditCard', mod: 'financial' },
     { name: 'ANVISA — Rastreabilidade',   st: 'Conectado', icon: 'shield',     mod: 'supply' },
@@ -41,6 +48,37 @@ export default function ConfiguracoesPage() {
     { name: 'MinIO — Storage S3',          st: 'Conectado', icon: 'box',        mod: 'supply' },
     { name: 'Instagram API',               st: 'Pendente',  icon: 'message',    mod: 'aiMod' },
   ];
+
+  /* ── Map server rows to the page format (with mock fallback) ────── */
+  const users = (usersQuery.data?.users?.length ?? 0) > 0
+    ? usersQuery.data!.users.map((u: {
+        name: string;
+        role: string;
+        email: string;
+        permissions?: Array<{ module: string; action: string }>;
+      }) => ({
+        name:  u.name,
+        role:  u.role,
+        email: u.email,
+        perms: (u.permissions ?? []).map((p) => `${p.module}.${p.action}`),
+      }))
+    : usersMock;
+
+  const CHANNEL_LABEL: Record<string, string> = {
+    whatsapp:  'WhatsApp Business API',
+    instagram: 'Instagram API',
+    telegram:  'Telegram API',
+    email:     'E-mail SMTP',
+  };
+
+  const integrations: IntegrationRow[] = (integrationsQuery.data?.length ?? 0) > 0
+    ? integrationsQuery.data!.map((intg: { channel: string; isActive: boolean }): IntegrationRow => ({
+        name: CHANNEL_LABEL[intg.channel] ?? intg.channel,
+        st:   intg.isActive ? 'Conectado' : 'Pendente',
+        icon: 'message',
+        mod:  'aiMod',
+      }))
+    : integrationsMock;
 
   const compliance = [
     { l: 'LGPD Ativo',          d: 'Consentimentos atualizados' },

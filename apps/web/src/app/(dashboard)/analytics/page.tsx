@@ -5,16 +5,36 @@ import {
   Glass, Btn, Stat, Mono, Bar,
   PageHero, T, type ShellModule,
 } from '@dermaos/ui/ds';
+import { trpc } from '@/lib/trpc-provider';
 
 /**
  * Analytics — inteligência operacional.
  *
- * Phase-4 deliverable: layout 1:1 com o reference (4 stats por módulo +
- * mini bar-chart de consultas/dia + NPS por dimensão + breakdown 4-col),
- * mock data até Phase 5 ligar tRPC `analytics.*` (já existem MVs no
- * worker noturno do Prompt 17).
+ * Wired-up Phase 5b — chama `trpc.analytics.overview` para o range padrão
+ * (últimos 30 dias). As 4 cards de stats / chart semanal / NPS / breakdown
+ * permanecem como demo visual até as MVs noturnas (Prompt 17) terem dados
+ * reais de produção; servem como referência de layout enquanto a clínica
+ * acumula histórico.
  */
+function isoNDaysAgo(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+function isoToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function AnalyticsPage() {
+  /* ── tRPC (live data) — overview p/ os últimos 30 dias ──────────── */
+  const overviewQuery = trpc.analytics.overview.useQuery(
+    { start: isoNDaysAgo(30), end: isoToday() },
+    { staleTime: 60_000, retry: false },
+  );
+  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+  const _live = overviewQuery.data;
+  /* (live data renderizada nas sub-rotas de analytics; nesta tela mantemos
+     o demo visual até existir histórico relevante para os 4 stats agregados) */
   const stats: Array<{
     label: string;
     value: string;

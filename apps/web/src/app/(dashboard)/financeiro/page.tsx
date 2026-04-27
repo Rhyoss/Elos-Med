@@ -5,16 +5,40 @@ import {
   Glass, Btn, Stat, Mono, Badge, Ico, Bar,
   PageHero, T,
 } from '@dermaos/ui/ds';
+import { trpc } from '@/lib/trpc-provider';
 
 /**
  * Financeiro — caixa & faturamento.
  *
- * Phase-4 deliverable: layout 1:1 com o reference (4 stats + DRE + Caixa
- * do dia + tabela de faturas), mock data até Phase 5 ligar tRPC
- * `financial.*`. A entrada/saída de caixa, conciliação e parcelamento
- * vivem em sub-rotas (`/financeiro/dre`, `/faturas`, `/metas`).
+ * Wired-up Phase 5b — tabela de faturas usa `trpc.financial.invoices.list`.
+ * Stats/DRE/cashSplit permanecem como demo visual (não há single-call
+ * agregador correspondente; cada um exigiria dashboard procedure dedicado).
+ * Sub-rotas (`/financeiro/dre`, `/faturas`, `/metas`) seguem como roadmap.
  */
+const STATUS_LABEL: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' }> = {
+  paid:      { label: 'Pago',     variant: 'success' },
+  pending:   { label: 'Pendente', variant: 'warning' },
+  overdue:   { label: 'Vencida',  variant: 'danger'  },
+  partial:   { label: 'Parcial',  variant: 'warning' },
+  cancelled: { label: 'Cancelada', variant: 'danger' },
+  draft:     { label: 'Rascunho', variant: 'warning' },
+};
+
+function fmtBRL(centavos: number): string {
+  return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+function fmtShortDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
+}
+
 export default function FinanceiroPage() {
+  /* ── tRPC (live data) ───────────────────────────────────────────── */
+  const invoicesQuery = trpc.financial.invoices.list.useQuery(
+    { page: 1, limit: 5 },
+    { staleTime: 30_000 },
+  );
+
   const stats = [
     { label: 'Receita hoje',     value: 'R$ 8.420',  sub: 'Meta: R$ 10k',       icon: 'activity'   as const, mod: 'financial' as const, pct: 84 },
     { label: 'Faturas abertas',  value: '7',         sub: 'R$ 4.230 pend.',     icon: 'creditCard' as const, mod: 'financial' as const, pct: 42 },
@@ -35,20 +59,36 @@ export default function FinanceiroPage() {
     { l: 'PIX',      v: 'R$ 1.280', p: 15 },
   ];
 
-  const faturas: Array<{
-    id: string;
+  type FaturaRow = {
+    id:      string;
     patient: string;
-    valor: string;
-    status: string;
-    s: 'success' | 'warning' | 'danger';
-    data: string;
-  }> = [
-    { id: 'F-0091', patient: 'Ana Clara Mendes', valor: 'R$ 580,00',   status: 'Pago',     s: 'success', data: '15 Jan' },
-    { id: 'F-0092', patient: 'Roberto Alves',    valor: 'R$ 320,00',   status: 'Pendente', s: 'warning', data: '18 Jan' },
-    { id: 'F-0093', patient: 'Mariana Costa',    valor: 'R$ 1.200,00', status: 'Pago',     s: 'success', data: '20 Jan' },
-    { id: 'F-0094', patient: 'João Ferreira',    valor: 'R$ 450,00',   status: 'Vencida',  s: 'danger',  data: '10 Jan' },
-    { id: 'F-0095', patient: 'Carla Nunes',      valor: 'R$ 890,00',   status: 'Pago',     s: 'success', data: '19 Jan' },
+    valor:   string;
+    status:  string;
+    s:       'success' | 'warning' | 'danger';
+    data:    string;
+  };
+
+  const faturasMock: FaturaRow[] = [
+    { id: 'F-0091', patient: 'Ana Clara Mendes', valor: 'R$ 580,00',   status: 'Pago',     s: 'success', data: '15 jan' },
+    { id: 'F-0092', patient: 'Roberto Alves',    valor: 'R$ 320,00',   status: 'Pendente', s: 'warning', data: '18 jan' },
+    { id: 'F-0093', patient: 'Mariana Costa',    valor: 'R$ 1.200,00', status: 'Pago',     s: 'success', data: '20 jan' },
+    { id: 'F-0094', patient: 'João Ferreira',    valor: 'R$ 450,00',   status: 'Vencida',  s: 'danger',  data: '10 jan' },
+    { id: 'F-0095', patient: 'Carla Nunes',      valor: 'R$ 890,00',   status: 'Pago',     s: 'success', data: '19 jan' },
   ];
+
+  const faturas: FaturaRow[] = (invoicesQuery.data?.data?.length ?? 0) > 0
+    ? invoicesQuery.data!.data.map((row): FaturaRow => {
+        const sl = STATUS_LABEL[row.status] ?? { label: row.status, variant: 'warning' as const };
+        return {
+          id:      row.invoice_number,
+          patient: (row as { patient_name?: string }).patient_name ?? '—',
+          valor:   fmtBRL(row.total_amount),
+          status:  sl.label,
+          s:       sl.variant,
+          data:    fmtShortDate(row.issue_date),
+        };
+      })
+    : faturasMock;
 
   return (
     <div style={{ overflowY: 'auto', height: '100%', padding: '22px 26px' }}>

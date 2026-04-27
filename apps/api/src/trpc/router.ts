@@ -8,6 +8,9 @@ import { auroraAdminRouter }  from '../modules/aurora/admin/aurora-admin.router.
 import { automationsRouter }  from '../modules/automations/automations.router.js';
 import { templatesRouter }    from '../modules/automations/templates.router.js';
 import { supplyRouter }       from '../modules/supply/supply.router.js';
+import { financialRouter }    from '../modules/financial/financial.router.js';
+import { analyticsRouter }    from '../modules/analytics/analytics.router.js';
+import { settingsRouter }     from '../modules/settings/settings.router.js';
 
 export const appRouter = router({
   auth:       authRouter,
@@ -21,8 +24,9 @@ export const appRouter = router({
     admin:    auroraAdminRouter,
   }),
   supply:     supplyRouter,
-  // financial: financialRouter,
-  // analytics: analyticsRouter,
+  financial:  financialRouter,
+  analytics:  analyticsRouter,
+  settings:   settingsRouter,
 });
 
 export type AppRouter = typeof appRouter;

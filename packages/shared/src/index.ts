@@ -12,6 +12,9 @@ export * from './schemas/automations.schema';
 export * from './schemas/supply.schema';
 export * from './schemas/purchase.schema';
 export * from './schemas/kits.schema';
+export * from './schemas/financial.schema';
+export * from './schemas/dashboard.schema';
+export * from './schemas/settings.schema';
 
 // Types
 export * from './types/api.types';

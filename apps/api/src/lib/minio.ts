@@ -6,6 +6,7 @@ export const CLINICAL_IMAGES_BUCKET = 'clinical-images';
 export const PRESCRIPTIONS_BUCKET  = 'prescriptions';
 export const PRODUCT_IMAGES_BUCKET  = 'product-images';
 export const REPORTS_BUCKET         = 'reports';
+export const CLINIC_ASSETS_BUCKET  = 'clinic-assets';
 
 export const minio = new MinioClient({
   endPoint:  env.MINIO_ENDPOINT,
@@ -46,6 +47,10 @@ export async function ensureProductImagesBucket(): Promise<void> {
 
 export async function ensureReportsBucket(): Promise<void> {
   await ensureBucket(REPORTS_BUCKET);
+}
+
+export async function ensureClinicAssetsBucket(): Promise<void> {
+  await ensureBucket(CLINIC_ASSETS_BUCKET);
 }
 
 /**
