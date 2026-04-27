@@ -4,7 +4,6 @@ export * from './select';
 export * from './textarea';
 export * from './checkbox';
 export * from './switch';
-export * from './radio-group';
 export * from './badge';
 export * from './card';
 export * from './dialog';

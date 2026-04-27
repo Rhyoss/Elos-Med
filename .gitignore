@@ -81,3 +81,10 @@ pip-delete-this-directory.txt
 *.tgz
 *.tar.gz
 .vercel
+
+# Reserva técnica: artefatos pesados de archives futuros (node_modules, build)
+# A pasta `_archive-legacy-workspace-*/` em si é tracked, mas seus artefatos não
+_archive-legacy-workspace-*/node_modules/
+_archive-legacy-workspace-*/.next/
+_archive-legacy-workspace-*/.turbo/
+_archive-legacy-workspace-*/dist/
