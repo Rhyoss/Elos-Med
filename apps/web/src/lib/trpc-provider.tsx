@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createTRPCReact, httpBatchStreamLink } from '@trpc/react-query';
+import { createTRPCReact, httpBatchLink } from '@trpc/react-query';
 import superjson from 'superjson';
 import type { AppRouter } from '@dermaos/api/trpc/router';
 
@@ -53,7 +53,9 @@ export function TrpcProvider({ children }: { children: React.ReactNode }) {
   const [trpcClientInstance] = useState(() =>
     trpc.createClient({
       links: [
-        httpBatchStreamLink({
+        // Non-streaming batch link — Fastify precisa terminar a procedure
+        // antes de commitar headers (Set-Cookie da auth.login depende disso).
+        httpBatchLink({
           url: '/api/trpc',
           transformer: superjson,
           headers: () => ({ 'x-trpc-source': 'react' }),

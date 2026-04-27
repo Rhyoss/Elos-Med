@@ -1,4 +1,4 @@
-import { createTRPCClient, httpBatchStreamLink } from '@trpc/client';
+import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import superjson from 'superjson';
 import type { AppRouter } from '@dermaos/api/trpc/router';
 
@@ -10,7 +10,9 @@ const getBaseUrl = () => {
 
 export const trpcClient = createTRPCClient<AppRouter>({
   links: [
-    httpBatchStreamLink({
+    // Non-streaming batch link — Fastify precisa terminar a procedure
+    // antes de commitar headers (Set-Cookie da auth.login depende disso).
+    httpBatchLink({
       url: `${getBaseUrl()}/api/trpc`,
       transformer: superjson,
       headers() {
