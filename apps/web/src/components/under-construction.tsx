@@ -2,9 +2,35 @@
 
 import type { ReactNode } from 'react';
 import {
-  Glass, Mono, Ico, EmptyState,
+  Glass, Mono, Ico, EmptyState, Bar,
   PageHero, T,
 } from '@dermaos/ui/ds';
+
+/**
+ * Roadmap progress — atualizar manualmente conforme features migram.
+ * Single source of truth para todos os stubs (21 telas) saberem o status
+ * geral da plataforma.
+ *
+ * Phase 4: DS Quite Clear aplicado em todas as 9 root routes.
+ * Phase 5a: organização (_archive/) + reserva técnica.
+ * Phase 5b: backend wire-up (financial/analytics/settings) + auth fixes.
+ * Phase 5c: form migrations + sub-routes profundas (em andamento).
+ * Phase 5d: features especializadas (DRE, faturas, auditoria, IA config).
+ */
+const ROADMAP_PHASES: Array<{ id: string; label: string; status: 'done' | 'wip' | 'todo' }> = [
+  { id: '4',  label: 'DS Quite Clear',                 status: 'done' },
+  { id: '5a', label: 'Organização + reserva técnica',  status: 'done' },
+  { id: '5b', label: 'Backend wire-up (Phase 5b)',     status: 'done' },
+  { id: '5c', label: 'Forms + sub-rotas profundas',    status: 'wip'  },
+  { id: '5d', label: 'Features especializadas',        status: 'todo' },
+];
+
+function roadmapPercent(): number {
+  const total  = ROADMAP_PHASES.length;
+  const done   = ROADMAP_PHASES.filter((p) => p.status === 'done').length;
+  const wip    = ROADMAP_PHASES.filter((p) => p.status === 'wip').length;
+  return Math.round(((done + wip * 0.5) / total) * 100);
+}
 
 interface UnderConstructionProps {
   title: string;
@@ -58,41 +84,79 @@ export function UnderConstruction({
           tone="primary"
         />
 
-        <div
-          style={{
-            marginTop: 24,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 8,
-          }}
-        >
-          {[
-            { l: 'DS aplicado',     d: 'Chrome Quite Clear' },
-            { l: 'tRPC plumbing',   d: 'Backend pronto' },
-            { l: 'UI legacy',       d: 'Em migração' },
-            { l: 'Roadmap',         d: 'Phase 5b' },
-          ].map((item) => (
-            <div
-              key={item.l}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '10px 14px',
-                borderRadius: T.r.md,
-                background: T.glass,
-                border: `1px solid ${T.glassBorder}`,
-              }}
-            >
-              <Ico name="shield" size={14} color={T.primary} />
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>
-                  {item.l}
-                </p>
-                <Mono size={7}>{item.d}</Mono>
-              </div>
-            </div>
-          ))}
+        {/* ── Roadmap progress bar ─────────────────────────────────────── */}
+        <div style={{ marginTop: 28, paddingTop: 18, borderTop: `1px solid ${T.divider}` }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+              marginBottom: 10,
+            }}
+          >
+            <Mono size={9} spacing="1.2px" color={T.primary}>
+              ROADMAP DA PLATAFORMA
+            </Mono>
+            <span style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>
+              {roadmapPercent()}%
+            </span>
+          </div>
+          <Bar pct={roadmapPercent()} color={T.primary} height={6} />
+
+          <div
+            style={{
+              marginTop: 16,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 8,
+            }}
+          >
+            {ROADMAP_PHASES.map((phase) => {
+              const tone =
+                phase.status === 'done' ? T.success
+                : phase.status === 'wip' ? T.warning
+                : T.textMuted;
+              const icon: 'shield' | 'clock' | 'eye' =
+                phase.status === 'done' ? 'shield'
+                : phase.status === 'wip' ? 'clock'
+                : 'eye';
+              const statusLabel =
+                phase.status === 'done' ? 'CONCLUÍDA'
+                : phase.status === 'wip' ? 'EM ANDAMENTO'
+                : 'A SEGUIR';
+              return (
+                <div
+                  key={phase.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 14px',
+                    borderRadius: T.r.md,
+                    background: T.glass,
+                    border: `1px solid ${T.glassBorder}`,
+                  }}
+                >
+                  <Ico name={icon} size={14} color={tone} />
+                  <div style={{ minWidth: 0 }}>
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: T.textPrimary,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      Phase {phase.id} · {phase.label}
+                    </p>
+                    <Mono size={7} color={tone}>{statusLabel}</Mono>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </Glass>
     </div>

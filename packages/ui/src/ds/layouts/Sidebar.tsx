@@ -50,7 +50,7 @@ export interface SidebarProps {
   className?: string;
 }
 
-const SIDEBAR_W = 88;
+const SIDEBAR_W = 120;
 
 function isActive(itemHref: string, currentPath: string | undefined): boolean {
   if (!currentPath) return false;
@@ -225,7 +225,7 @@ export function Sidebar({
                 sw={active ? 2 : 1.6}
               />
               <Mono size={7} spacing="0.3px" color={accent}>
-                {(item.shortLabel ?? item.label).slice(0, 8)}
+                {item.shortLabel ?? item.label}
               </Mono>
               {item.badge != null && item.badge > 0 && (
                 <span

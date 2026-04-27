@@ -7,7 +7,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AlertCircle, ChevronLeft, Loader2, Plus, X } from 'lucide-react';
-import { PageHeader, Button, Badge, Card, CardContent } from '@dermaos/ui';
+import { Button, Badge, Card, CardContent } from '@dermaos/ui';
+import { PageHero, Btn, T } from '@dermaos/ui/ds';
 import { createPatientSchema } from '@dermaos/shared';
 import { trpc } from '@/lib/trpc-provider';
 
@@ -294,25 +295,28 @@ export default function NovoPacientePage() {
 
   return (
     <>
-      <div className="flex flex-col h-full">
-        <PageHeader
-          title="Novo Paciente"
-          description="Preencha os dados para cadastrar um novo paciente"
-          actions={
-            <nav aria-label="Breadcrumb">
-              <Link href="/pacientes" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                Voltar para Pacientes
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div style={{ padding: '20px 26px 12px', flexShrink: 0 }}>
+          <PageHero
+            eyebrow="PRONTUÁRIO ELETRÔNICO · NOVO CADASTRO"
+            title="Novo Paciente"
+            description="Preencha os dados para cadastrar um novo paciente"
+            module="clinical"
+            icon="user"
+            actions={
+              <Link href="/pacientes" style={{ textDecoration: 'none' }}>
+                <Btn variant="glass" small icon="arrowLeft">Voltar para Pacientes</Btn>
               </Link>
-            </nav>
-          }
-        />
+            }
+          />
+        </div>
 
         <form
           onSubmit={handleSubmit(onSubmit)}
           noValidate
           aria-label="Formulário de cadastro de paciente"
-          className="flex-1 overflow-y-auto p-6"
+          className="flex-1 overflow-y-auto"
+          style={{ padding: '0 26px 22px' }}
         >
           <div className="max-w-3xl mx-auto flex flex-col gap-8">
             {/* Erro global */}

@@ -239,6 +239,8 @@ export default function PacientesPage() {
                       <tr
                         key={p.id}
                         onClick={() => setSelected(p)}
+                        onDoubleClick={() => router.push(`/pacientes/${p.id}/perfil`)}
+                        title="Click: pré-visualização. Duplo-click: abrir prontuário."
                         style={{
                           borderBottom: `1px solid ${T.divider}`,
                           background: selected?.id === p.id
@@ -288,11 +290,24 @@ export default function PacientesPage() {
                           </Badge>
                         </td>
                         <td style={{ padding: '11px 16px' }}>
-                          <Ico
-                            name="arrowRight"
-                            size={13}
-                            color={selected?.id === p.id ? T.primary : T.textMuted}
-                          />
+                          <Link
+                            href={`/pacientes/${p.id}/perfil`}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Abrir prontuário de ${p.name}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 4,
+                              borderRadius: T.r.sm,
+                            }}
+                          >
+                            <Ico
+                              name="arrowRight"
+                              size={13}
+                              color={selected?.id === p.id ? T.primary : T.textMuted}
+                            />
+                          </Link>
                         </td>
                       </tr>
                     ))}

@@ -12,7 +12,7 @@ export interface ShellProps extends Omit<SidebarProps, 'className'> {
 }
 
 /**
- * App Shell — 88px DS Sidebar + content area.
+ * App Shell — 120px DS Sidebar + content area.
  *
  * The shell owns the page background (`bgGrad`) and the ambient orbs;
  * each page should render its own header section per the DS reference
@@ -28,7 +28,7 @@ export function Shell({
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '88px 1fr',
+        gridTemplateColumns: '120px 1fr',
         height: '100vh',
         overflow: 'hidden',
         background: T.bgGrad,

@@ -90,11 +90,21 @@ function ProfileSkeleton() {
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
-    <div className="flex items-start gap-3">
-      <span className="mt-0.5 text-muted-foreground [&_svg]:h-4 [&_svg]:w-4 shrink-0" aria-hidden="true">{icon}</span>
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="text-sm text-foreground break-words">{value}</span>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <span
+        aria-hidden="true"
+        style={{ marginTop: 2, color: '#6E6E6E', flexShrink: 0, display: 'inline-flex' }}
+        className="[&_svg]:h-4 [&_svg]:w-4"
+      >
+        {icon}
+      </span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+        <span style={{ fontSize: 11, color: '#6E6E6E', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+          {label}
+        </span>
+        <span style={{ fontSize: 13, color: '#1A1A1A', fontWeight: 500, wordBreak: 'break-word' }}>
+          {value}
+        </span>
       </div>
     </div>
   );

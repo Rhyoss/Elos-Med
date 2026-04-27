@@ -6,6 +6,7 @@ import {
   PageHero, T, type ShellModule,
 } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
+import { ROLE_LABELS, type UserRole } from '@dermaos/shared';
 
 /**
  * Configurações — usuários, RBAC, integrações & compliance.
@@ -58,7 +59,7 @@ export default function ConfiguracoesPage() {
         permissions?: Array<{ module: string; action: string }>;
       }) => ({
         name:  u.name,
-        role:  u.role,
+        role:  ROLE_LABELS[u.role as UserRole] ?? u.role,
         email: u.email,
         perms: (u.permissions ?? []).map((p) => `${p.module}.${p.action}`),
       }))

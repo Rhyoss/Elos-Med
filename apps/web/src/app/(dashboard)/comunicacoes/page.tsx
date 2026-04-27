@@ -293,7 +293,14 @@ export default function ComunicacoesPage() {
        chat 1fr + contexto 280px no xl). Sub-componentes Tailwind dentro de
        cada coluna ficam para Phase 5 (FiltersBar, ConversationList, Thread,
        Composer, ContactPanel). */
-    <div className="grid h-full grid-cols-1 overflow-hidden md:grid-cols-[68px_320px_1fr] xl:grid-cols-[68px_320px_1fr_280px]">
+    <div
+      className="h-full overflow-hidden"
+      style={{
+        display: 'grid',
+        // 4 colunas DS Quite Clear: canais 68 · lista 320 · thread 1fr · contexto 280
+        gridTemplateColumns: '68px 320px 1fr 280px',
+      }}
+    >
       {/* Coluna 0: Strip de canais (DS) */}
       <aside
         aria-label="Canais"
@@ -496,8 +503,8 @@ export default function ComunicacoesPage() {
         )}
       </section>
 
-      {/* Coluna 3: Contexto — oculta abaixo de xl */}
-      <div className="hidden min-h-0 xl:block">
+      {/* Coluna 3: Contexto */}
+      <div className="min-h-0">
         {contact && (
           <ContactPanel
             context={contact}

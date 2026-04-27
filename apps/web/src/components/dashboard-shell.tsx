@@ -43,10 +43,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     if (canOmni) void utils.omni.unreadCount.invalidate();
   });
 
-  /* ── Nav items filtrados por permissão ────────────────────────────────
-     Labels seguem o reference DS NAV (ds-final-pages.jsx:4-13) — abreviações
-     "Comunic./Suprim./Config." aparecem no reference; "Dashboard/Agenda/
-     Pacientes/Financeiro/Analytics" são sliced em 8 chars pelo Sidebar. */
+  /* ── Nav items filtrados por permissão ──────────────────────────────── */
   const navItems = React.useMemo<ShellNavItem[]>(() => {
     const items: ShellNavItem[] = [
       { id: 'dashboard', label: 'Dashboard', href: '/',          icon: 'grid' },
@@ -55,13 +52,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     ];
     if (canOmni) {
       items.push({
-        id: 'comunicacoes', label: 'Comunic.',
+        id: 'comunicacoes', label: 'Comunicações',
         href: '/comunicacoes', icon: 'message', module: 'aiMod', badge: unreadCount,
       });
     }
     if (canSupply) {
       items.push({
-        id: 'suprimentos', label: 'Suprim.',
+        id: 'suprimentos', label: 'Suprimentos',
         href: '/suprimentos', icon: 'box', module: 'supply',
       });
     }
@@ -79,7 +76,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }
     if (canAdmin) {
       items.push({
-        id: 'configuracoes', label: 'Config.',
+        id: 'configuracoes', label: 'Configurações',
         href: '/configuracoes', icon: 'settings',
       });
     }
