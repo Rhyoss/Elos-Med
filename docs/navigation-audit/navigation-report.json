@@ -1,0 +1,584 @@
+[
+  {
+    "name": "00-login",
+    "route": "/login",
+    "finalUrl": "/login",
+    "status": 200,
+    "title": "Bem-vindo de volta",
+    "screenshot": "docs/navigation-audit/screenshots/00-login.png",
+    "errors": [],
+    "sample": "E ElosMed QUITE CLEAR · CLINICAL ELEGANCE FAÇA LOGIN NA SUA CLÍNICA Bem-vindo de volta Email Senha Entrar Esqueceu a senha? © 2026 ElosMed · Plataforma para Clínicas Dermatológicas"
+  },
+  {
+    "name": "01-forgot-password",
+    "route": "/forgot-password",
+    "finalUrl": "/forgot-password",
+    "status": 200,
+    "title": "Esqueceu a senha?",
+    "screenshot": "docs/navigation-audit/screenshots/01-forgot-password.png",
+    "errors": [],
+    "sample": "E ElosMed QUITE CLEAR · CLINICAL ELEGANCE RECUPERAÇÃO DE ACESSO Esqueceu a senha? Digite seu e-mail e enviaremos um link para redefinir. E-mail Enviar link de redefinição ← Voltar ao Login © 2026 ElosMed · Plataforma para Clínicas Dermatológicas"
+  },
+  {
+    "name": "02-reset-password",
+    "route": "/reset-password/local-token",
+    "finalUrl": "/reset-password/local-token",
+    "status": 200,
+    "title": "Defina sua nova senha",
+    "screenshot": "docs/navigation-audit/screenshots/02-reset-password.png",
+    "errors": [],
+    "sample": "E ElosMed QUITE CLEAR · CLINICAL ELEGANCE NOVA SENHA Defina sua nova senha Escolha uma senha segura para sua conta. TOKEN: local-token… Nova senha Confirmar senha Redefinir senha ← Voltar ao Login © 2026 ElosMed · Plataforma para Clínicas Dermatológicas"
+  },
+  {
+    "name": "03-unauthorized",
+    "route": "/unauthorized",
+    "finalUrl": "/unauthorized",
+    "status": 200,
+    "title": "Acesso negado",
+    "screenshot": "docs/navigation-audit/screenshots/03-unauthorized.png",
+    "errors": [],
+    "sample": "403 Acesso negado Você não tem permissão para acessar esta página. Se acredita que isso é um erro, solicite acesso ao administrador da clínica. Voltar ao InícioSolicitar acesso ao administrador"
+  },
+  {
+    "name": "04-dashboard",
+    "route": "/",
+    "finalUrl": "/",
+    "status": 200,
+    "title": "Dashboard",
+    "screenshot": "docs/navigation-audit/screenshots/04-dashboard.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K 27 ABRIL 2026 · SEGUNDA-FEIRA Dashboard Relatório CONSULTAS 14 +2 em espera RECEITA R$ 8.420 Meta: R$ 10k ALERTAS IA 3 2 críticos ESTOQUE 7 alertas FEFO: 2 vencendo Agenda de Hoje 09:30 Mariana Costa Botox 100U C"
+  },
+  {
+    "name": "05-agenda",
+    "route": "/agenda",
+    "finalUrl": "/agenda",
+    "status": 200,
+    "title": "Agenda Clínica",
+    "screenshot": "docs/navigation-audit/screenshots/05-agenda.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K 27 ABRIL 2026 · SEGUNDA-FEIRA Agenda Clínica Semana Fila Agendar HOJE 0 agendamentos CONFIRMADOS 0 check-in OK AGUARDANDO 0 agendados PENDENTES 0 atenção Hoje Todos os profissionais 0 AGENDAMENTOS NENHUM PROFISSIONA"
+  },
+  {
+    "name": "06-agenda-fila",
+    "route": "/agenda/fila",
+    "finalUrl": "/agenda/fila",
+    "status": 200,
+    "title": "Fila de Espera",
+    "screenshot": "docs/navigation-audit/screenshots/06-agenda-fila.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K 27 ABRIL 2026 · SEGUNDA-FEIRA Fila de Espera 0 pacientes aguardando atendimento Voltar à Agenda ESTADO VAZIO Fila vazia Nenhum paciente fez check-in. Eles aparecerão aqui automaticamente."
+  },
+  {
+    "name": "07-agenda-bloqueios",
+    "route": "/agenda/bloqueios",
+    "finalUrl": "/agenda/bloqueios",
+    "status": 200,
+    "title": "Bloqueios & Ausências",
+    "screenshot": "docs/navigation-audit/screenshots/07-agenda-bloqueios.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Bloqueios & Ausências Gerenciamento de horários bloqueados, férias e ausências dos profissionais + Novo Bloqueio ITENS ATIVOS 18 Prontos para revisão PENDÊNCIAS 4 Exigem ação clíni"
+  },
+  {
+    "name": "08-agenda-semana",
+    "route": "/agenda/semana",
+    "finalUrl": "/agenda/semana",
+    "status": 200,
+    "title": "Agenda — Visão Semana",
+    "screenshot": "docs/navigation-audit/screenshots/08-agenda-semana.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Agenda — Visão Semana Calendário semanal com todos os profissionais e salas Filtrar Novo item ITENS ATIVOS 18 Prontos para revisão PENDÊNCIAS 4 Exigem ação clínica HOJE 9 Evento"
+  },
+  {
+    "name": "09-pacientes",
+    "route": "/pacientes",
+    "finalUrl": "/pacientes",
+    "status": 200,
+    "title": "Pacientes & Leads",
+    "screenshot": "docs/navigation-audit/screenshots/09-pacientes.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K PRONTUÁRIO ELETRÔNICO Pacientes & Leads Novo Paciente Todos os status Ativo Inativo Bloqueado Transferido Todas as origens WhatsApp Google Indicação Presencial Instagram Facebook Site 0 PACIENTES Prontuário Paciente Idade Diagn"
+  },
+  {
+    "name": "10-pacientes-novo",
+    "route": "/pacientes/novo",
+    "finalUrl": "/pacientes/novo",
+    "status": 200,
+    "title": "Novo Paciente",
+    "screenshot": "docs/navigation-audit/screenshots/10-pacientes-novo.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K Novo Paciente Preencha os dados para cadastrar um novo paciente Voltar para Pacientes Dados Pessoais Nome completo* CPF Somente números (11 dígitos) Data de nascimento Sexo Selecione… Feminino Masculino Não-binário Prefiro "
+  },
+  {
+    "name": "11-pacientes-leads",
+    "route": "/pacientes/leads",
+    "finalUrl": "/pacientes/leads",
+    "status": 200,
+    "title": "Pipeline de Leads",
+    "screenshot": "docs/navigation-audit/screenshots/11-pacientes-leads.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Pipeline de Leads Kanban de prospecção e conversão de novos pacientes + Novo Lead ITENS ATIVOS 18 Prontos para revisão PENDÊNCIAS 4 Exigem ação clínica HOJE 9 Eventos relacionad"
+  },
+  {
+    "name": "12-paciente-perfil",
+    "route": "/pacientes/a0000000-0000-0000-0000-000000000020/perfil",
+    "finalUrl": "/pacientes/a0000000-0000-0000-0000-000000000020/perfil",
+    "status": 200,
+    "title": "Carregando…",
+    "screenshot": "docs/navigation-audit/screenshots/12-paciente-perfil.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K C PRONTUÁRIO A0000000 Carregando… Nova Consulta PERFIL PRONTUÁRIO PRESCRIÇÕES IMAGENS PROTOCOLOS AGENDAMENTOS FINANCEIRO COMUNICAÇÃO INSUMOS Paciente não encontrado Paciente não encontrado Voltar para a lista"
+  },
+  {
+    "name": "13-paciente-agendamentos",
+    "route": "/pacientes/a0000000-0000-0000-0000-000000000020/agendamentos",
+    "finalUrl": "/pacientes/a0000000-0000-0000-0000-000000000020/agendamentos",
+    "status": 200,
+    "title": "Carregando…",
+    "screenshot": "docs/navigation-audit/screenshots/13-paciente-agendamentos.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K C PRONTUÁRIO A0000000 Carregando… Nova Consulta PERFIL PRONTUÁRIO PRESCRIÇÕES IMAGENS PROTOCOLOS AGENDAMENTOS FINANCEIRO COMUNICAÇÃO INSUMOS SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Agendamentos Histórico e próximos agendamento"
+  },
+  {
+    "name": "14-paciente-prontuario",
+    "route": "/pacientes/a0000000-0000-0000-0000-000000000020/prontuario",
+    "finalUrl": "/pacientes/a0000000-0000-0000-0000-000000000020/prontuario",
+    "status": 200,
+    "title": "Carregando…",
+    "screenshot": "docs/navigation-audit/screenshots/14-paciente-prontuario.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K C PRONTUÁRIO A0000000 Carregando… Nova Consulta PERFIL PRONTUÁRIO PRESCRIÇÕES IMAGENS PROTOCOLOS AGENDAMENTOS FINANCEIRO COMUNICAÇÃO INSUMOS SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Prontuário Timeline de encounters SOAP, presc"
+  },
+  {
+    "name": "15-paciente-consulta",
+    "route": "/pacientes/a0000000-0000-0000-0000-000000000020/consulta/a0000000-0000-0000-0000-000000000090",
+    "finalUrl": "/pacientes/a0000000-0000-0000-0000-000000000020/consulta/a0000000-0000-0000-0000-000000000090",
+    "status": 200,
+    "title": "Carregando…",
+    "screenshot": "docs/navigation-audit/screenshots/15-paciente-consulta.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K C PRONTUÁRIO A0000000 Carregando… Nova Consulta PERFIL PRONTUÁRIO PRESCRIÇÕES IMAGENS PROTOCOLOS AGENDAMENTOS FINANCEIRO COMUNICAÇÃO INSUMOS Atendimento não encontrado."
+  },
+  {
+    "name": "16-paciente-imagens",
+    "route": "/pacientes/a0000000-0000-0000-0000-000000000020/imagens",
+    "finalUrl": "/pacientes/a0000000-0000-0000-0000-000000000020/imagens",
+    "status": 200,
+    "title": "Carregando…",
+    "screenshot": "docs/navigation-audit/screenshots/16-paciente-imagens.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    ],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K C PRONTUÁRIO A0000000 Carregando… Nova Consulta PERFIL PRONTUÁRIO PRESCRIÇÕES IMAGENS PROTOCOLOS AGENDAMENTOS FINANCEIRO COMUNICAÇÃO INSUMOS BODY MAP & LESÕES Imagens & Lesões Body map, timeline de lesões e galeria de fotos cl"
+  },
+  {
+    "name": "17-paciente-prescricoes",
+    "route": "/pacientes/a0000000-0000-0000-0000-000000000020/prescricoes",
+    "finalUrl": "/pacientes/a0000000-0000-0000-0000-000000000020/prescricoes",
+    "status": 200,
+    "title": "Carregando…",
+    "screenshot": "docs/navigation-audit/screenshots/17-paciente-prescricoes.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K C PRONTUÁRIO A0000000 Carregando… Nova Consulta PERFIL PRONTUÁRIO PRESCRIÇÕES IMAGENS PROTOCOLOS AGENDAMENTOS FINANCEIRO COMUNICAÇÃO INSUMOS RECEITUÁRIO ELETRÔNICO Prescrições Histórico de receitas emitidas para o paciente. N"
+  },
+  {
+    "name": "18-paciente-protocolos",
+    "route": "/pacientes/a0000000-0000-0000-0000-000000000020/protocolos",
+    "finalUrl": "/pacientes/a0000000-0000-0000-0000-000000000020/protocolos",
+    "status": 200,
+    "title": "Carregando…",
+    "screenshot": "docs/navigation-audit/screenshots/18-paciente-protocolos.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K C PRONTUÁRIO A0000000 Carregando… Nova Consulta PERFIL PRONTUÁRIO PRESCRIÇÕES IMAGENS PROTOCOLOS AGENDAMENTOS FINANCEIRO COMUNICAÇÃO INSUMOS TRATAMENTOS & EVOLUÇÃO Protocolos & Sessões Tratamentos ativos, sessões realizadas e "
+  },
+  {
+    "name": "19-paciente-financeiro",
+    "route": "/pacientes/a0000000-0000-0000-0000-000000000020/financeiro",
+    "finalUrl": "/pacientes/a0000000-0000-0000-0000-000000000020/financeiro",
+    "status": 200,
+    "title": "Carregando…",
+    "screenshot": "docs/navigation-audit/screenshots/19-paciente-financeiro.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K C PRONTUÁRIO A0000000 Carregando… Nova Consulta PERFIL PRONTUÁRIO PRESCRIÇÕES IMAGENS PROTOCOLOS AGENDAMENTOS FINANCEIRO COMUNICAÇÃO INSUMOS SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Financeiro do Paciente Faturas, pagamentos, s"
+  },
+  {
+    "name": "20-paciente-insumos",
+    "route": "/pacientes/a0000000-0000-0000-0000-000000000020/insumos",
+    "finalUrl": "/pacientes/a0000000-0000-0000-0000-000000000020/insumos",
+    "status": 200,
+    "title": "Carregando…",
+    "screenshot": "docs/navigation-audit/screenshots/20-paciente-insumos.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K C PRONTUÁRIO A0000000 Carregando… Nova Consulta PERFIL PRONTUÁRIO PRESCRIÇÕES IMAGENS PROTOCOLOS AGENDAMENTOS FINANCEIRO COMUNICAÇÃO INSUMOS SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Insumos Rastreabilidade ANVISA — materiais e "
+  },
+  {
+    "name": "21-paciente-comunicacao",
+    "route": "/pacientes/a0000000-0000-0000-0000-000000000020/comunicacao",
+    "finalUrl": "/pacientes/a0000000-0000-0000-0000-000000000020/comunicacao",
+    "status": 200,
+    "title": "Carregando…",
+    "screenshot": "docs/navigation-audit/screenshots/21-paciente-comunicacao.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K C PRONTUÁRIO A0000000 Carregando… Nova Consulta PERFIL PRONTUÁRIO PRESCRIÇÕES IMAGENS PROTOCOLOS AGENDAMENTOS FINANCEIRO COMUNICAÇÃO INSUMOS SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Comunicação Histórico de mensagens, e-mails, "
+  },
+  {
+    "name": "22-comunicacoes",
+    "route": "/comunicacoes",
+    "finalUrl": "/comunicacoes",
+    "status": 200,
+    "title": "",
+    "screenshot": "docs/navigation-audit/screenshots/22-comunicacoes.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K CANAIS WA IG EM SM AURORA ATRIBUIÇÃO Todas Minhas Equipe IA Não atribuídas CANAL Todos WhatsApp Instagram E-mail SMS Chat Telefone NENHUMA CONVERSA ENCONTRADA Selecione uma conversa para começar"
+  },
+  {
+    "name": "23-comunicacoes-agentes",
+    "route": "/comunicacoes/agentes",
+    "finalUrl": "/comunicacoes/agentes",
+    "status": 200,
+    "title": "Agentes IA",
+    "screenshot": "docs/navigation-audit/screenshots/23-comunicacoes-agentes.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K AURORA · ASSISTENTES IA Agentes IA Configure e gerencie os agentes da Aurora Nenhum agente configurado Nenhum agente foi configurado nesta clínica."
+  },
+  {
+    "name": "24-comunicacoes-agente-novo",
+    "route": "/comunicacoes/agentes/novo",
+    "finalUrl": "/comunicacoes/agentes/novo",
+    "status": 200,
+    "title": "Novo agente",
+    "screenshot": "docs/navigation-audit/screenshots/24-comunicacoes-agente-novo.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K AURORA · NOVO AGENTE Novo agente Crie um agente da Aurora. Ele começa inativo — configure tudo antes de ligar. Voltar Nome do agente* Ex.: Recepcionista WhatsApp, Aurora Pós-atendimento Tipo* Recepcionista Recebe, tria, enc"
+  },
+  {
+    "name": "25-comunicacoes-agente-detail",
+    "route": "/comunicacoes/agentes/a0000000-0000-0000-0000-000000000120",
+    "finalUrl": "/comunicacoes/agentes/a0000000-0000-0000-0000-000000000120",
+    "status": 200,
+    "title": "Agente não encontrado",
+    "screenshot": "docs/navigation-audit/screenshots/25-comunicacoes-agente-detail.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K Agente não encontrado Editor Knowledge Escalação Métricas Agente não encontrado."
+  },
+  {
+    "name": "26-comunicacoes-agente-knowledge",
+    "route": "/comunicacoes/agentes/a0000000-0000-0000-0000-000000000120/knowledge",
+    "finalUrl": "/comunicacoes/agentes/a0000000-0000-0000-0000-000000000120/knowledge",
+    "status": 200,
+    "title": "Agente não encontrado",
+    "screenshot": "docs/navigation-audit/screenshots/26-comunicacoes-agente-knowledge.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K Agente não encontrado Editor Knowledge Escalação Métricas Nenhum documento Adicione documentos para a Aurora responder com base no conteúdo da clínica."
+  },
+  {
+    "name": "27-comunicacoes-agente-metricas",
+    "route": "/comunicacoes/agentes/a0000000-0000-0000-0000-000000000120/metricas",
+    "finalUrl": "/comunicacoes/agentes/a0000000-0000-0000-0000-000000000120/metricas",
+    "status": 200,
+    "title": "Agente não encontrado",
+    "screenshot": "docs/navigation-audit/screenshots/27-comunicacoes-agente-metricas.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    ],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K Agente não encontrado Editor Knowledge Escalação Métricas Métricas Baseado em eventos de domínio (audit.domain_events) — não lê conteúdo das conversas. 7 dias30 dias90 dias Conversas Taxa de resolução Taxa de escalação Respos"
+  },
+  {
+    "name": "28-comunicacoes-agente-escalacao",
+    "route": "/comunicacoes/agentes/a0000000-0000-0000-0000-000000000120/escalacao",
+    "finalUrl": "/comunicacoes/agentes/a0000000-0000-0000-0000-000000000120/escalacao",
+    "status": 200,
+    "title": "Agente não encontrado",
+    "screenshot": "docs/navigation-audit/screenshots/28-comunicacoes-agente-escalacao.png",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K Agente não encontrado Editor Knowledge Escalação Métricas Regras de escalação Avaliadas na ordem (prioridade). A primeira regra que casar executa a ação. Salvar Nenhuma regra configurada. Adicione ao menos uma para poder ativ"
+  },
+  {
+    "name": "29-comunicacoes-automacoes",
+    "route": "/comunicacoes/automacoes",
+    "finalUrl": "/comunicacoes/automacoes",
+    "status": 200,
+    "title": "Automações",
+    "screenshot": "docs/navigation-audit/screenshots/29-comunicacoes-automacoes.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K GATILHOS · CANAIS · SEQUÊNCIAS Automações 0 regras configuradas Nova Automação Nenhuma automação configurada Crie sua primeira regra de automação."
+  },
+  {
+    "name": "30-comunicacoes-templates",
+    "route": "/comunicacoes/templates",
+    "finalUrl": "/comunicacoes/templates",
+    "status": 200,
+    "title": "Templates",
+    "screenshot": "docs/navigation-audit/screenshots/30-comunicacoes-templates.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K BIBLIOTECA DE MENSAGENS Templates 0 templates Carregar padrões Novo Template Nenhum template encontrado Crie o primeiro template ou carregue os padrões do sistema."
+  },
+  {
+    "name": "31-comunicacoes-template-novo",
+    "route": "/comunicacoes/templates/novo",
+    "finalUrl": "/comunicacoes/templates/novo",
+    "status": 200,
+    "title": "Novo Template",
+    "screenshot": "docs/navigation-audit/screenshots/31-comunicacoes-template-novo.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K NOVO TEMPLATE · BIBLIOTECA Novo Template Voltar Nome do template Canal ID do template Meta (HSM)opcional ID do template aprovado no WhatsApp Business Manager para envios em janela fria. Inserir variável {{nome_paciente}}{{dat"
+  },
+  {
+    "name": "32-comunicacoes-template-detail",
+    "route": "/comunicacoes/templates/a0000000-0000-0000-0000-000000000130",
+    "finalUrl": "/comunicacoes/templates/a0000000-0000-0000-0000-000000000130",
+    "status": 200,
+    "title": "",
+    "screenshot": "docs/navigation-audit/screenshots/32-comunicacoes-template-detail.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K TEMPLATE NÃO ENCONTRADO Voltar"
+  },
+  {
+    "name": "33-comunicacoes-ligacoes",
+    "route": "/comunicacoes/ligacoes",
+    "finalUrl": "/comunicacoes/ligacoes",
+    "status": 200,
+    "title": "Log de Ligações",
+    "screenshot": "docs/navigation-audit/screenshots/33-comunicacoes-ligacoes.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Log de Ligações Histórico de ligações recebidas, realizadas e perdidas com transcrição IA Filtrar Novo item AUTOMAÇÕES 12 Fluxos monitorados ESCALAÇÕES 3 Revisão humana PRECISÃO "
+  },
+  {
+    "name": "34-financeiro",
+    "route": "/financeiro",
+    "finalUrl": "/financeiro",
+    "status": 200,
+    "title": "Financeiro",
+    "screenshot": "docs/navigation-audit/screenshots/34-financeiro.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K CAIXA E FATURAMENTO Financeiro DRE Nova fatura RECEITA HOJE R$ 0,00 0 transações FATURAS ABERTAS 0 R$ 0,00 pend. RECEBIDO R$ 0,00 0 faturas pagas TICKET MÉDIO R$ 0,00 calculado do backend DRE — Janeiro 2026 R$ 10.00"
+  },
+  {
+    "name": "35-financeiro-faturas",
+    "route": "/financeiro/faturas",
+    "finalUrl": "/financeiro/faturas",
+    "status": 200,
+    "title": "Faturas & Cobranças",
+    "screenshot": "docs/navigation-audit/screenshots/35-financeiro-faturas.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Faturas & Cobranças Emissão e acompanhamento de faturas, boletos e links de pagamento + Nova Fatura RECEITA R$ 8.4k Movimento do dia ABERTAS 7 Faturas pendentes META 68% Progres"
+  },
+  {
+    "name": "36-financeiro-dre",
+    "route": "/financeiro/dre",
+    "finalUrl": "/financeiro/dre",
+    "status": 200,
+    "title": "DRE Gerencial",
+    "screenshot": "docs/navigation-audit/screenshots/36-financeiro-dre.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR DRE Gerencial Demonstrativo de resultado do exercício por período e centro de custo Exportar PDF RECEITA R$ 8.4k Movimento do dia ABERTAS 7 Faturas pendentes META 68% Progresso "
+  },
+  {
+    "name": "37-financeiro-metas",
+    "route": "/financeiro/metas",
+    "finalUrl": "/financeiro/metas",
+    "status": 200,
+    "title": "Receitas vs Metas",
+    "screenshot": "docs/navigation-audit/screenshots/37-financeiro-metas.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Receitas vs Metas Acompanhamento de metas financeiras por profissional e serviço Filtrar Novo item RECEITA R$ 8.4k Movimento do dia ABERTAS 7 Faturas pendentes META 68% Progress"
+  },
+  {
+    "name": "38-suprimentos",
+    "route": "/suprimentos",
+    "finalUrl": "/suprimentos",
+    "status": 200,
+    "title": "Suprimentos",
+    "screenshot": "docs/navigation-audit/screenshots/38-suprimentos.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K GESTÃO DE INVENTÁRIO FEFO Suprimentos Kits Novo Produto EM ESTOQUE 0 produtos catalogados ALERTAS FEFO 0 0 vencendo em 30d KITS ATIVOS 12 3 aguardando COMPRAS R$ 3.280 2 ordens abertas Todas as categorias Todos os s"
+  },
+  {
+    "name": "39-suprimentos-compras",
+    "route": "/suprimentos/compras",
+    "finalUrl": "/suprimentos/compras",
+    "status": 200,
+    "title": "Compras",
+    "screenshot": "docs/navigation-audit/screenshots/39-suprimentos-compras.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K POSIÇÃO DE ESTOQUE LOTES & VALIDADES COMPRAS RECEBIMENTO KITS RASTREABILIDADE REQUISIÇÕES DE COMPRA Compras Gerencie sugestões automáticas e requisições de compra Nova Requisição Sugestões Requisições Estoque dentro dos parâ"
+  },
+  {
+    "name": "40-suprimentos-recebimento",
+    "route": "/suprimentos/recebimento",
+    "finalUrl": "/suprimentos/recebimento",
+    "status": 200,
+    "title": "Recebimento de NF",
+    "screenshot": "docs/navigation-audit/screenshots/40-suprimentos-recebimento.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K POSIÇÃO DE ESTOQUE LOTES & VALIDADES COMPRAS RECEBIMENTO KITS RASTREABILIDADE CONFERÊNCIA DE NOTAS FISCAIS Recebimento de NF Pedidos aguardando conferência de recebimento Nenhum pedido aguardando recebimento."
+  },
+  {
+    "name": "41-suprimentos-lotes",
+    "route": "/suprimentos/lotes",
+    "finalUrl": "/suprimentos/lotes",
+    "status": 200,
+    "title": "Lotes & Validades",
+    "screenshot": "docs/navigation-audit/screenshots/41-suprimentos-lotes.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K POSIÇÃO DE ESTOQUE LOTES & VALIDADES COMPRAS RECEBIMENTO KITS RASTREABILIDADE ORDENAÇÃO FEFO ATIVA Lotes & Validades Validade mais próxima primeiro — lotes ativos com saldo Nova Movimentação Mostrar consumidos Nenhum lote en"
+  },
+  {
+    "name": "42-suprimentos-kits",
+    "route": "/suprimentos/kits",
+    "finalUrl": "/suprimentos/kits",
+    "status": 200,
+    "title": "Kits de Procedimento",
+    "screenshot": "docs/navigation-audit/screenshots/42-suprimentos-kits.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K POSIÇÃO DE ESTOQUE LOTES & VALIDADES COMPRAS RECEBIMENTO KITS RASTREABILIDADE INSUMOS POR PROCEDIMENTO Kits de Procedimento Configure insumos padrão por tipo de procedimento Registrar Consumo Novo Kit Nome do Kit Procedimento"
+  },
+  {
+    "name": "43-suprimentos-kits-consumir",
+    "route": "/suprimentos/kits/consumir",
+    "finalUrl": "/suprimentos/kits/consumir",
+    "status": 200,
+    "title": "Registrar Consumo",
+    "screenshot": "docs/navigation-audit/screenshots/43-suprimentos-kits-consumir.png",
+    "errors": [
+      "Minified React error #418; visit https://react.dev/errors/418?args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+    ],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K POSIÇÃO DE ESTOQUE LOTES & VALIDADES COMPRAS RECEBIMENTO KITS RASTREABILIDADE Registrar Consumo 1Agenda 2Lotes 3Confirmar 4Resultado Selecione o procedimento do dia que será consumido: Nenhum procedimento agendado para hoje. "
+  },
+  {
+    "name": "44-suprimentos-rastreabilidade",
+    "route": "/suprimentos/rastreabilidade",
+    "finalUrl": "/suprimentos/rastreabilidade",
+    "status": 200,
+    "title": "",
+    "screenshot": "docs/navigation-audit/screenshots/44-suprimentos-rastreabilidade.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K POSIÇÃO DE ESTOQUE LOTES & VALIDADES COMPRAS RECEBIMENTO KITS RASTREABILIDADE Você não tem permissão para consultar rastreabilidade."
+  },
+  {
+    "name": "45-analytics",
+    "route": "/analytics",
+    "finalUrl": "/analytics",
+    "status": 200,
+    "title": "Analytics",
+    "screenshot": "docs/navigation-audit/screenshots/45-analytics.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K INTELIGÊNCIA OPERACIONAL Analytics CSV PDF CLINICAL 0 Consultas no período FINANCEIRO R$ 0 Receita no período IA / AURORA 0 NPS registrado PACIENTES 0 Base ativa Consultas/dia — período 0 TOTAL ter qua qui sex sáb d"
+  },
+  {
+    "name": "46-analytics-financeiro",
+    "route": "/analytics/financeiro",
+    "finalUrl": "/analytics/financeiro",
+    "status": 200,
+    "title": "Financeiro Avançado",
+    "screenshot": "docs/navigation-audit/screenshots/46-analytics-financeiro.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Financeiro Avançado Análise de margem por serviço, previsão de receita e cohort financeiro Exportar RECEITA R$ 8.4k Movimento do dia ABERTAS 7 Faturas pendentes META 68% Progres"
+  },
+  {
+    "name": "47-analytics-omni",
+    "route": "/analytics/omni",
+    "finalUrl": "/analytics/omni",
+    "status": 200,
+    "title": "Performance Omnichannel",
+    "screenshot": "docs/navigation-audit/screenshots/47-analytics-omni.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Performance Omnichannel Métricas de atendimento por canal: tempo de resposta, conversão e CSAT Filtrar Novo item AUTOMAÇÕES 12 Fluxos monitorados ESCALAÇÕES 3 Revisão humana PRECI"
+  },
+  {
+    "name": "48-analytics-pacientes",
+    "route": "/analytics/pacientes",
+    "finalUrl": "/analytics/pacientes",
+    "status": 200,
+    "title": "Jornada do Paciente",
+    "screenshot": "docs/navigation-audit/screenshots/48-analytics-pacientes.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Jornada do Paciente Funil de captação, retenção, LTV e churn de pacientes Filtrar Novo item ITENS ATIVOS 18 Prontos para revisão PENDÊNCIAS 4 Exigem ação clínica HOJE 9 Eventos "
+  },
+  {
+    "name": "49-analytics-supply",
+    "route": "/analytics/supply",
+    "finalUrl": "/analytics/supply",
+    "status": 200,
+    "title": "Supply Intelligence",
+    "screenshot": "docs/navigation-audit/screenshots/49-analytics-supply.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Supply Intelligence Análise de consumo, desperdício e oportunidades de otimização de estoque Filtrar Novo item LOTES 27 Rastreáveis por FEFO ALERTAS 5 Vencimento ou estoque KITS "
+  },
+  {
+    "name": "50-configuracoes",
+    "route": "/configuracoes",
+    "finalUrl": "/configuracoes",
+    "status": 200,
+    "title": "Configurações",
+    "screenshot": "docs/navigation-audit/screenshots/50-configuracoes.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K USUÁRIOS, RBAC & INTEGRAÇÕES Configurações Novo usuário Usuários & RBAC LGPD Dra. Ana Souza Dermatologista · ana@clinica.com Ativo prontuário prescrição protocolo Dr. Carlos Lima Dermatologista · lima@clinica.com Ativo pron"
+  },
+  {
+    "name": "51-configuracoes-usuarios",
+    "route": "/configuracoes/usuarios",
+    "finalUrl": "/configuracoes/usuarios",
+    "status": 200,
+    "title": "Gestão de Usuários",
+    "screenshot": "docs/navigation-audit/screenshots/51-configuracoes-usuarios.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Gestão de Usuários Convite, edição de permissões e desativação de usuários da clínica + Convidar Usuário PERFIS 6 Papéis administrativos INTEGRAÇÕES 5 Conectadas COMPLIANCE 100% "
+  },
+  {
+    "name": "52-configuracoes-servicos",
+    "route": "/configuracoes/servicos",
+    "finalUrl": "/configuracoes/servicos",
+    "status": 200,
+    "title": "Catálogo de Serviços",
+    "screenshot": "docs/navigation-audit/screenshots/52-configuracoes-servicos.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Catálogo de Serviços Procedimentos, valores, duração e configurações por serviço + Novo Serviço ITENS ATIVOS 18 Prontos para revisão PENDÊNCIAS 4 Exigem ação clínica HOJE 9 Even"
+  },
+  {
+    "name": "53-configuracoes-integracoes",
+    "route": "/configuracoes/integracoes",
+    "finalUrl": "/configuracoes/integracoes",
+    "status": 200,
+    "title": "Integrações & Canais",
+    "screenshot": "docs/navigation-audit/screenshots/53-configuracoes-integracoes.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Integrações & Canais WhatsApp Business, Instagram, Gmail, sistemas de pagamento e outros canais Filtrar Novo item AUTOMAÇÕES 12 Fluxos monitorados ESCALAÇÕES 3 Revisão humana PREC"
+  },
+  {
+    "name": "54-configuracoes-ia",
+    "route": "/configuracoes/ia",
+    "finalUrl": "/configuracoes/ia",
+    "status": 200,
+    "title": "Configuração de IA",
+    "screenshot": "docs/navigation-audit/screenshots/54-configuracoes-ia.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Configuração de IA Modelos ativos, prompts customizados, base de conhecimento e limites de uso Filtrar Novo item AUTOMAÇÕES 12 Fluxos monitorados ESCALAÇÕES 3 Revisão humana PRECI"
+  },
+  {
+    "name": "55-configuracoes-auditoria",
+    "route": "/configuracoes/auditoria",
+    "finalUrl": "/configuracoes/auditoria",
+    "status": 200,
+    "title": "Auditoria & Compliance",
+    "screenshot": "docs/navigation-audit/screenshots/55-configuracoes-auditoria.png",
+    "errors": [],
+    "sample": "E Dashboar Agenda Paciente Comunic. Suprim. Financei Analytic Config. ⌘K SUPERFÍCIE OPERACIONAL · DS QUITE CLEAR Auditoria & Compliance Logs de acesso, alterações de dados e relatórios de compliance LGPD/CFM Exportar Logs PERFIS 6 Papéis administrativos INTEGRAÇÕES 5 Conectadas COMPLIANCE 1"
+  }
+]
