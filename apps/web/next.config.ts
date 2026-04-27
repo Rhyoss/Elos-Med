@@ -20,6 +20,23 @@ const nextConfig: NextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
 
+  // Proxy de /api/* para o backend Fastify durante o desenvolvimento.
+  // Em produção, o Nginx faz esse roteamento. O env var NEXT_PUBLIC_API_BASE
+  // (default http://localhost:3001) permite override em outros ambientes.
+  async rewrites() {
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:3001';
+    return [
+      {
+        source: '/api/trpc/:path*',
+        destination: `${apiBase}/api/trpc/:path*`,
+      },
+      {
+        source: '/api/socket.io/:path*',
+        destination: `${apiBase}/socket.io/:path*`,
+      },
+    ];
+  },
+
   // Headers de segurança (complementam o Nginx em prod)
   async headers() {
     return [
