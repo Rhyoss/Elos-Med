@@ -155,6 +155,8 @@ export default function PerfilPage() {
       <PageHero
         eyebrow="DADOS CADASTRAIS · CLÍNICOS"
         title="Perfil do Paciente"
+        module="clinical"
+        icon="user"
         actions={
           <Btn
             small
@@ -167,7 +169,7 @@ export default function PerfilPage() {
       />
 
       {/* Métricas */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         <Stat
           label="Total de visitas"
           value={String(patient.totalVisits ?? 0)}
@@ -195,8 +197,8 @@ export default function PerfilPage() {
       </div>
 
       {/* Conteúdo principal: 2 colunas */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Dados pessoais */}
           <Glass style={{ padding: '18px 22px' }}>
             <div
@@ -214,7 +216,7 @@ export default function PerfilPage() {
                 </Mono>
               </div>
               <Btn
-                variant="ghost"
+                variant="glass"
                 small
                 icon="edit"
                 onClick={() => router.push(`/pacientes/${id}/perfil?edit=true`)}
@@ -269,7 +271,7 @@ export default function PerfilPage() {
 
               {patient.allergies.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
-                  <Mono size={7} color={T.danger}>
+                  <Mono size={8} color={T.danger}>
                     ALERGIAS
                   </Mono>
                   <div
@@ -287,7 +289,7 @@ export default function PerfilPage() {
 
               {patient.chronicConditions.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
-                  <Mono size={7} color={T.warning}>
+                  <Mono size={8} color={T.warning}>
                     CONDIÇÕES CRÔNICAS
                   </Mono>
                   <div
@@ -305,7 +307,7 @@ export default function PerfilPage() {
 
               {patient.activeMedications.length > 0 && (
                 <div>
-                  <Mono size={7} color={T.info}>
+                  <Mono size={8} color={T.info}>
                     MEDICAMENTOS EM USO
                   </Mono>
                   <div
@@ -348,7 +350,7 @@ export default function PerfilPage() {
         </div>
 
         {/* Coluna lateral */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Origem */}
           {(patient.sourceChannel || patient.sourceCampaign) && (
             <Glass style={{ padding: '18px 22px' }}>
@@ -467,7 +469,7 @@ function Field({
         <Ico name={icon} size={13} color={T.primary} />
       </div>
       <div style={{ minWidth: 0 }}>
-        <Mono size={7} spacing="0.8px">
+        <Mono size={8} spacing="0.9px">
           {label.toUpperCase()}
         </Mono>
         <p

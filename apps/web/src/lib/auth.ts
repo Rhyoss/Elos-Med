@@ -60,7 +60,7 @@ export function useAuth() {
  */
 export function usePermission(resource: Resource, action: Action): boolean {
   const permissions = useAuthStore((s) => s.permissions);
-  return checkPermission(permissions, resource, action);
+  return checkPermission(permissions ?? {}, resource, action);
 }
 
 /**
@@ -68,5 +68,5 @@ export function usePermission(resource: Resource, action: Action): boolean {
  */
 export function usePermissions(checks: [Resource, Action][]): boolean {
   const permissions = useAuthStore((s) => s.permissions);
-  return checks.every(([resource, action]) => checkPermission(permissions, resource, action));
+  return checks.every(([resource, action]) => checkPermission(permissions ?? {}, resource, action));
 }

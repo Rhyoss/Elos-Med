@@ -4,7 +4,7 @@ import * as React from 'react';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
   Button, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-  Switch, Tooltip, TooltipTrigger, TooltipContent, Textarea,
+  Switch, Tooltip, Textarea,
 } from '@dermaos/ui';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -543,13 +543,10 @@ function FieldError({ children }: { children: React.ReactNode }) {
 
 function FieldTip({ children }: { children: React.ReactNode }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button type="button" aria-label="Ajuda" className="text-muted-foreground">
-          <Info className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent className="max-w-xs text-xs">{children}</TooltipContent>
+    <Tooltip content={children} className="max-w-xs text-xs">
+      <button type="button" aria-label="Ajuda" className="text-muted-foreground">
+        <Info className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
     </Tooltip>
   );
 }

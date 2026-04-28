@@ -3,8 +3,7 @@
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AllergyBanner } from '@dermaos/ui';
-import { Btn, Mono, Skeleton, T } from '@dermaos/ui/ds';
+import { Btn, Ico, Mono, Skeleton, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 
 /* ── Tabs ────────────────────────────────────────────────────────────── */
@@ -35,16 +34,17 @@ function PatientHeaderSkeleton() {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 16,
-        padding: '14px 26px',
+        gap: 14,
+        padding: '12px 26px',
         borderBottom: `1px solid ${T.divider}`,
       }}
     >
-      <Skeleton width={56} height={56} radius={28} />
+      <Skeleton width={48} height={48} radius={24} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-        <Skeleton width={200} height={18} />
-        <Skeleton width={140} height={12} delay={80} />
+        <Skeleton width={180} height={18} />
+        <Skeleton width={220} height={11} delay={80} />
       </div>
+      <Skeleton width={120} height={32} delay={120} radius={10} />
     </div>
   );
 }
@@ -52,12 +52,13 @@ function PatientHeaderSkeleton() {
 /* ── Header DS ───────────────────────────────────────────────────────── */
 
 interface PatientInfo {
-  name:      string;
-  age?:      number | null;
-  gender?:   string | null;
+  name:       string;
+  age?:       number | null;
+  gender?:    string | null;
   bloodType?: string | null;
-  photoUrl?: string | null;
-  allergies: string[];
+  photoUrl?:  string | null;
+  phone?:     string | null;
+  allergies:  string[];
 }
 
 const GENDER_LABELS: Record<string, string> = {
@@ -80,50 +81,62 @@ function PatientHeader({ patient, patientId }: { patient: PatientInfo; patientId
     .toUpperCase()
     .slice(0, 2);
 
-  const meta = [
-    patient.age != null ? `${patient.age} anos` : null,
+  const metaBits = [
+    patient.age != null ? `${patient.age}a` : null,
     patient.gender ? GENDER_LABELS[patient.gender] ?? patient.gender : null,
     patient.bloodType ? `Tipo ${patient.bloodType}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  ].filter(Boolean) as string[];
+
+  const hasAllergies = patient.allergies.length > 0;
+  const allergiesSummary = hasAllergies
+    ? patient.allergies.length === 1
+      ? patient.allergies[0]!
+      : `${patient.allergies[0]!} +${patient.allergies.length - 1}`
+    : null;
+
+  const phoneTrimmed = patient.phone?.trim();
+  const hasPhone = !!phoneTrimmed;
+  const telHref = phoneTrimmed ? `tel:${phoneTrimmed.replace(/\D/g, '')}` : undefined;
 
   return (
-    <>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          padding: '14px 26px',
-          borderBottom: `1px solid ${T.divider}`,
-          background: T.glass,
-          backdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
-          WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
-        }}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        padding: '12px 26px',
+        borderBottom: `1px solid ${T.divider}`,
+        background: T.glass,
+        backdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+        WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+        flexShrink: 0,
+      }}
+    >
+      {/* Avatar (clica → volta para a lista) */}
+      <Link
+        href="/pacientes"
+        aria-label="Voltar para lista de pacientes"
+        style={{ display: 'inline-flex', textDecoration: 'none', flexShrink: 0 }}
       >
-        {/* Avatar */}
         {patient.photoUrl ? (
           <img
             src={patient.photoUrl}
             alt=""
             aria-hidden
             style={{
-              width: 56,
-              height: 56,
+              width: 48,
+              height: 48,
               borderRadius: '50%',
               objectFit: 'cover',
               border: `2px solid ${T.clinical.color}30`,
-              flexShrink: 0,
             }}
           />
         ) : (
           <span
             aria-hidden
             style={{
-              width: 56,
-              height: 56,
-              flexShrink: 0,
+              width: 48,
+              height: 48,
               borderRadius: '50%',
               background: T.clinical.bg,
               border: `2px solid ${T.clinical.color}30`,
@@ -132,7 +145,7 @@ function PatientHeader({ patient, patientId }: { patient: PatientInfo; patientId
               justifyContent: 'center',
               color: T.clinical.color,
               fontWeight: 700,
-              fontSize: 20,
+              fontSize: 17,
               fontFamily: "'IBM Plex Sans', sans-serif",
               letterSpacing: '-0.02em',
             }}
@@ -140,32 +153,115 @@ function PatientHeader({ patient, patientId }: { patient: PatientInfo; patientId
             {initials}
           </span>
         )}
+      </Link>
 
-        {/* Info */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Mono size={9} spacing="1.2px" color={T.clinical.color}>
-            PRONTUÁRIO {patientId.slice(0, 8).toUpperCase()}
-          </Mono>
-          <h1
-            style={{
-              fontSize: 20,
-              fontWeight: 700,
-              color: T.textPrimary,
-              letterSpacing: '-0.01em',
-              lineHeight: 1.15,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {patient.name}
-          </h1>
-          {meta && (
-            <p style={{ fontSize: 12, color: T.textSecondary }}>{meta}</p>
+      {/* Info — identidade compacta com chips inline */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Mono size={9} spacing="1.2px" color={T.clinical.color}>
+          PRONTUÁRIO {patientId.slice(0, 8).toUpperCase()}
+        </Mono>
+        <h1
+          style={{
+            fontSize: 19,
+            fontWeight: 700,
+            color: T.textPrimary,
+            letterSpacing: '-0.01em',
+            lineHeight: 1.15,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            margin: 0,
+          }}
+        >
+          {patient.name}
+        </h1>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+            marginTop: 2,
+          }}
+        >
+          {metaBits.length > 0 && (
+            <span style={{ fontSize: 12, color: T.textSecondary }}>
+              {metaBits.join(' · ')}
+            </span>
+          )}
+          {hasAllergies && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '2px 8px 2px 6px',
+                borderRadius: T.r.pill,
+                background: `${T.danger}12`,
+                border: `1px solid ${T.danger}33`,
+                fontSize: 11,
+                color: T.danger,
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                maxWidth: 240,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              title={`Alergias: ${patient.allergies.join(', ')}`}
+            >
+              <Ico name="alert" size={11} color={T.danger} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {allergiesSummary}
+              </span>
+            </span>
           )}
         </div>
+      </div>
 
-        {/* CTA */}
+      {/* Action toolbar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          flexShrink: 0,
+        }}
+      >
+        {hasPhone && telHref && (
+          <a
+            href={telHref}
+            aria-label={`Ligar para ${patient.name}`}
+            title={`Ligar — ${phoneTrimmed}`}
+            style={{ display: 'inline-flex', textDecoration: 'none' }}
+          >
+            <Btn variant="glass" small icon="phone" iconOnly>
+              Ligar
+            </Btn>
+          </a>
+        )}
+        <Btn
+          variant="glass"
+          small
+          icon="message"
+          iconOnly
+          onClick={() => router.push(`/pacientes/${patientId}/comunicacao`)}
+          aria-label="Mensagens do paciente"
+          title="Mensagens"
+        >
+          Mensagens
+        </Btn>
+        <Btn
+          variant="glass"
+          small
+          icon="file"
+          onClick={() =>
+            router.push(`/pacientes/${patientId}/prescricoes?new=1`)
+          }
+          aria-label="Nova prescrição"
+          title="Nova prescrição"
+        >
+          Prescrição
+        </Btn>
         <Btn
           small
           icon="calendar"
@@ -175,10 +271,7 @@ function PatientHeader({ patient, patientId }: { patient: PatientInfo; patientId
           Nova Consulta
         </Btn>
       </div>
-
-      {/* Banner de alergias — composite legacy preservado (já forest-themed via globals.css) */}
-      {patient.allergies.length > 0 && <AllergyBanner allergies={patient.allergies} />}
-    </>
+    </div>
   );
 }
 
@@ -284,6 +377,7 @@ export default function PatientLayout({
         gender:    patient.gender,
         bloodType: patient.bloodType,
         photoUrl:  null,
+        phone:     patient.phone,
         allergies: patient.allergies,
       }
     : {

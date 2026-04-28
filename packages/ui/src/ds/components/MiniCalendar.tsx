@@ -93,7 +93,7 @@ export function MiniCalendar({
           <Ico name="arrowLeft" size={12} color={T.textMuted} />
         </button>
         <Mono size={9} spacing="0.8px" color={T.textPrimary}>
-          {MONTH_NAMES[month].toUpperCase()} {year}
+          {(MONTH_NAMES[month] ?? '').toUpperCase()} {year}
         </Mono>
         <button
           type="button"

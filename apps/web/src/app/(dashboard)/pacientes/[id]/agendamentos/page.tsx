@@ -9,6 +9,7 @@ import {
   Glass,
   Ico,
   Mono,
+  PageHero,
   Skeleton,
   T,
 } from '@dermaos/ui/ds';
@@ -52,20 +53,9 @@ function fmtTime(d: Date | string): string {
   }).format(date);
 }
 
-interface AgendaItem {
-  id: string;
-  scheduledAt: Date | string;
-  status: string;
-  patientId: string;
-  patientName: string;
-  serviceId: string | null;
-  serviceName: string | null;
-  providerId: string;
-}
-
 /**
  * Patient appointments tab. Today's agenda comes from
- * `scheduling.getAgendaDay`; the result is filtered client-side to the
+ * `scheduling.agendaDay`; the result is filtered client-side to the
  * current patient. For the full historical list, the user is routed to the
  * main `/agenda` view filtered by patient.
  */
@@ -73,16 +63,15 @@ export default function PatientAgendamentosPage({ params }: { params: PageParams
   const { id: patientId } = React.use(params);
   const router = useRouter();
 
-  const today = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const today = React.useMemo(() => new Date(), []);
 
-  const agendaQ = trpc.scheduling.getAgendaDay.useQuery(
+  const agendaQ = trpc.scheduling.agendaDay.useQuery(
     { date: today },
     { staleTime: 30_000 },
   );
 
-  const allAppts =
-    (agendaQ.data as { appointments?: AgendaItem[] } | undefined)?.appointments ?? [];
-  const patientAppts = allAppts.filter((a) => a.patientId === patientId);
+  const allAppts = agendaQ.data?.appointments ?? [];
+  const patientAppts = allAppts.filter((a) => a.patient.id === patientId);
 
   return (
     <div
@@ -95,48 +84,31 @@ export default function PatientAgendamentosPage({ params }: { params: PageParams
         overflowY: 'auto',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 12,
-        }}
-      >
-        <div>
-          <Mono size={9} spacing="1.2px" color={T.clinical.color}>
-            AGENDAMENTOS DO PACIENTE
-          </Mono>
-          <h2
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: T.textPrimary,
-              margin: '4px 0 0',
-            }}
-          >
-            Próximos compromissos
-          </h2>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Btn
-            variant="glass"
-            small
-            icon="calendar"
-            onClick={() => router.push(`/agenda?paciente=${patientId}`)}
-          >
-            Histórico completo
-          </Btn>
-          <Btn
-            small
-            icon="plus"
-            onClick={() => router.push(`/agenda?paciente=${patientId}&novo=1`)}
-          >
-            Novo agendamento
-          </Btn>
-        </div>
-      </div>
+      <PageHero
+        eyebrow="AGENDAMENTOS DO PACIENTE"
+        title="Próximos compromissos"
+        module="clinical"
+        icon="calendar"
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn
+              variant="glass"
+              small
+              icon="calendar"
+              onClick={() => router.push(`/agenda?paciente=${patientId}`)}
+            >
+              Histórico completo
+            </Btn>
+            <Btn
+              small
+              icon="plus"
+              onClick={() => router.push(`/agenda?paciente=${patientId}&novo=1`)}
+            >
+              Novo agendamento
+            </Btn>
+          </div>
+        }
+      />
 
       <div>
         <Mono size={9} spacing="1.1px" color={T.primary}>
@@ -207,7 +179,7 @@ export default function PatientAgendamentosPage({ params }: { params: PageParams
                             margin: 0,
                           }}
                         >
-                          {appt.serviceName ?? 'Consulta'}
+                          {appt.service?.name ?? 'Consulta'}
                         </p>
                         <Mono size={9}>{fmtDate(appt.scheduledAt)}</Mono>
                       </div>

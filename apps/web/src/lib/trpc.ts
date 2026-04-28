@@ -1,5 +1,5 @@
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
-import superjson from 'superjson';
+import { dermaosTransformer } from '@dermaos/shared';
 import type { AppRouter } from '@dermaos/api/trpc/router';
 
 const getBaseUrl = () => {
@@ -14,7 +14,7 @@ export const trpcClient = createTRPCClient<AppRouter>({
     // antes de commitar headers (Set-Cookie da auth.login depende disso).
     httpBatchLink({
       url: `${getBaseUrl()}/api/trpc`,
-      transformer: superjson,
+      transformer: dermaosTransformer,
       headers() {
         return {
           'x-trpc-source': 'web-client',

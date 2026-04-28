@@ -99,6 +99,8 @@ export default function ProtocolosPage({ params }: { params: PageParams }) {
       <PageHero
         eyebrow="TRATAMENTOS · EVOLUÇÃO"
         title="Protocolos & Sessões"
+        module="clinical"
+        icon="layers"
         actions={
           <Btn small icon="plus" onClick={() => setNewOpen(true)} disabled={!providerId}>
             Novo protocolo
@@ -218,8 +220,8 @@ function ProtocolCard({
     totalSessions:    number;
     sessionsDone:     number;
     intervalDays:     number | null;
-    startedAt:        Date | null;
-    expectedEndDate:  Date | null;
+    startedAt:        Date | string | null;
+    expectedEndDate:  Date | string | null;
   };
   expanded:          boolean;
   onToggleTimeline:  () => void;

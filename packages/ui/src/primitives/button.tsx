@@ -23,6 +23,8 @@ const buttonVariants = cva(
         /* Ações secundárias */
         outline:
           'border border-input bg-background text-foreground hover:bg-hover active:bg-hover',
+        secondary:
+          'border border-input bg-muted text-foreground hover:bg-hover active:bg-hover',
         /* Ações terciárias, navegação */
         ghost:
           'bg-transparent text-foreground hover:bg-hover active:bg-hover',
@@ -35,6 +37,7 @@ const buttonVariants = cva(
         md:  'h-10 px-4 py-2 [&_svg]:size-4',
         lg:  'h-11 px-6 text-base [&_svg]:size-5',
         icon: 'h-10 w-10 [&_svg]:size-4',
+        'icon-sm': 'h-8 w-8 [&_svg]:size-3.5',
       },
     },
     defaultVariants: {

@@ -19,21 +19,6 @@ import {
   type EncounterFull,
 } from "./types";
 
-const GENDER_LABELS: Record<string, string> = {
-  female: "Feminino",
-  male: "Masculino",
-  non_binary: "Não-binário",
-  prefer_not_to_say: "Prefere não informar",
-  other: "Outro",
-};
-
-function fmtDate(d: Date | string | null | undefined): string {
-  if (!d) return "Nascimento não informado";
-  const date = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(date.getTime())) return "Nascimento não informado";
-  return new Intl.DateTimeFormat("pt-BR").format(date);
-}
-
 export interface PatientRecordHeaderProps {
   patientId: string;
   patient: {
@@ -49,8 +34,11 @@ export interface PatientRecordHeaderProps {
     chronicConditions: string[];
   };
   selectedEncounter?: EncounterFull | null;
+  /** legado — não renderizado mais (botão "Voltar para Perfil" foi removido,
+   *  basta usar a aba Perfil). Mantido na interface por compatibilidade. */
   onBackProfile: () => void;
   onNewRecord: () => void;
+  /** legado — Nova prescrição agora vive no header global via toolbar. */
   onNewPrescription: () => void;
   onRequestExam: () => void;
   onAttachImage: () => void;
@@ -58,45 +46,30 @@ export interface PatientRecordHeaderProps {
   onExportPdf: () => void;
 }
 
+/**
+ * Context bar enxuta — mostra apenas o estado do encontro selecionado,
+ * tags clínicos relevantes e ações específicas do prontuário. A identidade
+ * do paciente (avatar/nome/idade) já é exibida pelo header global do layout
+ * `[id]/layout.tsx`, então não duplicamos aqui.
+ */
 export function PatientRecordHeader({
-  patientId,
   patient,
   selectedEncounter,
-  onBackProfile,
   onNewRecord,
-  onNewPrescription,
   onRequestExam,
   onAttachImage,
   onShare,
   onExportPdf,
 }: PatientRecordHeaderProps) {
-  const displayName = patient.preferredName?.trim() || patient.name;
-  const civilName =
-    patient.civilName?.trim() && patient.civilName !== displayName
-      ? patient.civilName
-      : patient.name !== displayName
-        ? patient.name
-        : null;
-  const initials = displayName
-    .split(" ")
-    .filter(Boolean)
-    .map((p) => p[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
   const status = selectedEncounter
     ? getDisplayStatus(selectedEncounter.status)
     : "draft";
   const shareAllowed = selectedEncounter
     ? isFinalized(selectedEncounter.status)
     : false;
-  const meta = [
-    patient.age != null ? `${patient.age} anos` : null,
-    patient.gender ? (GENDER_LABELS[patient.gender] ?? patient.gender) : null,
-    fmtDate(patient.birthDate),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const hasMeds = patient.activeMedications.length > 0;
+  const hasConditions = patient.chronicConditions.length > 0;
+  const hasNoAllergies = patient.allergies.length === 0;
 
   return (
     <Glass
@@ -107,162 +80,69 @@ export function PatientRecordHeader({
         borderLeft: "none",
         borderRight: "none",
         borderTop: "none",
-        padding: "12px 18px",
+        padding: "10px 22px",
       }}
     >
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(260px, 1fr) minmax(220px, 0.9fr) auto",
-          gap: 14,
+          display: "flex",
           alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
         }}
       >
+        {/* Eyebrow + tags clínicos */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 12,
+            gap: 8,
+            flex: 1,
             minWidth: 0,
-          }}
-        >
-          {patient.photoUrl ? (
-            <img
-              src={patient.photoUrl}
-              alt=""
-              aria-hidden
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: "50%",
-                objectFit: "cover",
-                border: `2px solid ${T.clinical.color}30`,
-                flexShrink: 0,
-              }}
-            />
-          ) : (
-            <div
-              aria-hidden
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: "50%",
-                background: T.clinical.bg,
-                border: `2px solid ${T.clinical.color}30`,
-                color: T.clinical.color,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 18,
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              {initials || "P"}
-            </div>
-          )}
-          <div style={{ minWidth: 0 }}>
-            <Mono size={8} spacing="1.2px" color={T.clinical.color}>
-              PRONTUÁRIO · {patientId.slice(0, 8).toUpperCase()}
-            </Mono>
-            <h1
-              style={{
-                fontSize: 18,
-                lineHeight: 1.15,
-                color: T.textPrimary,
-                fontWeight: 700,
-                margin: "3px 0 2px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {displayName}
-            </h1>
-            <p style={{ margin: 0, fontSize: 11, color: T.textSecondary }}>
-              {civilName ? `Nome civil: ${civilName} · ` : ""}
-              {meta}
-            </p>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-            minWidth: 0,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
-            }}
-          >
-            <Badge variant={STATUS_VARIANT[status]} dot={false}>
-              {selectedEncounter
-                ? STATUS_LABEL[status]
-                : "Sem registro selecionado"}
-            </Badge>
-            {selectedEncounter?.appointmentId && (
-              <MetalTag>ENCOUNTER VINCULADO</MetalTag>
-            )}
-            <MetalTag>REGULATED SENSITIVE</MetalTag>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              flexWrap: "wrap",
-            }}
-          >
-            {patient.allergies.length > 0 ? (
-              patient.allergies.slice(0, 3).map((a) => (
-                <Badge key={a} variant="danger" dot={false}>
-                  {a}
-                </Badge>
-              ))
-            ) : (
-              <Badge variant="success" dot={false}>
-                Sem alergias registradas
-              </Badge>
-            )}
-            {patient.activeMedications.length > 0 && (
-              <Badge variant="info" dot={false}>
-                {patient.activeMedications.length} medicação(ões) ativa(s)
-              </Badge>
-            )}
-            {patient.chronicConditions.length > 0 && (
-              <Badge variant="warning" dot={false}>
-                {patient.chronicConditions.length} risco(s) clínico(s)
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            justifyContent: "flex-end",
             flexWrap: "wrap",
           }}
         >
-          <Btn variant="ghost" small icon="arrowLeft" onClick={onBackProfile}>
-            Perfil
-          </Btn>
+          <Mono size={9} spacing="1.2px" color={T.clinical.color}>
+            ENCONTRO
+          </Mono>
+          <Badge variant={STATUS_VARIANT[status]} dot={false}>
+            {selectedEncounter
+              ? STATUS_LABEL[status]
+              : "Nenhum selecionado"}
+          </Badge>
+          {selectedEncounter?.appointmentId && (
+            <MetalTag>VINCULADO À AGENDA</MetalTag>
+          )}
+          <MetalTag>REGULATED SENSITIVE</MetalTag>
+          {hasNoAllergies && (
+            <Badge variant="success" dot={false}>
+              Sem alergias registradas
+            </Badge>
+          )}
+          {hasMeds && (
+            <Badge variant="info" dot={false}>
+              {patient.activeMedications.length} medicação(ões) ativa(s)
+            </Badge>
+          )}
+          {hasConditions && (
+            <Badge variant="warning" dot={false}>
+              {patient.chronicConditions.length} risco(s) clínico(s)
+            </Badge>
+          )}
+        </div>
+
+        {/* Ações específicas do prontuário */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            flexShrink: 0,
+          }}
+        >
           <Btn small icon="plus" onClick={onNewRecord}>
-            Novo prontuário
+            Novo registro
           </Btn>
-          <IconAction
-            icon="file"
-            label="Nova prescrição"
-            onClick={onNewPrescription}
-          />
           <IconAction
             icon="activity"
             label="Solicitar exame"
@@ -275,13 +155,13 @@ export function PatientRecordHeader({
           />
           <IconAction
             icon="link"
-            label="Compartilhar"
+            label="Compartilhar este encontro"
             onClick={onShare}
             disabled={!shareAllowed}
           />
           <IconAction
             icon="download"
-            label="Exportar PDF"
+            label="Exportar PDF deste encontro"
             onClick={onExportPdf}
             disabled={!selectedEncounter}
           />
@@ -310,8 +190,8 @@ function IconAction({
       onClick={onClick}
       disabled={disabled}
       style={{
-        width: 32,
-        height: 32,
+        width: 30,
+        height: 30,
         borderRadius: T.r.md,
         background: disabled ? T.glass : T.inputBg,
         border: `1px solid ${T.inputBorder}`,
@@ -324,7 +204,7 @@ function IconAction({
     >
       <Ico
         name={icon}
-        size={14}
+        size={13}
         color={disabled ? T.textMuted : T.textPrimary}
       />
     </button>

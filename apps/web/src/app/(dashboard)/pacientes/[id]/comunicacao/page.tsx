@@ -8,6 +8,7 @@ import {
   Glass,
   Ico,
   Mono,
+  PageHero,
   Skeleton,
   T,
 } from '@dermaos/ui/ds';
@@ -72,48 +73,31 @@ export default function PatientComunicacaoPage({ params }: { params: PageParams 
         overflowY: 'auto',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 12,
-        }}
-      >
-        <div>
-          <Mono size={9} spacing="1.2px" color={T.aiMod.color}>
-            COMUNICAÇÃO OMNICHANNEL
-          </Mono>
-          <h2
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: T.textPrimary,
-              margin: '4px 0 0',
-            }}
-          >
-            Conversas com o paciente
-          </h2>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Btn
-            variant="glass"
-            small
-            icon="message"
-            onClick={() => router.push(`/comunicacoes?paciente=${patientId}`)}
-          >
-            Inbox unificada
-          </Btn>
-          <Btn
-            small
-            icon="plus"
-            onClick={() => router.push(`/comunicacoes?paciente=${patientId}&novo=1`)}
-          >
-            Nova conversa
-          </Btn>
-        </div>
-      </div>
+      <PageHero
+        eyebrow="COMUNICAÇÃO OMNICHANNEL"
+        title="Conversas com o paciente"
+        module="aiMod"
+        icon="message"
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn
+              variant="glass"
+              small
+              icon="message"
+              onClick={() => router.push(`/comunicacoes?paciente=${patientId}`)}
+            >
+              Inbox unificada
+            </Btn>
+            <Btn
+              small
+              icon="plus"
+              onClick={() => router.push(`/comunicacoes?paciente=${patientId}&novo=1`)}
+            >
+              Nova conversa
+            </Btn>
+          </div>
+        }
+      />
 
       {convosQ.isLoading ? (
         <Skeleton height={240} radius={16} />

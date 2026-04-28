@@ -176,7 +176,7 @@ export default function ImagensPage({
       {/* Header */}
       <header
         style={{
-          padding: '16px 26px',
+          padding: '22px 26px 16px',
           borderBottom: `1px solid ${T.divider}`,
           flexShrink: 0,
           display: 'flex',
@@ -189,6 +189,8 @@ export default function ImagensPage({
         <PageHero
           eyebrow="BODY MAP · LESÕES · GALERIA"
           title="Imagens & Lesões"
+          module="clinical"
+          icon="image"
         />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Filter chips */}

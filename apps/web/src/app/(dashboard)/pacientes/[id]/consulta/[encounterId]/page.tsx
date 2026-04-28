@@ -168,7 +168,7 @@ export default function ConsultaPage({
     };
     setForm(loaded);
     lastSyncedRef.current = loaded;
-    setSaveStatus({ kind: 'idle', lastSavedAt: encounter.updatedAt });
+    setSaveStatus({ kind: 'idle', lastSavedAt: new Date(encounter.updatedAt) });
   }, [encounter]);
 
   /* ── Timer da consulta ─────────────────────────────────────────────── */
@@ -177,7 +177,7 @@ export default function ConsultaPage({
 
   React.useEffect(() => {
     if (!encounter) return;
-    startedAtRef.current = encounter.createdAt;
+    startedAtRef.current = new Date(encounter.createdAt);
     const interval = setInterval(() => {
       const start = startedAtRef.current;
       if (!start) return;
@@ -355,38 +355,35 @@ export default function ConsultaPage({
             gap: 16,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                <div
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: isSigned ? T.textMuted : T.success,
-                    boxShadow: isSigned ? 'none' : `0 0 8px ${T.success}40`,
-                  }}
-                />
-                <Mono size={9} spacing="1px" color={isSigned ? T.textMuted : T.success}>
-                  {isSigned ? 'CONSULTA ASSINADA' : 'CONSULTA EM ANDAMENTO'}
-                </Mono>
-              </div>
-              <p
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 10px 4px 8px',
+                borderRadius: T.r.pill,
+                background: isSigned ? T.glass : `${T.success}12`,
+                border: `1px solid ${isSigned ? T.glassBorder : `${T.success}33`}`,
+              }}
+            >
+              <div
                 style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: T.textPrimary,
-                  margin: 0,
-                  letterSpacing: '-0.01em',
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: isSigned ? T.textMuted : T.success,
+                  boxShadow: isSigned ? 'none' : `0 0 8px ${T.success}40`,
                 }}
-              >
-                {patient?.name ?? 'Atendimento'}
-              </p>
-              <Mono size={9}>
-                {sessionUser?.name ?? 'Profissional'}
-                {sessionUser?.crm ? ` · ${sessionUser.crm}` : ''}
+              />
+              <Mono size={9} spacing="1px" color={isSigned ? T.textMuted : T.success}>
+                {isSigned ? 'CONSULTA ASSINADA' : 'CONSULTA EM ANDAMENTO'}
               </Mono>
             </div>
+            <Mono size={9}>
+              POR {(sessionUser?.name ?? 'Profissional').toUpperCase()}
+              {sessionUser?.crm ? ` · ${sessionUser.crm}` : ''}
+            </Mono>
           </div>
           <div
             style={{
@@ -409,11 +406,6 @@ export default function ConsultaPage({
             {formatElapsed(elapsedMs)}
           </div>
         </div>
-        {patient && patient.allergies.length > 0 && (
-          <div style={{ marginTop: 10 }}>
-            <AllergyBanner allergies={patient.allergies} />
-          </div>
-        )}
       </div>
 
       {/* Corpo principal — split panel */}

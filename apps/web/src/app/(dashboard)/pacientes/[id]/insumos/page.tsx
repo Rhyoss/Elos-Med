@@ -9,6 +9,7 @@ import {
   EmptyState,
   Glass,
   Mono,
+  PageHero,
   Skeleton,
   T,
 } from '@dermaos/ui/ds';
@@ -86,37 +87,21 @@ export default function PatientInsumosPage({ params }: { params: PageParams }) {
         overflow: 'hidden',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexShrink: 0,
-        }}
-      >
-        <div>
-          <Mono size={9} spacing="1.2px" color={T.supply.color}>
-            INSUMOS · KITS APLICADOS
-          </Mono>
-          <h2
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: T.textPrimary,
-              margin: '4px 0 0',
-            }}
+      <PageHero
+        eyebrow="INSUMOS · KITS APLICADOS"
+        title="Histórico de consumo"
+        module="supply"
+        icon="box"
+        actions={
+          <Btn
+            small
+            icon="plus"
+            onClick={() => router.push(`/suprimentos/kits/consumir?paciente=${patientId}`)}
           >
-            Histórico de consumo
-          </h2>
-        </div>
-        <Btn
-          small
-          icon="plus"
-          onClick={() => router.push(`/suprimentos/kits/consumir?paciente=${patientId}`)}
-        >
-          Registrar consumo
-        </Btn>
-      </div>
+            Registrar consumo
+          </Btn>
+        }
+      />
 
       <Glass style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <DataTable

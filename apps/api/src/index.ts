@@ -26,6 +26,7 @@ async function bootstrap() {
   const app = Fastify({
     logger: false, // Usamos pino diretamente
     trustProxy: true,
+    maxParamLength: 5000,
   });
 
   // ─── Plugins de segurança ──────────────────────────────────────────────────

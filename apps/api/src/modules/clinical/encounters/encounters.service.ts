@@ -137,13 +137,16 @@ interface StructuredDataShape {
 function mapDiagnoses(structured: StructuredDataShape): EncounterDiagnosis[] {
   const raw = structured.diagnoses;
   if (!Array.isArray(raw)) return [];
-  return raw.map((d) => ({
-    code:        d.code,
-    description: d.description,
-    isPrimary:   d.isPrimary ?? false,
-    aiGenerated: d.aiGenerated ?? false,
-    confidence:  d.confidence,
-  }));
+  return raw.map((d) => {
+    const diagnosis: EncounterDiagnosis = {
+      code:        d.code,
+      description: d.description,
+      isPrimary:   d.isPrimary ?? false,
+      aiGenerated: d.aiGenerated ?? false,
+    };
+    if (d.confidence !== undefined) diagnosis.confidence = d.confidence;
+    return diagnosis;
+  });
 }
 
 function mapNextAppointment(structured: StructuredDataShape): NextAppointmentHint | null {
@@ -328,9 +331,11 @@ async function applyEncounterUpdate(
     structuredNext.nextAppointment = input.nextAppointment;
   }
   if (input.internalNotes !== undefined) {
-    structuredNext.internalNotes = input.internalNotes.length > 0
-      ? encrypt(input.internalNotes)
-      : undefined;
+    if (input.internalNotes.length > 0) {
+      structuredNext.internalNotes = encrypt(input.internalNotes);
+    } else {
+      delete structuredNext.internalNotes;
+    }
   }
 
   const setClauses: string[] = [];

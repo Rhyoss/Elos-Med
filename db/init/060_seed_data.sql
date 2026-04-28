@@ -144,8 +144,11 @@ BEGIN
 
   -- ════════════════════════════════════════════════════════════════════════════
   -- 3. PACIENTES
-  -- Dados PHI: na produção seriam cifrados na app. No seed usamos texto claro
-  -- para facilitar testes de desenvolvimento local.
+  -- Dados PHI: a fonte canônica é sempre o pipeline de criptografia da API.
+  -- Este seed SQL cria fixtures locais antes da API estar disponível; após o
+  -- bootstrap, execute:
+  --   pnpm --filter @dermaos/api patient-phi:encrypt-legacy
+  -- O comando converte estes nomes para AES-256-GCM de forma idempotente.
   -- ════════════════════════════════════════════════════════════════════════════
 
   INSERT INTO shared.patients (

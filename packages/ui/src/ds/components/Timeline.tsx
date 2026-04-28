@@ -40,7 +40,7 @@ export function Timeline({ events, emptyLabel = 'Sem eventos registrados' }: Tim
         }}
       />
       {events.map((ev, i) => {
-        const showDate = i === 0 || events[i - 1].date !== ev.date;
+        const showDate = i === 0 || events[i - 1]?.date !== ev.date;
         const color = ev.color || T.primary;
         return (
           <div key={ev.id}>

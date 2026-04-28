@@ -47,7 +47,7 @@ interface PrescriptionRow {
   type:               keyof typeof PRESCRIPTION_TYPE_LABELS;
   status:             keyof typeof PRESCRIPTION_STATUS_LABELS;
   itemCount:          number;
-  createdAt:          Date;
+  createdAt:          Date | string;
 }
 
 export default function PrescricoesPage({ params }: { params: PageParams }) {
@@ -103,7 +103,7 @@ export default function PrescricoesPage({ params }: { params: PageParams }) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
-  const prescriptions = (listQuery.data?.data ?? []) as PrescriptionRow[];
+  const prescriptions = (listQuery.data?.data ?? []) as unknown as PrescriptionRow[];
   const patientName = patientQuery.data?.patient.name;
   const totalPages = listQuery.data?.totalPages ?? 1;
 
@@ -127,6 +127,8 @@ export default function PrescricoesPage({ params }: { params: PageParams }) {
       <PageHero
         eyebrow="RECEITUÁRIO ELETRÔNICO"
         title="Prescrições"
+        module="clinical"
+        icon="file"
         actions={
           <Btn small icon="plus" onClick={() => setModalOpen(true)}>
             Nova prescrição
@@ -255,32 +257,34 @@ export default function PrescricoesPage({ params }: { params: PageParams }) {
         <div
           style={{
             display: 'flex',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            gap: 10,
+            gap: 12,
           }}
         >
-          <Btn
-            variant="ghost"
-            small
-            icon="arrowLeft"
-            disabled={page === 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            Anterior
-          </Btn>
           <Mono size={9}>
             PÁGINA {page} DE {totalPages}
           </Mono>
-          <Btn
-            variant="ghost"
-            small
-            icon="arrowRight"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            Próxima
-          </Btn>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <Btn
+              variant="glass"
+              small
+              icon="arrowLeft"
+              disabled={page === 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Anterior
+            </Btn>
+            <Btn
+              variant="glass"
+              small
+              icon="arrowRight"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Próxima
+            </Btn>
+          </div>
         </div>
       )}
 
