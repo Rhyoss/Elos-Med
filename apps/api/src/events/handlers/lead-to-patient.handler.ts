@@ -1,6 +1,15 @@
 import { eventBus } from '../event-bus.js';
 import { db } from '../../db/client.js';
 import { logger } from '../../lib/logger.js';
+import { encrypt, encryptOptional } from '../../lib/crypto.js';
+
+function normalizeForSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
 
 /**
  * Quando um lead é convertido, cria o registro em shared.patients
@@ -67,15 +76,16 @@ export function registerLeadToPatientHandler(): void {
 
       const insertRes = await db.query<{ id: string }>(
         `INSERT INTO shared.patients
-           (clinic_id, full_name_encrypted, email_encrypted, phone_encrypted,
-            cpf_hash, birth_date, gender, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'ativo')
+           (clinic_id, name, name_search, email_encrypted, phone_encrypted,
+            cpf_hash, birth_date, gender, status, source_channel)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', 'whatsapp')
          RETURNING id`,
         [
           clinicId,
-          contact.name,       // Será criptografado na app antes de chegar aqui — placeholder
-          contact.email,
-          contact.phone,
+          encrypt(contact.name),
+          normalizeForSearch(contact.name),
+          encryptOptional(contact.email),
+          encryptOptional(contact.phone),
           cpfHash ?? null,
           contact.birth_date ?? null,
           contact.gender ?? null,

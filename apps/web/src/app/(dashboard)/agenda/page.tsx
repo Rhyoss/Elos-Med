@@ -53,6 +53,10 @@ export default function AgendaPage() {
   }, [providersQuery.data, providerFilter]);
 
   const appointments = (agendaQuery.data?.appointments ?? []) as AppointmentCardData[];
+  const isLoadingSchedule = providersQuery.isLoading || agendaQuery.isLoading;
+  const hasScheduleError = providersQuery.isError || agendaQuery.isError;
+  const scheduleErrorMessage =
+    providersQuery.error?.message ?? agendaQuery.error?.message ?? 'Falha ao carregar a agenda.';
 
   /* ── KPIs derivados ────────────────────────────────────────────────── */
   const totalToday  = appointments.length;
@@ -155,7 +159,32 @@ export default function AgendaPage() {
       {/* DayGrid container + lateral fila de espera (reference 170px) */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0, gap: 12, padding: '0 26px 22px' }}>
         <div style={{ flex: 1, overflow: 'auto', minWidth: 0 }}>
-          {providers.length === 0 ? (
+          {hasScheduleError ? (
+            <Glass style={{ padding: 48, textAlign: 'center' }} role="alert">
+              <Mono size={9} color={T.danger}>ERRO AO CARREGAR AGENDA</Mono>
+              <p style={{ fontSize: 13, color: T.textSecondary, marginTop: 8 }}>
+                {scheduleErrorMessage}
+              </p>
+              <Btn
+                small
+                icon="activity"
+                style={{ marginTop: 14 }}
+                onClick={() => {
+                  void providersQuery.refetch();
+                  void agendaQuery.refetch();
+                }}
+              >
+                Tentar novamente
+              </Btn>
+            </Glass>
+          ) : isLoadingSchedule ? (
+            <Glass style={{ padding: 48, textAlign: 'center' }} role="status" aria-busy="true">
+              <Mono size={9} color={T.textMuted}>CARREGANDO AGENDA</Mono>
+              <p style={{ fontSize: 13, color: T.textSecondary, marginTop: 8 }}>
+                Buscando profissionais e horários do dia.
+              </p>
+            </Glass>
+          ) : providers.length === 0 ? (
             <Glass style={{ padding: 48, textAlign: 'center' }}>
               <Mono size={9} color={T.textMuted}>NENHUM PROFISSIONAL ATIVO</Mono>
               <p style={{ fontSize: 13, color: T.textSecondary, marginTop: 8 }}>

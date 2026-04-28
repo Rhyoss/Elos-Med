@@ -84,11 +84,11 @@ export const DEFAULT_PERMISSIONS: Record<UserRole, PermissionMap> = {
 };
 
 export function checkPermission(
-  map: PermissionMap,
+  map: PermissionMap | null | undefined,
   resource: Resource,
   action: Action,
 ): boolean {
-  return map[resource]?.[action] === true;
+  return map?.[resource]?.[action] === true;
 }
 
 export function getPermissionsForRole(role: UserRole): PermissionMap {

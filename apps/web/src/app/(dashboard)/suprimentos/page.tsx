@@ -99,6 +99,13 @@ export default function SuprimentosPage() {
 
   const categoriesQuery = trpc.supply.categories.list.useQuery({}, { staleTime: 60_000 });
   const locationsQuery  = trpc.supply.storageLocations.list.useQuery({}, { staleTime: 60_000 });
+  const hasCatalogError = categoriesQuery.isError || locationsQuery.isError;
+  const hasStockError = stockQuery.isError || hasCatalogError;
+  const stockErrorMessage =
+    stockQuery.error?.message ??
+    categoriesQuery.error?.message ??
+    locationsQuery.error?.message ??
+    'Falha ao carregar suprimentos.';
 
   /* Backend returns `{ data, total }` per supply router; rows é projetado para
      a forma `StockRow` que `StockTable` consome. */
@@ -217,13 +224,25 @@ export default function SuprimentosPage() {
         <SuprimentosTabs />
 
         <Glass style={{ padding: 0, overflow: 'hidden', marginTop: 10 }}>
-          <StockTable
-            rows={rows}
-            isLoading={stockQuery.isLoading}
-            onRowClick={(row) => setSheetProduct(row)}
-            onAdjust={(row) => setAdjustProduct(row)}
-            onOrder={(row) => { console.info('order', row.id); }}
-          />
+          {hasStockError ? (
+            <div role="alert" style={{ padding: '48px 16px', textAlign: 'center' }}>
+              <Mono size={9} color={T.danger}>ERRO AO CARREGAR ESTOQUE</Mono>
+              <p style={{ fontSize: 13, color: T.textSecondary, marginTop: 8 }}>
+                {stockErrorMessage}
+              </p>
+              <Btn small icon="activity" style={{ marginTop: 14 }} onClick={handleRefresh}>
+                Tentar novamente
+              </Btn>
+            </div>
+          ) : (
+            <StockTable
+              rows={rows}
+              isLoading={stockQuery.isLoading}
+              onRowClick={(row) => setSheetProduct(row)}
+              onAdjust={(row) => setAdjustProduct(row)}
+              onOrder={(row) => { console.info('order', row.id); }}
+            />
+          )}
         </Glass>
 
         {totalPages > 1 && (

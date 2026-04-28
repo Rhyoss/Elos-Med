@@ -28,7 +28,8 @@ CREATE TYPE shared.patient_status AS ENUM (
   'inactive',
   'blocked',
   'deceased',
-  'transferred'
+  'transferred',
+  'merged'
 );
 
 CREATE TYPE shared.appointment_status AS ENUM (

@@ -20,6 +20,8 @@ export interface SessionClinic {
 export interface SessionUser {
   id: string;
   clinicId: string;
+  clinicSlug: string;
+  clinicName?: string;
   name: string;
   email: string;
   role: UserRole;

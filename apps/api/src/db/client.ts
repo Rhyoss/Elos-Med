@@ -7,13 +7,6 @@ export const db = new Pool({
   max: 20,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
-  // Parse timestamp without timezone as local JS Date
-  types: {
-    getTypeParser: (oid, format) => {
-      // Use default parser — override se necessário para tipos customizados
-      return (new Pool()).Client.prototype.constructor.prototype;
-    },
-  },
 });
 
 db.on('error', (err) => {
@@ -36,7 +29,7 @@ export async function withClinicContext<T>(
   try {
     await client.query('BEGIN');
     // Variável de sessão lida pela função shared.current_clinic_id() nas policies RLS
-    await client.query(`SET LOCAL app.current_clinic_id = $1`, [clinicId]);
+    await client.query('SELECT set_config($1, $2, true)', ['app.current_clinic_id', clinicId]);
     const result = await callback(client);
     await client.query('COMMIT');
     return result;

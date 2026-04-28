@@ -113,11 +113,10 @@ export const invoicesRouter = router({
           `SELECT
              COALESCE(SUM(total_amount), 0) AS total_invoiced,
              COALESCE(SUM(amount_paid),  0) AS total_paid,
-             COUNT(*) FILTER (WHERE status IN ('emitida','parcial','vencida')) AS pending_count
+             COUNT(*) FILTER (WHERE status IN ('enviada','parcialmente_paga','vencida')) AS pending_count
            FROM financial.invoices
           WHERE patient_id = $1 AND clinic_id = $2
-            AND status NOT IN ('rascunho','cancelada')
-            AND deleted_at IS NULL`,
+            AND status NOT IN ('rascunho','cancelada','estornada')`,
           [input.patientId, ctx.clinicId!],
         );
         const row = r.rows[0]!;

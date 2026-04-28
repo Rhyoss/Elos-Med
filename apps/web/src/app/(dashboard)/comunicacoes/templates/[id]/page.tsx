@@ -144,7 +144,7 @@ export default function TemplateEditPage() {
           mode="edit"
           isSaving={updateMutation.isPending || restoreMutation.isPending}
           canRestore={template.is_default}
-          onSave={handleSave as (data: UpdateTemplateInput) => void}
+          onSave={(data) => handleSave(data as UpdateTemplateInput)}
           onRestore={handleRestore}
         />
       </div>

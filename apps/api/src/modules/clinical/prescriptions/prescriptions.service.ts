@@ -574,10 +574,6 @@ export async function sendPrescription(
         message: 'Assine a prescrição antes de enviá-la.',
       });
     }
-    if (current.status === 'cancelada') {
-      throw new TRPCError({ code: 'FORBIDDEN', message: 'Prescrição cancelada não pode ser enviada.' });
-    }
-
     const deliveryResult = await client.query<{ id: string }>(
       `INSERT INTO clinical.prescription_deliveries
          (clinic_id, prescription_id, provider_name, status, channel, recipient, payload, performed_by)

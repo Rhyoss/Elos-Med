@@ -51,7 +51,7 @@ export default function AgentesPage() {
   const utils = trpc.useUtils();
   const canConfigure = usePermission('omni', 'ai_config');
 
-  const { data, isLoading } = trpc.aurora.admin.list.useQuery();
+  const { data, isLoading, isError, error, refetch } = trpc.aurora.admin.list.useQuery();
   const toggleMutation = trpc.aurora.admin.toggle.useMutation({
     onSuccess: () => {
       void utils.aurora.admin.list.invalidate();
@@ -201,7 +201,13 @@ export default function AgentesPage() {
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '0 26px 22px', minHeight: 0 }}>
-        {!isLoading && agents.length === 0 ? (
+        {isError ? (
+          <EmptyState
+            title="Não foi possível carregar agentes"
+            description={error.message || 'Tente novamente em instantes.'}
+            action={{ label: 'Tentar novamente', onClick: () => void refetch() }}
+          />
+        ) : !isLoading && agents.length === 0 ? (
           <EmptyState
             title="Nenhum agente configurado"
             description={

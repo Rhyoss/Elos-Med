@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@dermaos/ui';
 import type { BodyRegion, LesionStatus } from '@dermaos/shared';
 import { BODY_REGION_DEFS, regionLabel } from './body-regions';
 import { cn } from '@/lib/utils';
@@ -90,33 +89,32 @@ function BodyMapView({
           const colorClass = status ? STATUS_COLORS[status] : 'fill-transparent';
           const pulse      = status === 'active' ? 'animate-pulse' : '';
 
+          const tooltipText = hasLesions
+            ? `${r.label}: ${count} ${count === 1 ? 'lesão' : 'lesões'}`
+            : `${r.label}${allowEmpty ? ' — clique para adicionar' : ' — sem lesões'}`;
+
           return (
-            <TooltipProvider key={r.key} delayDuration={150}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <g
-                    role="button"
-                    tabIndex={clickable ? 0 : -1}
-                    aria-label={
-                      hasLesions
-                        ? `${r.label}: ${count} ${count === 1 ? 'lesão' : 'lesões'}`
-                        : `${r.label}: nenhuma lesão${allowEmpty ? ', clique para adicionar' : ''}`
-                    }
-                    aria-pressed={isActive}
-                    onClick={() => { if (clickable) onSelectRegion(r.key); }}
-                    onKeyDown={(e) => {
-                      if (!clickable) return;
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        onSelectRegion(r.key);
-                      }
-                    }}
-                    className={cn(
-                      'outline-none',
-                      clickable ? 'cursor-pointer' : 'cursor-default',
-                      'focus-visible:[&>circle:first-of-type]:stroke-primary-500 focus-visible:[&>circle:first-of-type]:stroke-[0.7]',
-                    )}
-                  >
+            <g
+              key={r.key}
+              role="button"
+              tabIndex={clickable ? 0 : -1}
+              aria-label={tooltipText}
+              aria-pressed={isActive}
+              onClick={() => { if (clickable) onSelectRegion(r.key); }}
+              onKeyDown={(e) => {
+                if (!clickable) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectRegion(r.key);
+                }
+              }}
+              className={cn(
+                'outline-none',
+                clickable ? 'cursor-pointer' : 'cursor-default',
+                'focus-visible:[&>circle:first-of-type]:stroke-primary-500 focus-visible:[&>circle:first-of-type]:stroke-[0.7]',
+              )}
+            >
+              <title>{tooltipText}</title>
                     {/* Anel de hover/foco */}
                     <circle
                       cx={r.cx}
@@ -152,20 +150,7 @@ function BodyMapView({
                         {count > 99 ? '99+' : count}
                       </text>
                     )}
-                  </g>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="text-xs">
-                  <div className="font-medium">{r.label}</div>
-                  {hasLesions ? (
-                    <div className="mt-0.5 text-muted-foreground">
-                      {count} {count === 1 ? 'lesão' : 'lesões'}
-                    </div>
-                  ) : (
-                    <div className="mt-0.5 text-muted-foreground">Sem lesões</div>
-                  )}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            </g>
           );
         })}
       </g>

@@ -7,11 +7,11 @@ import { cn } from '../utils';
 
 /* ── Tipos ──────────────────────────────────────────────────────────────── */
 
-export type ToastVariant = 'success' | 'error' | 'warning' | 'info';
+export type ToastVariant = 'success' | 'error' | 'warning' | 'info' | 'destructive';
 
 export interface Toast {
   id: string;
-  variant: ToastVariant;
+  variant?: ToastVariant;
   title: string;
   description?: string;
   duration?: number;
@@ -36,7 +36,7 @@ export const useToastStore = create<ToastStore>((set) => ({
     const id = Math.random().toString(36).slice(2);
     set((state) => ({
       // Máximo 3 toasts visíveis — remove o mais antigo se necessário
-      toasts: [...state.toasts.slice(-2), { ...toast, id }],
+      toasts: [...state.toasts.slice(-2), { variant: 'info', ...toast, id }],
     }));
   },
   remove: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
@@ -79,6 +79,12 @@ const variantConfig = {
     iconClass: 'text-danger-500',
     titleClass: 'text-danger-700 dark:text-danger-700',
   },
+  destructive: {
+    icon: XCircle,
+    className: 'border-danger-500/30 bg-card',
+    iconClass: 'text-danger-500',
+    titleClass: 'text-danger-700 dark:text-danger-700',
+  },
   warning: {
     icon: AlertTriangle,
     className: 'border-warning-500/30 bg-card',
@@ -101,7 +107,7 @@ interface ToastItemProps {
 
 function ToastItem({ toast }: ToastItemProps) {
   const { remove } = useToastStore();
-  const config = variantConfig[toast.variant];
+  const config = variantConfig[toast.variant ?? 'info'];
   const Icon = config.icon;
   const duration = toast.duration ?? 5000;
 

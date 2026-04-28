@@ -65,6 +65,15 @@ function formatDate(d: Date | string | null | undefined): string {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(date);
 }
 
+/** Iniciais (2 letras) do nome para o tile de avatar. */
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '··';
+  const first = parts[0]!.charAt(0);
+  const last = parts.length > 1 ? parts[parts.length - 1]!.charAt(0) : parts[0]!.charAt(1) ?? '';
+  return (first + last).toUpperCase();
+}
+
 const PAGE_SIZE = 20;
 
 export default function PacientesPage() {
@@ -87,7 +96,7 @@ export default function PacientesPage() {
 
   React.useEffect(() => { setPage(1); }, [status, source]);
 
-  const { data, isLoading, isFetching } = trpc.patients.list.useQuery(
+  const { data, isLoading, isFetching, isError, error, refetch } = trpc.patients.list.useQuery(
     {
       search:   debouncedSearch || undefined,
       status:   (status || undefined) as
@@ -132,10 +141,10 @@ export default function PacientesPage() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', display: 'flex', height: '100%', overflow: 'hidden' }}>
       {/* Lista principal */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <div style={{ padding: '20px 26px 12px', flexShrink: 0 }}>
+        <div style={{ padding: '22px 26px 12px', flexShrink: 0 }}>
           <PageHero
             eyebrow="PRONTUÁRIO ELETRÔNICO"
             title="Pacientes & Leads"
@@ -148,60 +157,88 @@ export default function PacientesPage() {
             }
           />
 
-          {/* Toolbar */}
-          <Glass style={{ padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-            <div style={{ flex: 1, minWidth: 220, maxWidth: 360 }}>
-              <Input
-                leadingIcon="search"
-                type="search"
-                placeholder="Buscar nome, CPF ou telefone…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                aria-label="Buscar pacientes"
-              />
+          {/* Toolbar — todos os filtros em linha única */}
+          <Glass style={{ padding: '8px 12px' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 8,
+                alignItems: 'center',
+              }}
+            >
+              <div style={{ flex: '1 1 240px', minWidth: 200, maxWidth: 380 }}>
+                <Input
+                  leadingIcon="search"
+                  type="search"
+                  placeholder="Buscar nome, CPF ou telefone…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  aria-label="Buscar pacientes"
+                />
+              </div>
+
+              <div style={{ flex: '0 0 150px' }}>
+                <Select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  aria-label="Status"
+                >
+                  <option value="">Todos os status</option>
+                  <option value="active">Ativo</option>
+                  <option value="inactive">Inativo</option>
+                  <option value="blocked">Bloqueado</option>
+                  <option value="transferred">Transferido</option>
+                </Select>
+              </div>
+
+              <div style={{ flex: '0 0 150px' }}>
+                <Select
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                  aria-label="Origem"
+                >
+                  <option value="">Todas as origens</option>
+                  {SOURCE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </Select>
+              </div>
+
+              {hasFilters && (
+                <Btn variant="ghost" small icon="x" onClick={clearFilters}>
+                  Limpar
+                </Btn>
+              )}
+
+              {!isLoading && (
+                <span style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                  <Mono size={9}>
+                    {total} {total === 1 ? 'PACIENTE' : 'PACIENTES'}
+                    {isFetching && !isLoading && ' · ATUALIZANDO'}
+                  </Mono>
+                </span>
+              )}
             </div>
-
-            <div style={{ minWidth: 160 }}>
-              <Select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
-                <option value="">Todos os status</option>
-                <option value="active">Ativo</option>
-                <option value="inactive">Inativo</option>
-                <option value="blocked">Bloqueado</option>
-                <option value="transferred">Transferido</option>
-              </Select>
-            </div>
-
-            <div style={{ minWidth: 160 }}>
-              <Select value={source} onChange={(e) => setSource(e.target.value)} aria-label="Origem">
-                <option value="">Todas as origens</option>
-                {SOURCE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </Select>
-            </div>
-
-            {hasFilters && (
-              <Btn variant="ghost" small icon="x" onClick={clearFilters}>Limpar</Btn>
-            )}
-
-            {!isLoading && (
-              <span style={{ marginLeft: 'auto' }}>
-                <Mono size={9}>
-                  {total} {total === 1 ? 'PACIENTE' : 'PACIENTES'}
-                  {isFetching && !isLoading && ' · ATUALIZANDO'}
-                </Mono>
-              </span>
-            )}
           </Glass>
         </div>
 
         {/* Tabela */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 26px 22px', minHeight: 0 }}>
           <Glass style={{ padding: 0, overflow: 'hidden' }}>
+            {isError ? (
+              <EmptyState
+                icon="alert"
+                title="Não foi possível carregar pacientes"
+                description={error.message || 'Verifique sua conexão e tente novamente.'}
+                action={<Btn small icon="activity" onClick={() => void refetch()}>Tentar novamente</Btn>}
+              />
+            ) : (
+            <>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  {['Prontuário', 'Paciente', 'Idade', 'Diagnóstico', 'Última', 'Status', ''].map((h) => (
+                  {['Prontuário', 'Paciente', 'Idade', 'Diagnóstico', 'Última visita', 'Status', ''].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -255,22 +292,30 @@ export default function PacientesPage() {
                           <Mono size={9}>{p.id.slice(0, 8).toUpperCase()}</Mono>
                         </td>
                         <td style={{ padding: '11px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <div
                               style={{
-                                width: 24,
-                                height: 24,
+                                width: 28,
+                                height: 28,
                                 borderRadius: T.r.sm,
                                 background: T.clinical.bg,
+                                border: `1px solid ${T.clinical.color}1A`,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                fontSize: 10,
+                                fontWeight: 700,
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                letterSpacing: '0.5px',
+                                color: T.clinical.color,
+                                flexShrink: 0,
                               }}
+                              aria-hidden="true"
                             >
-                              <Ico name="user" size={12} color={T.clinical.color} />
+                              {initialsOf(p.name)}
                             </div>
-                            <div>
-                              <p style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary }}>{p.name}</p>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</p>
                               <Mono size={8}>{p.cpfMasked ?? '—'}</Mono>
                             </div>
                           </div>
@@ -326,17 +371,19 @@ export default function PacientesPage() {
                   : <Btn variant="ghost" small onClick={clearFilters}>Limpar filtros</Btn>}
               />
             )}
+            </>
+            )}
           </Glass>
 
           {/* Paginação */}
           {!isLoading && total > PAGE_SIZE && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
               <Mono size={9}>PÁGINA {page} DE {totalPages}</Mono>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <Btn variant="ghost" small icon="arrowLeft" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <Btn variant="glass" small icon="arrowLeft" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
                   Anterior
                 </Btn>
-                <Btn variant="ghost" small icon="arrowRight" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+                <Btn variant="glass" small icon="arrowRight" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
                   Próxima
                 </Btn>
               </div>
@@ -345,17 +392,23 @@ export default function PacientesPage() {
         </div>
       </div>
 
-      {/* Painel lateral de detalhes */}
+      {/* Painel lateral de detalhes (overlay flutuante) */}
       {selected && (
         <div
           style={{
-            width: 280,
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: 296,
             borderLeft: `1px solid ${T.divider}`,
-            background: 'rgba(255,255,255,0.30)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
+            background: 'rgba(255,255,255,0.62)',
+            backdropFilter: 'blur(20px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(160%)',
             overflowY: 'auto',
             flexShrink: 0,
+            boxShadow: '-8px 0 24px rgba(0,0,0,0.05)',
+            zIndex: 10,
           }}
         >
           <div
@@ -367,11 +420,11 @@ export default function PacientesPage() {
               alignItems: 'center',
             }}
           >
-            <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>Prontuário</span>
+            <Mono size={9}>PRÉ-VISUALIZAÇÃO</Mono>
             <button
               onClick={() => setSelected(null)}
               aria-label="Fechar painel"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'inline-flex' }}
             >
               <Ico name="x" size={15} color={T.textMuted} />
             </button>
@@ -388,20 +441,26 @@ export default function PacientesPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 12,
+                fontSize: 16,
+                fontWeight: 700,
+                fontFamily: "'IBM Plex Mono', monospace",
+                letterSpacing: '0.5px',
+                color: T.clinical.color,
               }}
+              aria-hidden="true"
             >
-              <Ico name="user" size={22} color={T.clinical.color} />
+              {initialsOf(selected.name)}
             </div>
             <p style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, marginBottom: 2 }}>{selected.name}</p>
             <Mono size={9}>{selected.id.slice(0, 8).toUpperCase()}{selected.age != null ? ` · ${selected.age} anos` : ''}</Mono>
             <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {([
-                ['CPF',             selected.cpfMasked ?? '—'],
-                ['Diagnóstico',     diagOf(selected)],
-                ['Telefone',        selected.phone ?? '—'],
-                ['Status',          STATUS_LABELS[selected.status] ?? selected.status],
-                ['Última consulta', formatDate(selected.lastVisitAt)],
-              ] as const).map(([k, v]) => (
+                ['CPF',             selected.cpfMasked ?? '—', null],
+                ['Diagnóstico',     diagOf(selected),          null],
+                ['Telefone',        selected.phone ?? '—',     null],
+                ['Status',          null,                       'badge'],
+                ['Última consulta', formatDate(selected.lastVisitAt), null],
+              ] as const).map(([k, v, kind]) => (
                 <div
                   key={k}
                   style={{
@@ -411,12 +470,28 @@ export default function PacientesPage() {
                     border: `1px solid ${T.glassBorder}`,
                   }}
                 >
-                  <Mono size={7}>{k.toUpperCase()}</Mono>
-                  <p style={{ fontSize: 12, color: T.textPrimary, marginTop: 2 }}>{v}</p>
+                  <Mono size={8}>{k.toUpperCase()}</Mono>
+                  {kind === 'badge' ? (
+                    <div style={{ marginTop: 4 }}>
+                      <Badge variant={STATUS_BADGE[selected.status] ?? 'default'}>
+                        {STATUS_LABELS[selected.status] ?? selected.status}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 12, color: T.textPrimary, marginTop: 3 }}>{v}</p>
+                  )}
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div
+              style={{
+                margin: '14px 0 12px',
+                height: 1,
+                background: `linear-gradient(90deg, transparent, ${T.divider}, transparent)`,
+              }}
+              aria-hidden="true"
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <Btn small icon="edit" onClick={() => router.push(`/pacientes/${selected.id}/perfil`)}>
                 Abrir prontuário
               </Btn>

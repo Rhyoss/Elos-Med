@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import '@fastify/jwt';
 import { Server as SocketIOServer, type Socket } from 'socket.io';
 import { env } from '../config/env.js';
 import { logger } from './logger.js';

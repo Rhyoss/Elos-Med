@@ -9,6 +9,7 @@ import {
 } from '@dermaos/shared';
 import { db } from '../../db/client.js';
 import { logger } from '../../lib/logger.js';
+import type { AuthenticatedContext } from './auth.middleware.js';
 
 /**
  * Exige que o usuário tenha um dos roles especificados.
@@ -27,7 +28,7 @@ export function requireRoles(...roles: UserRole[]) {
       });
     }
 
-    return next({ ctx });
+    return next({ ctx: ctx as AuthenticatedContext });
   });
 }
 
@@ -51,7 +52,7 @@ export function requirePermission(resource: Resource, action: Action) {
       });
     }
 
-    return next({ ctx });
+    return next({ ctx: ctx as AuthenticatedContext });
   });
 }
 

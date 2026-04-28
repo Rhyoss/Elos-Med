@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createTRPCReact, httpBatchLink } from '@trpc/react-query';
-import superjson from 'superjson';
+import { dermaosTransformer } from '@dermaos/shared';
 import type { AppRouter } from '@dermaos/api/trpc/router';
 
 export const trpc = createTRPCReact<AppRouter>();
@@ -57,7 +57,7 @@ export function TrpcProvider({ children }: { children: React.ReactNode }) {
         // antes de commitar headers (Set-Cookie da auth.login depende disso).
         httpBatchLink({
           url: '/api/trpc',
-          transformer: superjson,
+          transformer: dermaosTransformer,
           headers: () => ({ 'x-trpc-source': 'react' }),
           fetch: (url, options) =>
             fetch(url, { ...options, credentials: 'include' }),

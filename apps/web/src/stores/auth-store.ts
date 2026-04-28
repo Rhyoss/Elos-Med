@@ -20,7 +20,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isHydrated: false,
 
   setSession: (user, clinic, permissions) =>
-    set({ user, clinic, permissions, isAuthenticated: true }),
+    set({ user, clinic, permissions: permissions ?? {}, isAuthenticated: true }),
 
   clearSession: () =>
     set({ user: null, clinic: null, permissions: {}, isAuthenticated: false }),
