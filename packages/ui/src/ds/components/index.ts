@@ -24,6 +24,22 @@ export * from './Toggle';
 // Data display
 export * from './Stat';
 export * from './Bar';
+export * from './DataTable';
+export * from './Timeline';
+export * from './MiniCalendar';
+
+// Navigation
+export * from './TabBar';
+export * from './TopToolbar';
+
+// Clinical building blocks
+export * from './PatientSidebar';
+export * from './EncounterCard';
+export * from './PrescriptionCard';
+export * from './VitalCapture';
+
+// Communications
+export * from './Conversation';
 
 // State (loading / empty / error)
 export * from './Skeleton';

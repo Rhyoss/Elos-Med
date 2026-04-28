@@ -1,8 +1,10 @@
 import { initTRPC, TRPCError } from '@trpc/server';
+import superjson from 'superjson';
 import { ZodError } from 'zod';
 import type { Context } from './context.js';
 
 export const t = initTRPC.context<Context>().create({
+  transformer: superjson,
   errorFormatter({ shape, error }) {
     return {
       ...shape,

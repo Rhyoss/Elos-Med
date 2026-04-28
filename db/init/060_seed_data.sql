@@ -81,6 +81,9 @@ DECLARE
   v_rx_2                UUID := 'a0000000-0000-0000-0000-000000000094';
   v_rx_3                UUID := 'a0000000-0000-0000-0000-000000000095';
 
+  -- Senha@123, gerado com as mesmas opções Argon2id usadas pela API.
+  v_default_password_hash TEXT := '$argon2id$v=19$m=65536,t=3,p=4$sN5xQcWH8dSR6IEWtqol4Q$MFnLX3vh2Kdo7oQIVRkUddDrUjQTnqca4ANv6v0skm8';
+
 BEGIN
   -- Define contexto de tenant para RLS
   PERFORM set_config('app.current_clinic_id', v_clinic_id::TEXT, true);
@@ -122,19 +125,19 @@ BEGIN
   (
     v_user_owner_id, v_clinic_id,
     'Admin DermaPrime', 'admin@dermaprime.com.br',
-    crypt('Senha@123', gen_salt('bf', 12)),
+    v_default_password_hash,
     'owner', NULL, TRUE, TRUE, NOW()
   ),
   (
     v_user_doctor_id, v_clinic_id,
     'Dr. Henrique Costa', 'henrique@dermaprime.com.br',
-    crypt('Senha@123', gen_salt('bf', 12)),
+    v_default_password_hash,
     'dermatologist', 'CRM-MG 12345', TRUE, TRUE, NOW()
   ),
   (
     v_user_recep_id, v_clinic_id,
     'Ana Lima', 'ana@dermaprime.com.br',
-    crypt('Senha@123', gen_salt('bf', 12)),
+    v_default_password_hash,
     'receptionist', NULL, TRUE, TRUE, NOW()
   )
   ON CONFLICT (id) DO NOTHING;
@@ -311,8 +314,24 @@ BEGIN
   ON CONFLICT DO NOTHING;
 
   -- ════════════════════════════════════════════════════════════════════════════
-  -- 8. CATÁLOGO DE SERVIÇOS FINANCEIROS
+  -- 8. SERVIÇOS OPERACIONAIS + CATÁLOGO DE SERVIÇOS FINANCEIROS
   -- ════════════════════════════════════════════════════════════════════════════
+
+  INSERT INTO shared.services (
+    id, clinic_id, name, description, category, duration_min, price,
+    allow_online, requires_provider, color, is_active
+  ) VALUES
+  (v_svc_consulta_id,  v_clinic_id, 'Consulta Dermatológica',         'Consulta clínica dermatológica',                 'Consulta',               30,  250.00, TRUE, TRUE, '#2563eb', TRUE),
+  (v_svc_botox_id,     v_clinic_id, 'Toxina Botulínica (por região)', 'Aplicação de toxina botulínica por região',      'Procedimento Estético', 45,  800.00, TRUE, TRUE, '#7c3aed', TRUE),
+  (v_svc_preen_id,     v_clinic_id, 'Preenchimento com HA',           'Preenchimento com ácido hialurônico',            'Procedimento Estético', 60,  900.00, TRUE, TRUE, '#db2777', TRUE),
+  (v_svc_peeling_id,   v_clinic_id, 'Peeling Químico Superficial',    'Peeling químico superficial',                    'Procedimento Estético', 45,  350.00, TRUE, TRUE, '#ea580c', TRUE),
+  (v_svc_laser_id,     v_clinic_id, 'Laser Fracionado',               'Sessão de laser fracionado',                     'Procedimento Estético', 60, 1200.00, TRUE, TRUE, '#0891b2', TRUE),
+  (v_svc_micro_id,     v_clinic_id, 'Microagulhamento',               'Sessão de microagulhamento',                     'Procedimento Estético', 60,  600.00, TRUE, TRUE, '#16a34a', TRUE),
+  (v_svc_biopsia_id,   v_clinic_id, 'Biópsia Cutânea',                'Biópsia cutânea ambulatorial',                   'Procedimento Cirúrgico',30,  450.00, TRUE, TRUE, '#dc2626', TRUE),
+  (v_svc_meso_id,      v_clinic_id, 'Mesoterapia Capilar',            'Sessão de mesoterapia capilar',                  'Procedimento Estético', 45,  500.00, TRUE, TRUE, '#4f46e5', TRUE),
+  (v_svc_avaliacao_id, v_clinic_id, 'Avaliação Estética',             'Avaliação estética inicial',                     'Consulta',               30,  180.00, TRUE, TRUE, '#0d9488', TRUE),
+  (v_svc_retorno_id,   v_clinic_id, 'Consulta Retorno',               'Retorno dermatológico',                          'Consulta',               20,  150.00, TRUE, TRUE, '#475569', TRUE)
+  ON CONFLICT (id) DO NOTHING;
 
   INSERT INTO financial.service_catalog (
     id, clinic_id, name, category, tuss_code, price, duration_min, is_active
