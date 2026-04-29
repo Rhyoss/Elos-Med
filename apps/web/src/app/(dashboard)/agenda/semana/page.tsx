@@ -1,10 +1,9 @@
-import { UnderConstruction } from '@/components/under-construction';
+import { redirect } from 'next/navigation';
 
-export default function AgendaSemanaPage() {
-  return (
-    <UnderConstruction
-      title="Agenda — Visão Semana"
-      description="Calendário semanal com todos os profissionais e salas"
-    />
-  );
+/**
+ * A view de semana foi consolidada em /agenda com toggle DIA/SEMANA.
+ * Mantemos esta rota como alias compatível com bookmarks antigos.
+ */
+export default function SemanaRedirect() {
+  redirect('/agenda');
 }
