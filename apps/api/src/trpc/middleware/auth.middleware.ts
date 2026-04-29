@@ -2,6 +2,17 @@ import { TRPCError } from '@trpc/server';
 import { t } from '../trpc.js';
 import { withClinicScope } from './clinic-scope.middleware.js';
 import { auditPHIAccess, auditMutation } from './audit.middleware.js';
+import type { TrpcContext } from '../context.js';
+
+/**
+ * Tipo do contexto após `isAuthenticated` — `user` e `clinicId` deixaram
+ * de ser nulláveis. Usado por `requireRoles`/`requirePermission` para
+ * estreitar o tipo sem `as` em cada middleware.
+ */
+export type AuthenticatedContext = TrpcContext & {
+  user: NonNullable<TrpcContext['user']>;
+  clinicId: string;
+};
 
 /**
  * Middleware que exige JWT válido.
@@ -11,12 +22,15 @@ export const isAuthenticated = t.middleware(({ ctx, next }) => {
   if (!ctx.user || !ctx.clinicId) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Autenticação necessária' });
   }
+  const user = ctx.user;
+  const clinicId = ctx.clinicId;
+
   return next({
     ctx: {
       ...ctx,
-      user: ctx.user,
-      clinicId: ctx.clinicId,
-    },
+      user,
+      clinicId,
+    } satisfies AuthenticatedContext,
   });
 });
 

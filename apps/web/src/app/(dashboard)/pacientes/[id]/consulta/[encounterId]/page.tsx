@@ -5,12 +5,19 @@ import { useRouter } from 'next/navigation';
 import { Clock, Sparkles } from 'lucide-react';
 import {
   AllergyBanner,
-  Badge,
-  Button,
   Input,
   LoadingSkeleton,
   useToast,
 } from '@dermaos/ui';
+import {
+  Badge as DSBadge,
+  Btn,
+  Glass,
+  Ico,
+  MetalTag,
+  Mono,
+  T,
+} from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { useAuthStore } from '@/stores/auth-store';
 import { cn } from '@/lib/utils';
@@ -161,7 +168,7 @@ export default function ConsultaPage({
     };
     setForm(loaded);
     lastSyncedRef.current = loaded;
-    setSaveStatus({ kind: 'idle', lastSavedAt: encounter.updatedAt });
+    setSaveStatus({ kind: 'idle', lastSavedAt: new Date(encounter.updatedAt) });
   }, [encounter]);
 
   /* ── Timer da consulta ─────────────────────────────────────────────── */
@@ -170,7 +177,7 @@ export default function ConsultaPage({
 
   React.useEffect(() => {
     if (!encounter) return;
-    startedAtRef.current = encounter.createdAt;
+    startedAtRef.current = new Date(encounter.createdAt);
     const interval = setInterval(() => {
       const start = startedAtRef.current;
       if (!start) return;
@@ -330,31 +337,75 @@ export default function ConsultaPage({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Top bar (nome paciente, banner alergias, cronômetro) */}
-      <div className="border-b border-border bg-card px-6 py-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-base font-semibold text-foreground">
-              {patient?.name ?? 'Atendimento'}
-            </h1>
-            <Badge variant={isSigned ? 'success' : 'primary'} size="sm" dot>
-              {isSigned ? 'Assinado' : 'Em atendimento'}
-            </Badge>
+      {/* Top bar — DS Quite Clear */}
+      <div
+        style={{
+          borderBottom: `1px solid ${T.divider}`,
+          background: T.glass,
+          backdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+          WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+          padding: '14px 26px',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 16,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 10px 4px 8px',
+                borderRadius: T.r.pill,
+                background: isSigned ? T.glass : `${T.success}12`,
+                border: `1px solid ${isSigned ? T.glassBorder : `${T.success}33`}`,
+              }}
+            >
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: isSigned ? T.textMuted : T.success,
+                  boxShadow: isSigned ? 'none' : `0 0 8px ${T.success}40`,
+                }}
+              />
+              <Mono size={9} spacing="1px" color={isSigned ? T.textMuted : T.success}>
+                {isSigned ? 'CONSULTA ASSINADA' : 'CONSULTA EM ANDAMENTO'}
+              </Mono>
+            </div>
+            <Mono size={9}>
+              POR {(sessionUser?.name ?? 'Profissional').toUpperCase()}
+              {sessionUser?.crm ? ` · ${sessionUser.crm}` : ''}
+            </Mono>
           </div>
           <div
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1 font-mono text-sm tabular-nums text-foreground"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '6px 14px',
+              borderRadius: T.r.pill,
+              background: T.glass,
+              border: `1px solid ${T.glassBorder}`,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 13,
+              fontVariantNumeric: 'tabular-nums',
+              color: T.textPrimary,
+            }}
             role="timer"
             aria-label="Duração da consulta"
           >
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+            <Ico name="clock" size={14} color={T.textMuted} />
             {formatElapsed(elapsedMs)}
           </div>
         </div>
-        {patient && patient.allergies.length > 0 && (
-          <div className="mt-3">
-            <AllergyBanner allergies={patient.allergies} />
-          </div>
-        )}
       </div>
 
       {/* Corpo principal — split panel */}
@@ -367,7 +418,7 @@ export default function ConsultaPage({
           <div className="mx-auto max-w-3xl space-y-5">
             <h2 id="soap-heading" className="sr-only">Campos SOAP</h2>
 
-            <FieldLabel text="Queixa Principal" htmlFor="chief-complaint">
+            <SoapBox letter="C" label="QUEIXA PRINCIPAL">
               <Input
                 id="chief-complaint"
                 value={form.chiefComplaint}
@@ -377,20 +428,21 @@ export default function ConsultaPage({
                 maxLength={2000}
                 aria-label="Queixa principal"
               />
-            </FieldLabel>
+            </SoapBox>
 
-            <FieldLabel
-              text="Subjetivo"
+            <SoapBox
+              letter="S"
+              label="SUBJETIVO"
               action={
-                <Button
-                  size="sm"
+                <Btn
                   variant="ghost"
+                  small
+                  icon="zap"
                   onClick={handleSuggestSoap}
                   disabled={isSigned || aiSoapMut.isPending}
                 >
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                   {aiSoapMut.isPending ? 'Gerando…' : 'IA: Sugerir'}
-                </Button>
+                </Btn>
               }
             >
               <SoapEditor
@@ -401,9 +453,9 @@ export default function ConsultaPage({
                 disabled={isSigned}
                 minHeight="7rem"
               />
-            </FieldLabel>
+            </SoapBox>
 
-            <FieldLabel text="Objetivo">
+            <SoapBox letter="O" label="OBJETIVO — EXAME FÍSICO">
               <SoapEditor
                 label="Objetivo"
                 value={form.objective}
@@ -412,16 +464,16 @@ export default function ConsultaPage({
                 disabled={isSigned}
                 minHeight="7rem"
               />
-              <div className="mt-2">
+              <div style={{ marginTop: 12 }}>
                 <VitalSignsForm
                   value={form.vitalSigns}
                   onChange={(v) => update('vitalSigns', v)}
                   disabled={isSigned}
                 />
               </div>
-            </FieldLabel>
+            </SoapBox>
 
-            <FieldLabel text="Avaliação">
+            <SoapBox letter="A" label="AVALIAÇÃO — DIAGNÓSTICO">
               <SoapEditor
                 label="Avaliação"
                 value={form.assessment}
@@ -430,9 +482,9 @@ export default function ConsultaPage({
                 disabled={isSigned}
                 minHeight="6rem"
               />
-            </FieldLabel>
+            </SoapBox>
 
-            <FieldLabel text="Plano">
+            <SoapBox letter="P" label="PLANO — CONDUTA">
               <SoapEditor
                 label="Plano"
                 value={form.plan}
@@ -441,13 +493,31 @@ export default function ConsultaPage({
                 disabled={isSigned}
                 minHeight="6rem"
               />
-            </FieldLabel>
+            </SoapBox>
 
-            <details className="rounded-md border border-border bg-muted/30">
-              <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-muted-foreground">
-                Notas internas (não impressas)
+            <details
+              style={{
+                borderRadius: T.r.lg,
+                background: T.glass,
+                border: `1px solid ${T.glassBorder}`,
+                overflow: 'hidden',
+              }}
+            >
+              <summary
+                style={{
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  padding: '10px 14px',
+                  fontSize: 11,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontWeight: 500,
+                  letterSpacing: '1.1px',
+                  color: T.textMuted,
+                }}
+              >
+                NOTAS INTERNAS — NÃO IMPRESSAS
               </summary>
-              <div className="border-t border-border p-3">
+              <div style={{ borderTop: `1px solid ${T.divider}`, padding: 12 }}>
                 <SoapEditor
                   label="Notas internas"
                   value={form.internalNotes}
@@ -497,43 +567,71 @@ export default function ConsultaPage({
         </aside>
       </div>
 
-      {/* Barra inferior sticky */}
+      {/* Barra inferior sticky — DS Quite Clear */}
       <div
-        className={cn(
-          'sticky bottom-0 z-10 border-t border-border bg-card px-6 py-3',
-          'flex flex-wrap items-center justify-between gap-3',
-        )}
+        style={{
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 10,
+          borderTop: `1px solid ${T.divider}`,
+          background: T.glass,
+          backdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+          WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+          padding: '12px 26px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+        }}
       >
-        <div className="flex items-center gap-4">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1 font-mono text-xs tabular-nums text-muted-foreground"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 10px',
+              borderRadius: T.r.pill,
+              background: T.glass,
+              border: `1px solid ${T.glassBorder}`,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 11,
+              color: T.textMuted,
+              fontVariantNumeric: 'tabular-nums',
+            }}
             aria-label="Tempo de atendimento"
           >
-            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+            <Ico name="clock" size={12} color={T.textMuted} />
             {formatElapsed(elapsedMs)}
           </div>
           <SaveStatusIndicator
             status={saveStatus}
             onRetry={saveStatus.kind === 'error' ? () => void persist() : undefined}
           />
+          <div style={{ display: 'flex', gap: 4 }}>
+            <MetalTag>LGPD</MetalTag>
+            <MetalTag>PHI-SAFE</MetalTag>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Btn
+            variant="ghost"
+            small
+            icon="download"
             onClick={() => void persist()}
             disabled={isSigned}
           >
             Salvar rascunho
-          </Button>
-          <Button
-            type="button"
-            variant="gold"
+          </Btn>
+          <Btn
+            small
+            icon="check"
             onClick={() => setSignOpen(true)}
             disabled={isSigned || signMut.isPending}
           >
             {isSigned ? 'Prontuário assinado' : 'Assinar e fechar'}
-          </Button>
+          </Btn>
         </div>
       </div>
 
@@ -551,29 +649,62 @@ export default function ConsultaPage({
 
 /* ── Local UI helpers ────────────────────────────────────────────────────── */
 
-function FieldLabel({
-  text,
-  children,
+/**
+ * SOAP box — Glass card with letter pill (S/O/A/P/C) on the left and label
+ * on top, matching the ConsultaViva reference design.
+ */
+function SoapBox({
+  letter,
+  label,
   action,
-  htmlFor,
+  children,
 }: {
-  text:     string;
-  children: React.ReactNode;
+  letter:   string;
+  label:    string;
   action?:  React.ReactNode;
-  htmlFor?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <label
-          htmlFor={htmlFor}
-          className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-        >
-          {text}
-        </label>
+    <Glass style={{ padding: '16px 18px' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 10,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: T.r.sm,
+              background: T.primaryBg,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: T.primary,
+                fontFamily: "'IBM Plex Sans', sans-serif",
+              }}
+            >
+              {letter}
+            </span>
+          </div>
+          <Mono size={9} spacing="1px" color={T.primary}>
+            {label}
+          </Mono>
+        </div>
         {action}
       </div>
       {children}
-    </div>
+    </Glass>
   );
 }

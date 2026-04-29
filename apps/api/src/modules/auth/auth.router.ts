@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
 import { z } from 'zod';
+import '@fastify/cookie';
+import '@fastify/jwt';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../../trpc/trpc.js';
 import { protectedProcedure } from '../../trpc/middleware/auth.middleware.js';
@@ -177,7 +179,7 @@ export const authRouter = router({
       await eventBus.publish('user.login', user.clinic_id, user.id, {}, {
         userId: user.id,
         ip: ctx.req.ip,
-        userAgent: ctx.req.headers['user-agent'],
+        ...(ctx.req.headers['user-agent'] ? { userAgent: ctx.req.headers['user-agent'] } : {}),
       });
 
       return {
@@ -361,6 +363,7 @@ export const authRouter = router({
       user: {
         id: row.id,
         clinicId: row.clinic_id,
+        clinicSlug: row.clinic_slug,
         name: row.name,
         email: row.email,
         role: row.role as UserRole,

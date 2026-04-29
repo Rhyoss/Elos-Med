@@ -143,15 +143,17 @@ export default function AutomacoesPage() {
       )}
 
       {/* Tabela */}
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <AutomationTable
-          automations={automations}
-          isLoading={query.isLoading}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-          togglingId={togglingId}
-        />
-      </div>
+      {!query.isError && (
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <AutomationTable
+            automations={automations}
+            isLoading={query.isLoading}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
+            togglingId={togglingId}
+          />
+        </div>
+      )}
 
       {/* Modal */}
       <AutomationModal

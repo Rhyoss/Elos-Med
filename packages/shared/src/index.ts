@@ -20,6 +20,7 @@ export * from './schemas/settings.schema';
 export * from './types/api.types';
 export * from './types/auth';
 export * from './types/rbac';
+export * from './trpc/transformer';
 
 // Constants
 export * from './constants/roles';

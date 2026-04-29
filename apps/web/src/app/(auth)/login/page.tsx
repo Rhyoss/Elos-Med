@@ -28,6 +28,8 @@ export default function LoginPage() {
           email: data.user.email,
           role: data.user.role,
           avatarUrl: null,
+          crm: null,
+          specialty: null,
         },
         {
           id: data.user.clinicId,

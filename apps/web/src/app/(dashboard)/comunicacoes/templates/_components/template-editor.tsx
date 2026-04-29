@@ -63,7 +63,7 @@ export function TemplateEditor({
           subject:   template.subject ?? undefined,
           metaHsmId: template.external_id ?? undefined,
         }
-      : { channel: 'whatsapp', body: '', delayMinutes: 0 },
+      : { name: '', channel: 'whatsapp', body: '' },
   });
 
   const body        = watch('body') ?? '';

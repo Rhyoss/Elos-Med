@@ -1,4 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
+import '@fastify/jwt';
 import type { PoolClient } from 'pg';
 import { db } from '../db/client.js';
 import { redis } from '../db/redis.js';

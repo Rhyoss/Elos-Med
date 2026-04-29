@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { T } from '../../tokens';
 
-export interface GlassProps {
+export interface GlassProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
   /** Render with the matte brushed-nickel material instead of glass. */
   metal?: boolean;
@@ -10,7 +10,6 @@ export interface GlassProps {
   hover?: boolean;
   /** Mark as actively-selected — uses primary border. */
   active?: boolean;
-  className?: string;
   style?: React.CSSProperties;
 }
 
@@ -21,6 +20,7 @@ export function Glass({
   active = false,
   className,
   style,
+  ...props
 }: GlassProps) {
   const [hov, setHov] = React.useState(false);
   return (
@@ -28,6 +28,7 @@ export function Glass({
       onMouseEnter={() => hover && setHov(true)}
       onMouseLeave={() => hover && setHov(false)}
       className={className}
+      {...props}
       style={{
         background: metal ? T.metalGrad : hov ? T.glassHover : T.glass,
         border: `1px solid ${

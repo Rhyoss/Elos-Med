@@ -60,7 +60,7 @@ export default function TemplateNovoPage() {
         <TemplateEditor
           mode="create"
           isSaving={createMutation.isPending}
-          onSave={handleSave as (data: CreateTemplateInput) => void}
+          onSave={(data) => handleSave(data as CreateTemplateInput)}
         />
       </div>
     </div>

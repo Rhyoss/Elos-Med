@@ -85,8 +85,14 @@ export async function withClinicContext<T>(
   const client = await realPool.connect();
   try {
     await client.query('BEGIN');
-    // SET LOCAL é obrigatório — mantém o GUC apenas durante esta transação
-    await client.query(`SET LOCAL app.current_clinic_id = $1`, [clinicId]);
+    // SEC-02 + main: usa `set_config(name, value, is_local=true)` que aceita
+    // parâmetros via protocolo (mais robusto que `SET LOCAL ... = $1`, que
+    // não passa parâmetros no protocolo de prepared statements). O efeito
+    // é o mesmo: GUC válido apenas até o fim da transação corrente.
+    await client.query('SELECT set_config($1, $2, true)', [
+      'app.current_clinic_id',
+      clinicId,
+    ]);
     return await clientStorage.run(client, async () => {
       try {
         const result = await callback(client);

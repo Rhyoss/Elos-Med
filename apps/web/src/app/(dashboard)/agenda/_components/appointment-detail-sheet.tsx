@@ -18,6 +18,7 @@ import {
   TimelineActivity,
   ConfirmDialog,
   useToast,
+  type AnyStatus,
 } from '@dermaos/ui';
 import { trpc } from '@/lib/trpc-provider';
 import { STATUS_LABEL, formatSlotRange } from '@/lib/agenda-utils';
@@ -96,7 +97,7 @@ export function AppointmentDetailSheet({ appointment, open, onOpenChange, onMuta
     );
   }
 
-  const status = appointment.status;
+  const status = appointment.status as AnyStatus;
 
   async function handle(
     mut: { mutateAsync: (args: { id: string }) => Promise<unknown>; isPending: boolean },

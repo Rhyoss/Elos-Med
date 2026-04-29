@@ -20,6 +20,20 @@ interface SessionDetailSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function formatDateTime(value: Date | string | null | undefined): string {
+  if (!value) return '—';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
+
+function formatDate(value: Date | string | null | undefined): string {
+  if (!value) return '—';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('pt-BR').format(date);
+}
+
 export function SessionDetailSheet({ sessionId, open, onOpenChange }: SessionDetailSheetProps) {
   const query = trpc.clinical.protocols.getSessionById.useQuery(
     { sessionId: sessionId ?? '' },
@@ -44,7 +58,7 @@ export function SessionDetailSheet({ sessionId, open, onOpenChange }: SessionDet
               <div className="text-sm">
                 <p>
                   <span className="text-muted-foreground">Realizada em: </span>
-                  {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' }).format(session.performedAt)}
+                  {formatDateTime(session.performedAt)}
                 </p>
                 {session.durationMin && (
                   <p>
@@ -142,7 +156,7 @@ export function SessionDetailSheet({ sessionId, open, onOpenChange }: SessionDet
                 {session.scheduledNextAt && (
                   <p className="text-xs text-muted-foreground mt-2">
                     Próxima sessão sugerida:{' '}
-                    {new Intl.DateTimeFormat('pt-BR').format(session.scheduledNextAt)}
+                    {formatDate(session.scheduledNextAt)}
                   </p>
                 )}
               </CollapsibleSection>

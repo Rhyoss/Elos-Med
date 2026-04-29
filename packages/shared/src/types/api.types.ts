@@ -35,18 +35,6 @@ export interface AuditableEntity extends BaseEntity {
   createdBy: string | null;
 }
 
-// Tipos de usuário/session
-
-export interface SessionUser {
-  id: string;
-  clinicId: string;
-  clinicSlug: string;
-  name: string;
-  email: string;
-  role: string;
-  avatarUrl: string | null;
-}
-
 // Address JSONB
 
 export interface Address {

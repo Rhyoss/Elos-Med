@@ -2,15 +2,22 @@
 
 import * as React from 'react';
 import {
+  Btn,
+  EmptyState,
+  Glass,
+  Ico,
+  Mono,
+  PageHero,
+  Skeleton,
+  T,
+} from '@dermaos/ui/ds';
+import {
   DialogRoot,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  EmptyState,
-  LoadingSkeleton,
   useToast,
 } from '@dermaos/ui';
-import { Btn, Mono, T } from '@dermaos/ui/ds';
 import type { BodyRegion, LesionStatus } from '@dermaos/shared';
 import { trpc } from '@/lib/trpc-provider';
 import { useRealtime } from '@/hooks/use-realtime';
@@ -20,9 +27,15 @@ import { Gallery } from '@/components/lesions/gallery';
 import { ImageUpload } from '@/components/lesions/image-upload';
 import { ImageViewer } from '@/components/lesions/image-viewer';
 import type { TimelineImage } from '@/components/lesions/lesion-timeline';
-import { cn } from '@/lib/utils';
 
 type StatusFilter = 'all' | LesionStatus;
+
+const STATUS_OPTIONS: Array<{ id: StatusFilter; label: string }> = [
+  { id: 'all',        label: 'Todas'         },
+  { id: 'active',     label: 'Ativas'        },
+  { id: 'monitoring', label: 'Monitoramento' },
+  { id: 'resolved',   label: 'Resolvidas'    },
+];
 
 export default function ImagensPage({
   params,
@@ -39,7 +52,6 @@ export default function ImagensPage({
   const [uploadRegion, setUploadRegion]       = React.useState<BodyRegion | undefined>();
   const [viewer, setViewer]                   = React.useState<{ src: string; alt: string } | null>(null);
 
-  /* ── Queries ───────────────────────────────────────────────────────── */
   const lesionsQuery = trpc.clinical.lesions.listByPatient.useQuery(
     { patientId, status: statusFilter === 'all' ? undefined : statusFilter },
     { enabled: !!patientId, staleTime: 10_000 },
@@ -55,18 +67,17 @@ export default function ImagensPage({
     { enabled: !!patientId, staleTime: 10_000 },
   );
 
-  const requestUrlMut     = trpc.clinical.lesions.requestImageUrl.useMutation();
-  const retryMut          = trpc.clinical.lesions.retryImageProcessing.useMutation();
-  const resolveMut        = trpc.clinical.lesions.resolve.useMutation();
-  const reactivateMut     = trpc.clinical.lesions.reactivate.useMutation();
-  const setMonitoringMut  = trpc.clinical.lesions.setMonitoring.useMutation();
+  const requestUrlMut    = trpc.clinical.lesions.requestImageUrl.useMutation();
+  const retryMut         = trpc.clinical.lesions.retryImageProcessing.useMutation();
+  const resolveMut       = trpc.clinical.lesions.resolve.useMutation();
+  const reactivateMut    = trpc.clinical.lesions.reactivate.useMutation();
+  const setMonitoringMut = trpc.clinical.lesions.setMonitoring.useMutation();
 
-  const lesions          = lesionsQuery.data ?? [];
-  const selectedLesion   = lesions.find((l) => l.id === selectedLesionId) ?? null;
-  const lesionImages     = (imagesQuery.data?.data ?? []) as TimelineImage[];
-  const galleryImages    = (allImagesQuery.data?.data ?? []) as TimelineImage[];
+  const lesions        = lesionsQuery.data ?? [];
+  const selectedLesion = lesions.find((l) => l.id === selectedLesionId) ?? null;
+  const lesionImages   = (imagesQuery.data?.data ?? []) as TimelineImage[];
+  const galleryImages  = (allImagesQuery.data?.data ?? []) as TimelineImage[];
 
-  /* ── Realtime — invalida queries ao receber eventos ───────────────── */
   useRealtime(
     [
       'lesion.created',
@@ -86,7 +97,6 @@ export default function ImagensPage({
     },
   );
 
-  /* ── Handlers ─────────────────────────────────────────────────────── */
   const lesionsByRegion = React.useMemo(() => {
     const grouped: Record<string, typeof lesions> = {};
     for (const l of lesions) {
@@ -102,24 +112,22 @@ export default function ImagensPage({
       setUploadOpen(true);
       return;
     }
-    if (regionLesions.length === 1) {
-      setSelectedLesion(regionLesions[0]!.id);
-      return;
-    }
     setSelectedLesion(regionLesions[0]!.id);
   }
 
   async function handleOpenImage(img: TimelineImage) {
     if (img.processingStatus !== 'ready') {
-      toast.info('Imagem ainda não pronta para visualização');
+      toast({ title: 'Imagem ainda não pronta para visualização' });
       return;
     }
     try {
       const res = await requestUrlMut.mutateAsync({ imageId: img.id, variant: 'original' });
       setViewer({ src: res.url, alt: img.altText ?? 'Imagem clínica' });
     } catch (err) {
-      toast.error('Não foi possível abrir a imagem', {
+      toast({
+        title:       'Não foi possível abrir a imagem',
         description: err instanceof Error ? err.message : 'Erro desconhecido',
+        variant:     'destructive',
       });
     }
   }
@@ -127,10 +135,12 @@ export default function ImagensPage({
   async function handleRetry(img: TimelineImage) {
     try {
       await retryMut.mutateAsync({ imageId: img.id });
-      toast.success('Reprocessamento iniciado');
+      toast({ title: 'Reprocessamento iniciado' });
     } catch (err) {
-      toast.error('Falha ao reprocessar', {
+      toast({
+        title:       'Falha ao reprocessar',
         description: err instanceof Error ? err.message : 'Erro desconhecido',
+        variant:     'destructive',
       });
     }
   }
@@ -143,10 +153,12 @@ export default function ImagensPage({
         next === 'monitoring' ? setMonitoringMut :
                                 resolveMut;
       await mutation.mutateAsync({ id: selectedLesion.id, reason });
-      toast.success('Status atualizado');
+      toast({ title: 'Status atualizado' });
     } catch (err) {
-      toast.error('Falha ao atualizar status', {
+      toast({
+        title:       'Falha ao atualizar status',
         description: err instanceof Error ? err.message : 'Erro desconhecido',
+        variant:     'destructive',
       });
     }
   }
@@ -154,79 +166,138 @@ export default function ImagensPage({
   function handleUploaded() {
     setUploadOpen(false);
     setUploadRegion(undefined);
-    toast.success('Upload concluído — processando em segundo plano');
+    toast({ title: 'Upload concluído', description: 'Processando em segundo plano.' });
   }
 
   const regionSummary = React.useMemo(() => aggregateLesionsByRegion(lesions), [lesions]);
 
-  /* ── Render ───────────────────────────────────────────────────────── */
   return (
-    <div className="flex h-full flex-col">
-      {/* Header DS */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Header */}
       <header
         style={{
+          padding: '22px 26px 16px',
+          borderBottom: `1px solid ${T.divider}`,
+          flexShrink: 0,
           display: 'flex',
           flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
           gap: 12,
-          padding: '14px 26px',
-          borderBottom: `1px solid ${T.divider}`,
-          background: T.glass,
-          backdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
-          WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(160%)`,
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
         }}
       >
-        <div>
-          <Mono size={9} spacing="1.2px" color={T.clinical.color}>BODY MAP &amp; LESÕES</Mono>
-          <h2 style={{ fontSize: 16, fontWeight: 700, marginTop: 2, color: T.textPrimary, letterSpacing: '-0.01em' }}>
-            Imagens &amp; Lesões
-          </h2>
-          <p style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
-            Body map, timeline de lesões e galeria de fotos clínicas.
-          </p>
-        </div>
+        <PageHero
+          eyebrow="BODY MAP · LESÕES · GALERIA"
+          title="Imagens & Lesões"
+          module="clinical"
+          icon="image"
+        />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <StatusFilterTabs value={statusFilter} onChange={setStatusFilter} />
-          <Btn small icon="plus" onClick={() => { setUploadRegion(undefined); setUploadOpen(true); }}>
+          {/* Filter chips */}
+          <div
+            style={{
+              display: 'inline-flex',
+              padding: 2,
+              borderRadius: T.r.md,
+              background: T.glass,
+              border: `1px solid ${T.glassBorder}`,
+            }}
+            role="tablist"
+            aria-label="Filtro de status"
+          >
+            {STATUS_OPTIONS.map((opt) => {
+              const active = statusFilter === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setStatusFilter(opt.id)}
+                  style={{
+                    padding: '5px 11px',
+                    borderRadius: T.r.sm,
+                    border: 'none',
+                    background: active ? T.primaryBg : 'transparent',
+                    color: active ? T.primary : T.textMuted,
+                    fontSize: 11,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontWeight: active ? 600 : 500,
+                    letterSpacing: '0.04em',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          <Btn
+            small
+            icon="plus"
+            onClick={() => {
+              setUploadRegion(undefined);
+              setUploadOpen(true);
+            }}
+          >
             Adicionar imagem
           </Btn>
         </div>
       </header>
 
       {/* Body map + detail panel */}
-      <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
+      <div
+        style={{
+          display: 'flex',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+        }}
+      >
         <section
           aria-label="Mapa corporal"
-          className="flex-1 min-w-0 overflow-y-auto border-b border-border p-6 lg:border-b-0 lg:border-r"
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflowY: 'auto',
+            padding: 24,
+            borderRight: selectedLesionId ? `1px solid ${T.divider}` : 'none',
+          }}
         >
           {lesionsQuery.isLoading ? (
-            <LoadingSkeleton className="h-[420px] w-full max-w-[320px] mx-auto rounded-lg" />
+            <Skeleton height={420} radius={16} />
           ) : (
-            <BodyMap
-              regionSummary={regionSummary}
-              selected={selectedLesion?.bodyRegion ?? null}
-              onSelectRegion={handleSelectRegion}
-              allowEmpty
-            />
+            <Glass style={{ padding: 18, maxWidth: 360, margin: '0 auto' }}>
+              <BodyMap
+                regionSummary={regionSummary}
+                selected={selectedLesion?.bodyRegion ?? null}
+                onSelectRegion={handleSelectRegion}
+                allowEmpty
+              />
+            </Glass>
           )}
         </section>
 
         {selectedLesionId ? (
           <LesionDetailPanel
-            lesion={selectedLesion ? {
-              id:           selectedLesion.id,
-              patientId:    selectedLesion.patientId,
-              bodyRegion:   selectedLesion.bodyRegion,
-              status:       selectedLesion.status,
-              description:  selectedLesion.description,
-              morphology:   selectedLesion.morphology ?? [],
-              color:        selectedLesion.color ?? [],
-              sizeMm:       selectedLesion.sizeMm ?? null,
-              createdAt:    selectedLesion.createdAt,
-              imageCount:   selectedLesion.imageCount ?? 0,
-              statusReason: selectedLesion.statusReason ?? null,
-            } : null}
+            lesion={
+              selectedLesion
+                ? {
+                    id:           selectedLesion.id,
+                    patientId:    selectedLesion.patientId,
+                    bodyRegion:   selectedLesion.bodyRegion,
+                    status:       selectedLesion.status,
+                    description:  selectedLesion.description,
+                    morphology:   selectedLesion.morphology ?? [],
+                    color:        selectedLesion.color ?? [],
+                    sizeMm:       selectedLesion.sizeMm ?? null,
+                    createdAt:    selectedLesion.createdAt,
+                    imageCount:   selectedLesion.imageCount ?? 0,
+                    statusReason: selectedLesion.statusReason ?? null,
+                  }
+                : null
+            }
             images={lesionImages}
             imagesLoading={imagesQuery.isLoading}
             onClose={() => setSelectedLesion(null)}
@@ -238,33 +309,71 @@ export default function ImagensPage({
             }}
           />
         ) : (
-          <aside className="hidden w-full max-w-md shrink-0 border-l border-border bg-card p-6 text-sm text-muted-foreground lg:block">
-            Selecione uma região no mapa para ver detalhes e histórico da lesão.
+          <aside
+            style={{
+              width: 320,
+              flexShrink: 0,
+              padding: 24,
+              borderLeft: `1px solid ${T.divider}`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Ico name="user" size={15} color={T.textMuted} />
+              <Mono size={9} spacing="1px">SELEÇÃO</Mono>
+            </div>
+            <p style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.5, margin: 0 }}>
+              Clique em uma região do mapa corporal para ver detalhes e histórico das lesões cadastradas.
+            </p>
           </aside>
         )}
       </div>
 
       {/* Gallery — todas as imagens do paciente */}
-      <section aria-label="Galeria" className="border-t border-border bg-background p-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Galeria do paciente</h2>
-          <span className="text-xs text-muted-foreground">
-            {allImagesQuery.data?.total ?? 0} imagens
-          </span>
+      <section
+        aria-label="Galeria"
+        style={{
+          padding: '18px 26px',
+          borderTop: `1px solid ${T.divider}`,
+          flexShrink: 0,
+          maxHeight: '38%',
+          overflowY: 'auto',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 10,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Ico name="image" size={15} color={T.clinical.color} />
+            <Mono size={9} spacing="1px" color={T.clinical.color}>
+              GALERIA DO PACIENTE
+            </Mono>
+          </div>
+          <Mono size={9}>{allImagesQuery.data?.total ?? 0} IMAGENS</Mono>
         </div>
         {allImagesQuery.isLoading ? (
-          <Gallery images={[]} loading />
+          <Skeleton height={120} radius={16} />
         ) : galleryImages.length === 0 ? (
-          <EmptyState
-            title="Nenhuma imagem registrada para este paciente."
-            description="Use o botão “Adicionar imagem” para registrar a primeira foto clínica."
-          />
+          <Glass style={{ padding: 24 }}>
+            <EmptyState
+              icon="image"
+              title="Nenhuma imagem registrada"
+              description="Use o botão 'Adicionar imagem' para registrar a primeira foto clínica."
+            />
+          </Glass>
         ) : (
           <Gallery images={galleryImages} onOpen={handleOpenImage} />
         )}
       </section>
 
-      {/* Upload dialog */}
+      {/* Upload dialog (legacy primitive — Dialog DS pendente) */}
       <DialogRoot open={uploadOpen} onOpenChange={setUploadOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -280,7 +389,6 @@ export default function ImagensPage({
         </DialogContent>
       </DialogRoot>
 
-      {/* Fullscreen viewer */}
       {viewer && (
         <ImageViewer
           src={viewer.src}
@@ -288,43 +396,6 @@ export default function ImagensPage({
           onClose={() => setViewer(null)}
         />
       )}
-    </div>
-  );
-}
-
-/* ── StatusFilter ──────────────────────────────────────────────────── */
-
-function StatusFilterTabs({
-  value, onChange,
-}: {
-  value:    StatusFilter;
-  onChange: (v: StatusFilter) => void;
-}) {
-  const options: Array<[StatusFilter, string]> = [
-    ['all',        'Todas'],
-    ['active',     'Ativas'],
-    ['monitoring', 'Monitoramento'],
-    ['resolved',   'Resolvidas'],
-  ];
-  return (
-    <div role="tablist" aria-label="Filtro por status" className="inline-flex rounded-md border border-border bg-card p-0.5">
-      {options.map(([v, label]) => (
-        <button
-          key={v}
-          type="button"
-          role="tab"
-          aria-selected={value === v}
-          onClick={() => onChange(v)}
-          className={cn(
-            'rounded px-2 py-1 text-xs transition-colors',
-            value === v
-              ? 'bg-primary-600 text-white'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {label}
-        </button>
-      ))}
     </div>
   );
 }

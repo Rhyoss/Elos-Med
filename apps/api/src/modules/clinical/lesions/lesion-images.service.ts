@@ -236,7 +236,7 @@ export async function uploadImagesForLesion(
   for (const file of files) {
     const validation = validateImageUpload(file.buffer, file.originalName, file.mimeType);
     if (!validation.ok) {
-      throw new TRPCError({ code: 'BAD_REQUEST', message: validation.message });
+      throw new TRPCError({ code: 'BAD_REQUEST', message: validation.message ?? 'Arquivo inválido.' });
     }
 
     const imageId    = crypto.randomUUID();
@@ -461,7 +461,7 @@ export async function hardDeleteImage(imageId: string, clinicId: string): Promis
   await Promise.all(
     [row.image_url, row.medium_url, row.thumbnail_url]
       .filter((k): k is string => !!k)
-      .map(removeObject),
+      .map((objectKey) => removeObject(objectKey)),
   );
   await db.query(
     `DELETE FROM clinical.lesion_images WHERE id = $1 AND clinic_id = $2`,

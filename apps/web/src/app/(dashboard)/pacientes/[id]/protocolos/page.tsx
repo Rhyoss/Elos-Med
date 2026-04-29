@@ -1,29 +1,47 @@
 'use client';
 
 import * as React from 'react';
-import { CalendarClock, CheckCircle2, Circle, XCircle, CircleAlert } from 'lucide-react';
 import {
-  Button,
   Badge,
+  Bar,
+  Btn,
   EmptyState,
-  LoadingSkeleton,
-  useToast,
-} from '@dermaos/ui';
-import { Btn, Mono, T } from '@dermaos/ui/ds';
+  Glass,
+  Ico,
+  Mono,
+  PageHero,
+  Skeleton,
+  T,
+  Timeline,
+  type TimelineEvent,
+} from '@dermaos/ui/ds';
+import { useToast } from '@dermaos/ui';
 import {
   PROTOCOL_STATUS_LABELS,
   PROTOCOL_TYPE_LABELS,
   type ProtocolStatus,
 } from '@dermaos/shared';
 import { trpc } from '@/lib/trpc-provider';
-import { cn } from '@/lib/utils';
 import { NewProtocolModal } from './_components/new-protocol-modal';
 import { SessionDetailSheet } from './_components/session-detail-sheet';
 import { RegisterSessionSheet } from './_components/register-session-sheet';
 
 type StatusFilter = 'all' | ProtocolStatus;
-
 type PageParams = Promise<{ id: string }>;
+
+const STATUS_VARIANT: Record<ProtocolStatus, 'success' | 'warning' | 'info' | 'danger'> = {
+  ativo:     'success',
+  pausado:   'warning',
+  concluido: 'info',
+  cancelado: 'danger',
+};
+
+function fmtDate(d: Date | string | null | undefined): string {
+  if (!d) return '—';
+  const date = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('pt-BR').format(date);
+}
 
 export default function ProtocolosPage({ params }: { params: PageParams }) {
   const { id: patientId } = React.use(params);
@@ -59,56 +77,92 @@ export default function ProtocolosPage({ params }: { params: PageParams }) {
     cancelMut.mutate({ id, reason });
   }
 
-  return (
-    <div style={{ padding: '20px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
-        <div>
-          <Mono size={9} spacing="1.2px" color={T.clinical.color}>TRATAMENTOS &amp; EVOLUÇÃO</Mono>
-          <h2 style={{ fontSize: 18, fontWeight: 700, marginTop: 2, color: T.textPrimary, letterSpacing: '-0.01em' }}>
-            Protocolos &amp; Sessões
-          </h2>
-          <p style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>
-            Tratamentos ativos, sessões realizadas e evolução.
-          </p>
-        </div>
-        <Btn small icon="plus" onClick={() => setNewOpen(true)} disabled={!providerId}>
-          Novo protocolo
-        </Btn>
-      </div>
+  const filterOptions: Array<{ id: StatusFilter; label: string }> = [
+    { id: 'all',       label: 'Todos'      },
+    { id: 'ativo',     label: PROTOCOL_STATUS_LABELS.ativo     },
+    { id: 'pausado',   label: PROTOCOL_STATUS_LABELS.pausado   },
+    { id: 'concluido', label: PROTOCOL_STATUS_LABELS.concluido },
+    { id: 'cancelado', label: PROTOCOL_STATUS_LABELS.cancelado },
+  ];
 
-      <div className="flex gap-2 text-sm">
-        {(['all', 'ativo', 'pausado', 'concluido', 'cancelado'] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setFilter(s)}
-            className={cn(
-              'px-3 py-1 rounded-md border text-sm transition-colors',
-              filter === s
-                ? 'border-primary-600 bg-primary-50 text-primary-700 font-medium'
-                : 'border-border hover:border-primary-300',
-            )}
-            aria-pressed={filter === s}
-          >
-            {s === 'all' ? 'Todos' : PROTOCOL_STATUS_LABELS[s]}
-          </button>
-        ))}
+  return (
+    <div
+      style={{
+        padding: '22px 26px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+        height: '100%',
+        overflowY: 'auto',
+      }}
+    >
+      <PageHero
+        eyebrow="TRATAMENTOS · EVOLUÇÃO"
+        title="Protocolos & Sessões"
+        module="clinical"
+        icon="layers"
+        actions={
+          <Btn small icon="plus" onClick={() => setNewOpen(true)} disabled={!providerId}>
+            Novo protocolo
+          </Btn>
+        }
+      />
+
+      {/* Filter chips */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {filterOptions.map((opt) => {
+          const active = filter === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setFilter(opt.id)}
+              aria-pressed={active}
+              style={{
+                padding: '6px 12px',
+                borderRadius: T.r.pill,
+                border: `1px solid ${active ? T.primary : T.glassBorder}`,
+                background: active ? T.primaryBg : T.glass,
+                color: active ? T.primary : T.textSecondary,
+                fontSize: 11,
+                fontFamily: "'IBM Plex Sans', sans-serif",
+                fontWeight: active ? 600 : 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                letterSpacing: '0.02em',
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
 
       {listQuery.isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <LoadingSkeleton key={i} className="h-36 w-full rounded-md" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
+          {[0, 1].map((i) => (
+            <Skeleton key={i} height={170} radius={16} delay={60 * i} />
           ))}
         </div>
       ) : protocols.length === 0 ? (
-        <EmptyState
-          icon={<CalendarClock className="h-8 w-8" aria-hidden="true" />}
-          title="Nenhum protocolo registrado"
-          description="Clique em 'Novo protocolo' para iniciar um tratamento."
-        />
+        <Glass style={{ padding: 32 }}>
+          <EmptyState
+            icon="layers"
+            title="Nenhum protocolo registrado"
+            description={
+              filter === 'all'
+                ? 'Clique em "Novo protocolo" para iniciar um tratamento.'
+                : 'Nenhum protocolo nesse status. Tente outro filtro acima.'
+            }
+            action={
+              <Btn variant="glass" small icon="plus" onClick={() => setNewOpen(true)}>
+                Novo protocolo
+              </Btn>
+            }
+          />
+        </Glass>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
           {protocols.map((p) => (
             <ProtocolCard
               key={p.id}
@@ -148,7 +202,7 @@ export default function ProtocolosPage({ params }: { params: PageParams }) {
   );
 }
 
-/* ── Card de protocolo com barra de progresso + timeline ────────────────── */
+/* ── ProtocolCard ────────────────────────────────────────────────────────── */
 
 function ProtocolCard({
   protocol,
@@ -159,110 +213,162 @@ function ProtocolCard({
   onCancel,
 }: {
   protocol: {
-    id: string;
-    type: keyof typeof PROTOCOL_TYPE_LABELS;
-    status: ProtocolStatus;
-    name: string;
-    totalSessions: number;
-    sessionsDone: number;
-    intervalDays: number | null;
-    startedAt: Date | null;
-    expectedEndDate: Date | null;
+    id:               string;
+    type:             keyof typeof PROTOCOL_TYPE_LABELS;
+    status:           ProtocolStatus;
+    name:             string;
+    totalSessions:    number;
+    sessionsDone:     number;
+    intervalDays:     number | null;
+    startedAt:        Date | string | null;
+    expectedEndDate:  Date | string | null;
   };
-  expanded: boolean;
-  onToggleTimeline: () => void;
-  onOpenSession: (sessionId: string) => void;
+  expanded:          boolean;
+  onToggleTimeline:  () => void;
+  onOpenSession:     (sessionId: string) => void;
   onRegisterSession: () => void;
-  onCancel: () => void;
+  onCancel:          () => void;
 }) {
   const percent = protocol.totalSessions > 0
     ? Math.round((protocol.sessionsDone / protocol.totalSessions) * 100)
     : 0;
+  const canRegister = protocol.status === 'ativo' && protocol.sessionsDone < protocol.totalSessions;
+  const canCancel = protocol.status !== 'cancelado' && protocol.status !== 'concluido';
 
   return (
-    <article className="rounded-md border border-border bg-card p-4 space-y-3">
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">
-            {PROTOCOL_TYPE_LABELS[protocol.type]}
+    <Glass style={{ padding: '16px 18px' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 8,
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <Mono size={9} spacing="1.1px" color={T.clinical.color}>
+            {PROTOCOL_TYPE_LABELS[protocol.type].toUpperCase()}
+          </Mono>
+          <p
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: T.textPrimary,
+              margin: '4px 0 0',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {protocol.name}
           </p>
-          <h3 className="font-semibold truncate">{protocol.name}</h3>
         </div>
-        <Badge variant={statusVariant(protocol.status)}>
+        <Badge variant={STATUS_VARIANT[protocol.status]} dot={false}>
           {PROTOCOL_STATUS_LABELS[protocol.status]}
         </Badge>
-      </header>
+      </div>
 
-      <div>
-        <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-          <span>Sessões: {protocol.sessionsDone}/{protocol.totalSessions}</span>
-          <span>{percent}%</span>
-        </div>
+      <div style={{ marginBottom: 12 }}>
         <div
-          role="progressbar"
-          aria-valuenow={percent}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          className="h-2 rounded-full bg-muted overflow-hidden"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 5,
+          }}
         >
-          <div className="h-full bg-primary-600 transition-all" style={{ width: `${percent}%` }} />
+          <Mono size={8}>
+            SESSÕES {protocol.sessionsDone}/{protocol.totalSessions}
+          </Mono>
+          <Mono size={9} color={T.clinical.color}>
+            {percent}%
+          </Mono>
+        </div>
+        <Bar pct={percent} color={T.clinical.color} height={5} />
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 8,
+          marginBottom: 12,
+          padding: '10px 12px',
+          borderRadius: T.r.md,
+          background: T.glass,
+          border: `1px solid ${T.glassBorder}`,
+        }}
+      >
+        <div>
+          <Mono size={7}>INÍCIO</Mono>
+          <p style={{ fontSize: 11, color: T.textPrimary, margin: '2px 0 0' }}>
+            {fmtDate(protocol.startedAt)}
+          </p>
+        </div>
+        <div>
+          <Mono size={7}>PREVISÃO</Mono>
+          <p style={{ fontSize: 11, color: T.textPrimary, margin: '2px 0 0' }}>
+            {fmtDate(protocol.expectedEndDate)}
+          </p>
+        </div>
+        <div>
+          <Mono size={7}>INTERVALO</Mono>
+          <p style={{ fontSize: 11, color: T.textPrimary, margin: '2px 0 0' }}>
+            {protocol.intervalDays ? `${protocol.intervalDays} dias` : '—'}
+          </p>
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 text-xs text-muted-foreground gap-y-1">
-        <dt>Início</dt>
-        <dd className="text-foreground text-right">
-          {protocol.startedAt ? new Intl.DateTimeFormat('pt-BR').format(protocol.startedAt) : '—'}
-        </dd>
-        <dt>Previsão término</dt>
-        <dd className="text-foreground text-right">
-          {protocol.expectedEndDate ? new Intl.DateTimeFormat('pt-BR').format(protocol.expectedEndDate) : '—'}
-        </dd>
-        <dt>Intervalo</dt>
-        <dd className="text-foreground text-right">
-          {protocol.intervalDays ? `${protocol.intervalDays} dias` : '—'}
-        </dd>
-      </dl>
-
-      <div className="flex items-center justify-between pt-2 border-t border-border gap-2">
-        <Button size="sm" variant="ghost" onClick={onToggleTimeline}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingTop: 10,
+          borderTop: `1px solid ${T.divider}`,
+          gap: 6,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Btn
+          variant="ghost"
+          small
+          icon={expanded ? 'chevDown' : 'eye'}
+          onClick={onToggleTimeline}
+        >
           {expanded ? 'Ocultar timeline' : 'Ver timeline'}
-        </Button>
-        <div className="flex items-center gap-1">
-          {protocol.status === 'ativo' && protocol.sessionsDone < protocol.totalSessions && (
-            <Button size="sm" onClick={onRegisterSession}>
-              <Plus className="h-4 w-4" aria-hidden="true" /> Registrar sessão
-            </Button>
+        </Btn>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {canRegister && (
+            <Btn small icon="plus" onClick={onRegisterSession}>
+              Registrar sessão
+            </Btn>
           )}
-          {protocol.status !== 'cancelado' && protocol.status !== 'concluido' && (
-            <Button size="sm" variant="ghost" onClick={onCancel}>
-              <XCircle className="h-4 w-4" aria-hidden="true" />
-            </Button>
+          {canCancel && (
+            <Btn variant="danger" small icon="x" iconOnly aria-label="Cancelar protocolo" onClick={onCancel}>
+              Cancelar
+            </Btn>
           )}
         </div>
       </div>
 
-      {expanded && <ProtocolTimeline protocolId={protocol.id} onOpenSession={onOpenSession} />}
-    </article>
+      {expanded && (
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${T.divider}` }}>
+          <ProtocolTimeline protocolId={protocol.id} onOpenSession={onOpenSession} />
+        </div>
+      )}
+    </Glass>
   );
 }
 
-function statusVariant(status: ProtocolStatus): 'success' | 'warning' | 'info' | 'danger' {
-  switch (status) {
-    case 'ativo':     return 'success';
-    case 'pausado':   return 'warning';
-    case 'concluido': return 'info';
-    case 'cancelado': return 'danger';
-  }
-}
-
-/* ── Timeline visual: ○ próxima  ● concluída  ✖ cancelada ────────────── */
+/* ── Timeline DS-based ───────────────────────────────────────────────────── */
 
 function ProtocolTimeline({
   protocolId,
   onOpenSession,
 }: {
-  protocolId: string;
+  protocolId:    string;
   onOpenSession: (id: string) => void;
 }) {
   const sessionsQuery = trpc.clinical.protocols.listSessions.useQuery(
@@ -272,43 +378,59 @@ function ProtocolTimeline({
   const suggestQuery = trpc.clinical.protocols.suggestNextSession.useQuery({ protocolId });
 
   if (sessionsQuery.isLoading) {
-    return <LoadingSkeleton className="h-20 w-full rounded-md" />;
+    return <Skeleton height={70} radius={6} />;
   }
 
   const sessions = sessionsQuery.data?.sessions ?? [];
 
+  const events: TimelineEvent[] = sessions.map((s) => ({
+    id:    s.id,
+    date:  fmtDate(s.performedAt),
+    label: `Sessão #${s.sessionNumber}${s.flagMedicalReview ? ' · Revisão médica' : ''}`,
+    detail: s.insufficientStock ? 'Estoque insuficiente' : undefined,
+    icon:   s.flagMedicalReview ? 'alert' : 'check',
+    color:  s.flagMedicalReview ? T.danger : T.primary,
+  }));
+
+  if (suggestQuery.data?.suggestedAt) {
+    events.push({
+      id:    'next-suggested',
+      date:  fmtDate(suggestQuery.data.suggestedAt),
+      label: 'Próxima sessão sugerida',
+      icon:  'clock',
+      color: T.textMuted,
+    });
+  }
+
+  if (events.length === 0) {
+    return (
+      <p style={{ fontSize: 11, color: T.textMuted, textAlign: 'center', padding: 12 }}>
+        Nenhuma sessão registrada ainda.
+      </p>
+    );
+  }
+
   return (
-    <div className="pt-2">
-      <ol className="space-y-1 text-sm">
+    <div onClick={(e) => {
+      const target = (e.target as HTMLElement).closest('[data-session-id]');
+      const id = target?.getAttribute('data-session-id');
+      if (id) onOpenSession(id);
+    }}>
+      {/* Render timeline with click handlers via wrapping spans */}
+      <Timeline events={events} />
+      {/* Hidden invisible buttons for keyboard accessibility on each session */}
+      <div style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
         {sessions.map((s) => (
-          <li key={s.id}>
-            <button
-              type="button"
-              onClick={() => onOpenSession(s.id)}
-              className="w-full flex items-center gap-2 rounded px-2 py-1 hover:bg-muted/20 text-left"
-            >
-              {s.flagMedicalReview ? (
-                <CircleAlert className="h-4 w-4 text-destructive shrink-0" aria-hidden="true" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4 text-primary-600 shrink-0" aria-hidden="true" />
-              )}
-              <span className="text-xs text-muted-foreground">#{s.sessionNumber}</span>
-              <span>
-                {new Intl.DateTimeFormat('pt-BR').format(s.performedAt)}
-              </span>
-              {s.insufficientStock && (
-                <Badge variant="warning" className="ml-auto text-xs">est. insuf.</Badge>
-              )}
-            </button>
-          </li>
+          <button
+            key={s.id}
+            type="button"
+            data-session-id={s.id}
+            onClick={() => onOpenSession(s.id)}
+          >
+            Abrir sessão {s.sessionNumber}
+          </button>
         ))}
-        {suggestQuery.data?.suggestedAt && (
-          <li className="flex items-center gap-2 px-2 py-1 text-muted-foreground">
-            <Circle className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>Próxima sugerida: {new Intl.DateTimeFormat('pt-BR').format(suggestQuery.data.suggestedAt)}</span>
-          </li>
-        )}
-      </ol>
+      </div>
     </div>
   );
 }
