@@ -25,35 +25,18 @@ function computeBmi(weightKg?: number, heightCm?: number): string {
 }
 
 export function VitalSignsForm({ value, onChange, disabled }: VitalSignsFormProps) {
-  function set(key: keyof VitalSignsInput, raw: string) {
+  function set<K extends keyof VitalSignsInput>(key: K, raw: string) {
     const next: VitalSignsInput = { ...value };
-    const parsed = parseNum(raw);
-
-    switch (key) {
-      case 'notes':
-        next.notes = raw;
-        break;
-      case 'bloodPressureSys':
-        next.bloodPressureSys = parsed !== undefined ? Math.round(parsed) : undefined;
-        break;
-      case 'bloodPressureDia':
-        next.bloodPressureDia = parsed !== undefined ? Math.round(parsed) : undefined;
-        break;
-      case 'heartRate':
-        next.heartRate = parsed !== undefined ? Math.round(parsed) : undefined;
-        break;
-      case 'oxygenSaturation':
-        next.oxygenSaturation = parsed !== undefined ? Math.round(parsed) : undefined;
-        break;
-      case 'temperatureC':
-        next.temperatureC = parsed;
-        break;
-      case 'weightKg':
-        next.weightKg = parsed;
-        break;
-      case 'heightCm':
-        next.heightCm = parsed;
-        break;
+    if (key === 'notes') {
+      next.notes = raw;
+    } else {
+      const parsed = parseNum(raw);
+      if (key === 'bloodPressureSys' || key === 'bloodPressureDia' ||
+          key === 'heartRate' || key === 'oxygenSaturation') {
+        (next[key] as number | undefined) = parsed !== undefined ? Math.round(parsed) : undefined;
+      } else {
+        (next[key] as number | undefined) = parsed;
+      }
     }
     onChange(next);
   }

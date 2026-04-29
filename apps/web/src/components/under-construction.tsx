@@ -66,7 +66,24 @@ export function UnderConstruction({
         module={module}
         icon={icon}
         description={description}
-        actions={actions}
+        actions={
+          actions ? (
+            <div
+              aria-disabled
+              title="Disponível em breve"
+              style={{
+                opacity: 0.45,
+                pointerEvents: 'none',
+                cursor: 'not-allowed',
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+              }}
+            >
+              {actions}
+            </div>
+          ) : undefined
+        }
       />
 
       <Glass style={{ padding: '40px 24px' }}>
