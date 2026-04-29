@@ -18,7 +18,7 @@ export async function registerClinicLogoUploadRoute(app: FastifyInstance): Promi
     async (req: FastifyRequest, reply: FastifyReply) => {
       let user: JwtUser;
       try {
-        user = await req.jwtVerify<JwtUser>();
+        user = await req.accessJwtVerify<JwtUser>();
       } catch {
         return reply.status(401).send({ code: 'UNAUTHORIZED', message: 'Autenticação necessária.' });
       }

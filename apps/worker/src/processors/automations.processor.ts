@@ -360,6 +360,7 @@ async function sendViaChannel(
 
 async function updateLog(
   db:             Pool,
+  clinicId:       string,
   executionLogId: string,
   status:         'sent' | 'skipped' | 'failed',
   details: {
@@ -369,6 +370,8 @@ async function updateLog(
     channel?:    string;
   } = {},
 ): Promise<void> {
+  // SEC-W: defesa em profundidade — `dermaos_worker` tem policy USING true,
+  // RLS sozinha não bloqueia cross-tenant. Filtra explicitamente clinic_id.
   await db.query(
     `UPDATE omni.automation_execution_log
         SET status      = $2,
@@ -377,25 +380,30 @@ async function updateLog(
             recipient   = COALESCE($5, recipient),
             channel     = COALESCE($6::omni.channel_type, channel),
             executed_at = NOW()
-      WHERE id = $1`,
+      WHERE id = $1 AND clinic_id = $7`,
     [
       executionLogId, status,
       details.skipReason ?? null,
       details.failReason ?? null,
       details.recipient  ?? null,
       details.channel    ?? null,
+      clinicId,
     ],
   );
 
   if (status === 'sent') {
+    // SEC-W: subquery valida que automation pertence à mesma clínica,
+    // bloqueando incremento de run_count em automation alheia.
     await db.query(
       `UPDATE omni.automations
           SET run_count   = run_count + 1,
               last_run_at = NOW()
-        WHERE id = (
-          SELECT automation_id FROM omni.automation_execution_log WHERE id = $1
-        )`,
-      [executionLogId],
+        WHERE clinic_id = $2
+          AND id = (
+            SELECT automation_id FROM omni.automation_execution_log
+             WHERE id = $1 AND clinic_id = $2
+          )`,
+      [executionLogId, clinicId],
     );
   }
 }
@@ -428,12 +436,12 @@ export function buildAutomationsProcessor(deps: AutomationsDeps) {
     // 2. Carrega automação (pode ter sido desativada após enqueue)
     const auto = await loadAutomation(deps.db, clinicId, automationId);
     if (!auto) {
-      await updateLog(deps.db, executionLogId, 'skipped', { skipReason: 'automation_not_found' });
+      await updateLog(deps.db, clinicId, executionLogId, 'skipped', { skipReason: 'automation_not_found' });
       log.warn('automation: automation record not found');
       return;
     }
     if (!auto.is_active) {
-      await updateLog(deps.db, executionLogId, 'skipped', { skipReason: 'automation_deactivated' });
+      await updateLog(deps.db, clinicId, executionLogId, 'skipped', { skipReason: 'automation_deactivated' });
       log.info('automation: deactivated since enqueue — skipped');
       return;
     }
@@ -441,7 +449,7 @@ export function buildAutomationsProcessor(deps: AutomationsDeps) {
     // 3. Carrega dados da entidade (verificação em runtime — estado pode ter mudado)
     const entityData = await loadEntityData(deps.db, clinicId, entityType, entityId);
     if (!entityData) {
-      await updateLog(deps.db, executionLogId, 'skipped', {
+      await updateLog(deps.db, clinicId, executionLogId, 'skipped', {
         skipReason: `entity_not_found: ${entityType}:${entityId}`,
       });
       log.warn({ entityType, entityId }, 'automation: entity not found — skipped');
@@ -451,7 +459,7 @@ export function buildAutomationsProcessor(deps: AutomationsDeps) {
     // 4. Avalia condições no momento do disparo (não no enqueue)
     const { pass, failedCondition } = evaluateConditions(auto.conditions, entityData);
     if (!pass) {
-      await updateLog(deps.db, executionLogId, 'skipped', {
+      await updateLog(deps.db, clinicId, executionLogId, 'skipped', {
         skipReason: `condition_failed: ${failedCondition}`,
       });
       log.info({ failedCondition }, 'automation: condition not met — skipped');
@@ -471,7 +479,7 @@ export function buildAutomationsProcessor(deps: AutomationsDeps) {
         log,
       );
 
-      await updateLog(deps.db, executionLogId, 'sent', {
+      await updateLog(deps.db, clinicId, executionLogId, 'sent', {
         recipient,
         channel: auto.channel_type,
       });
@@ -484,7 +492,7 @@ export function buildAutomationsProcessor(deps: AutomationsDeps) {
       // Tenta registrar falha — se for a última tentativa o BullMQ não vai mais retentar
       const isLastAttempt = job.attemptsMade >= (job.opts.attempts ?? 3) - 1;
       if (isLastAttempt) {
-        await updateLog(deps.db, executionLogId, 'failed', { failReason: reason });
+        await updateLog(deps.db, clinicId, executionLogId, 'failed', { failReason: reason });
         log.error({ automationId, executionLogId }, 'automation: max retries reached — moved to DLQ state');
       }
 

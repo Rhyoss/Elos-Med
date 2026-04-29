@@ -93,6 +93,13 @@ GRANT SELECT ON audit.access_log    TO dermaos_readonly, dermaos_admin;
 ALTER TABLE audit.domain_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit.access_log    ENABLE ROW LEVEL SECURITY;
 
+-- FORCE garante que ninguém (nem o owner) escapa das policies, exceto roles
+-- com BYPASSRLS — i.e., apenas dermaos_authn (funções SD) e dermaos_admin
+-- (manutenção operacional explícita) conseguem escrever sem clinic_id setado.
+ALTER TABLE audit.domain_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE audit.access_log    FORCE ROW LEVEL SECURITY;
+
+-- ── SELECT: leitor BI vê apenas o tenant do GUC ────────────────────────────
 CREATE POLICY audit_events_isolation ON audit.domain_events
   FOR SELECT TO dermaos_readonly
   USING (clinic_id = shared.current_clinic_id());
@@ -101,11 +108,31 @@ CREATE POLICY audit_access_isolation ON audit.access_log
   FOR SELECT TO dermaos_readonly
   USING (clinic_id = shared.current_clinic_id());
 
--- Insert sem restrição de clinic_id (a app já garante o valor correto)
+-- ── INSERT: clinic_id da linha PRECISA bater com o GUC da sessão ───────────
+-- Sem isso, app/worker poderiam logar audits forjando clinic_id (CWE-639).
+-- Como `withClinicContext` (em apps/api/src/db/client.ts) sempre faz
+-- `SET LOCAL app.current_clinic_id = $clinicId`, e o eventBus.publish
+-- abre seu próprio scope quando ALS está vazio (setImmediate, worker), o
+-- check funciona em todos os caminhos legítimos.
 CREATE POLICY audit_events_insert ON audit.domain_events
   FOR INSERT TO dermaos_app, dermaos_worker
-  WITH CHECK (true);
+  WITH CHECK (clinic_id = shared.current_clinic_id());
 
 CREATE POLICY audit_access_insert ON audit.access_log
   FOR INSERT TO dermaos_app, dermaos_worker
+  WITH CHECK (clinic_id = shared.current_clinic_id());
+
+-- ── INSERT: dermaos_authn (funções SD pré-tenant) inserem audits de login ──
+-- Funções SD owned por dermaos_authn (BYPASSRLS) podem precisar escrever
+-- audits do fluxo de login — autenticação acontece antes de o GUC estar
+-- setado. Tratamos como caminho de exceção bem documentado.
+CREATE POLICY audit_events_insert_authn ON audit.domain_events
+  FOR INSERT TO dermaos_authn
   WITH CHECK (true);
+
+CREATE POLICY audit_access_insert_authn ON audit.access_log
+  FOR INSERT TO dermaos_authn
+  WITH CHECK (true);
+
+GRANT INSERT ON audit.domain_events TO dermaos_authn;
+GRANT INSERT ON audit.access_log    TO dermaos_authn;

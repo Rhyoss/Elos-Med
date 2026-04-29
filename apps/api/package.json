@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "migrate": "tsx src/db/migrate.ts",
-    "migrate:rollback": "tsx src/db/migrate.ts rollback"
+    "migrate:rollback": "tsx src/db/migrate.ts rollback",
+    "smoke:rls": "tsx src/__tests__/rls-isolation.smoke.ts",
+    "backfill:name-tokens":     "tsx src/scripts/rebuild-name-tokens.ts",
+    "backfill:channels-config": "tsx src/scripts/encrypt-channels-config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.33.0",

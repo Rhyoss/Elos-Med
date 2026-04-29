@@ -29,9 +29,13 @@ export const emailChannel: IMessageChannel = {
 
   verifyWebhookSignature(channel, rawBody, headers): boolean {
     const cfg = readConfig(channel);
+    // SEC-03 (fail-closed): rejeita sem signingKey, mesmo em modo mock.
     if (!cfg.signingKey) {
-      logger.warn({ channelId: channel.id }, 'Email webhook signing key not configured');
-      return cfg.mode !== 'live';
+      logger.warn(
+        { channelId: channel.id, channelType: 'email' },
+        'Email webhook rejected — signingKey missing (SEC-03)',
+      );
+      return false;
     }
 
     // SendGrid: X-Twilio-Email-Event-Webhook-Signature (ECDSA) não suportamos aqui.

@@ -31,13 +31,29 @@ const envSchema = z.object({
   OLLAMA_BASE_URL: z.string().url().default('http://localhost:11434'),
 
   // Auth
+  // SEC-06: JWT_SECRET (access) e JWT_REFRESH_SECRET DEVEM ser distintos.
+  // SEC-07: COOKIE_SECRET é separado dos dois para evitar key reuse.
   JWT_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
+  COOKIE_SECRET: z.string().min(32),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
 
+  // SEC-08: lista CSV de origins permitidos em produção, ex.:
+  // "https://app.dermaos.com.br,https://portal.dermaos.com.br"
+  CORS_ORIGINS: z.string().default(''),
+
+  // SEC-21: URL pública para construir links em emails (reset, invite, etc.)
+  APP_URL: z.string().url().default('http://localhost:3000'),
+
   // Criptografia AES-256 (64 chars hex = 32 bytes)
   ENCRYPTION_KEY: z.string().length(64).regex(/^[0-9a-f]+$/i),
+
+  // SEC-13: blind index key — chave HMAC-SHA256 separada para gerar
+  // tokens determinísticos de busca em campos cifrados (ex.: nome do
+  // paciente). Distinta da ENCRYPTION_KEY para que comprometer uma não
+  // comprometa o outro.
+  SEARCH_INDEX_KEY: z.string().length(64).regex(/^[0-9a-f]+$/i),
 
   // Claude API (dados não-PHI)
   CLAUDE_API_KEY: z.string().startsWith('sk-ant-').optional(),
@@ -65,7 +81,16 @@ function parseEnv() {
     throw new Error(`Invalid environment variables:\n${message}`);
   }
 
-  return result.data;
+  // SEC-06/07: refusa segredos repetidos
+  const data = result.data;
+  if (data.JWT_SECRET === data.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_SECRET e JWT_REFRESH_SECRET devem ser distintos (SEC-06)');
+  }
+  if (data.JWT_SECRET === data.COOKIE_SECRET || data.JWT_REFRESH_SECRET === data.COOKIE_SECRET) {
+    throw new Error('COOKIE_SECRET deve ser distinto dos JWT secrets (SEC-07)');
+  }
+
+  return data;
 }
 
 // Singleton — parse once at startup

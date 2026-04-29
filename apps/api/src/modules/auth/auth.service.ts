@@ -59,28 +59,56 @@ export async function registerUser(
   return result.rows[0]!;
 }
 
+// SEC-14: refresh tokens indexados por (userId, jti) — múltiplas sessões
+// por usuário (mobile + desktop), cada uma com TTL próprio. Rotação é
+// pontual: revogar o jti expirado não derruba as outras sessões.
+
+function rtKey(userId: string, jti: string): string {
+  return `rt:${userId}:${jti}`;
+}
+
 export async function storeRefreshToken(
   redis: Redis,
   userId: string,
+  jti: string,
   token: string,
 ): Promise<void> {
-  await redis.set(`rt:${userId}`, hashToken(token), 'EX', REFRESH_TTL_SEC);
+  await redis.set(rtKey(userId, jti), hashToken(token), 'EX', REFRESH_TTL_SEC);
+  // Set de jtis ativos do usuário para listar/revogar sessões.
+  await redis.sadd(`rt_index:${userId}`, jti);
+  await redis.expire(`rt_index:${userId}`, REFRESH_TTL_SEC);
 }
 
 export async function validateAndRevokeRefreshToken(
   redis: Redis,
   userId: string,
+  jti: string,
   token: string,
 ): Promise<boolean> {
-  const stored = await redis.get(`rt:${userId}`);
+  const stored = await redis.get(rtKey(userId, jti));
   if (!stored || stored !== hashToken(token)) return false;
-  // Revoke immediately (rotation — cannot reuse)
-  await redis.del(`rt:${userId}`);
+  // Rotação atômica — token usado não pode ser reapresentado.
+  await redis.del(rtKey(userId, jti));
+  await redis.srem(`rt_index:${userId}`, jti);
   return true;
 }
 
-export async function revokeRefreshToken(redis: Redis, userId: string): Promise<void> {
-  await redis.del(`rt:${userId}`);
+export async function revokeRefreshToken(
+  redis: Redis,
+  userId: string,
+  jti?: string,
+): Promise<void> {
+  if (jti) {
+    await redis.del(rtKey(userId, jti));
+    await redis.srem(`rt_index:${userId}`, jti);
+    return;
+  }
+  // Sem jti = revogação global (logout-all-devices, password reset).
+  const all = await redis.smembers(`rt_index:${userId}`);
+  if (all.length > 0) {
+    await redis.del(...all.map((j) => rtKey(userId, j)));
+  }
+  await redis.del(`rt_index:${userId}`);
 }
 
 export async function changePassword(
@@ -91,6 +119,8 @@ export async function changePassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<void> {
+  // SEC-02: chamada DENTRO de procedure protegida — `db` aqui já é o proxy
+  // scoped (RLS aplicada). O filtro `clinic_id = $2` adiciona defense in depth.
   const result = await db.query<{ password_hash: string }>(
     'SELECT password_hash FROM shared.users WHERE id = $1 AND clinic_id = $2 AND is_active = TRUE',
     [userId, clinicId],
@@ -106,19 +136,17 @@ export async function changePassword(
 
   const newHash = await hashPassword(newPassword);
 
-  await db.query(
-    `UPDATE shared.users
-     SET password_hash = $1, password_changed_at = NOW(), failed_login_attempts = 0
-     WHERE id = $2`,
-    [newHash, userId],
-  );
+  // SEC-02: a função SD `apply_password_reset` reseta hash, lockout e
+  // failed_attempts atomicamente — mesmo caminho de resetPassword.
+  await db.query(`SELECT shared.apply_password_reset($1, $2)`, [userId, newHash]);
 
   await revokeRefreshToken(redis, userId);
 }
 
 export async function forgotPassword(db: Pool, redis: Redis, email: string): Promise<void> {
+  // SEC-02: rota pré-tenant — usa função SECURITY DEFINER.
   const result = await db.query<{ id: string; name: string }>(
-    'SELECT id, name FROM shared.users WHERE email = $1 AND is_active = TRUE LIMIT 1',
+    `SELECT * FROM shared.find_user_id_by_email($1)`,
     [email],
   );
 
@@ -130,10 +158,16 @@ export async function forgotPassword(db: Pool, redis: Redis, email: string): Pro
 
   await redis.set(`pwd_reset:${tokenHash}`, result.rows[0].id, 'EX', RESET_TTL_SEC);
 
-  // TODO: integrar com serviço de email (SMTP / SendGrid)
-  if (process.env['NODE_ENV'] !== 'production') {
-    // eslint-disable-next-line no-console
-    console.log(`[DEV] Reset token para ${email}: ${token}`);
+  // SEC-19: NUNCA logamos o token em texto plano. Em dev, configurar
+  // mailer (MailHog/Mailpit) para inspecionar o email. O token é hashado
+  // no Redis (TTL 15 min). Falha de email é silenciosa — não vaza
+  // existência do email.
+  const resetUrl = `${process.env['APP_URL'] ?? 'http://localhost:3000'}/auth/reset?token=${encodeURIComponent(token)}`;
+  try {
+    const { sendPasswordResetEmail } = await import('../../lib/mailer.js');
+    await sendPasswordResetEmail(email, '', resetUrl);
+  } catch {
+    // ignore
   }
 }
 
@@ -152,12 +186,8 @@ export async function resetPassword(
 
   const newHash = await hashPassword(newPassword);
 
-  await db.query(
-    `UPDATE shared.users
-     SET password_hash = $1, password_changed_at = NOW(), failed_login_attempts = 0, locked_until = NULL
-     WHERE id = $2`,
-    [newHash, userId],
-  );
+  // SEC-02: rota pré-tenant — usa função SECURITY DEFINER.
+  await db.query(`SELECT shared.apply_password_reset($1, $2)`, [userId, newHash]);
 
   await redis.del(`pwd_reset:${tokenHash}`);
   await revokeRefreshToken(redis, userId);

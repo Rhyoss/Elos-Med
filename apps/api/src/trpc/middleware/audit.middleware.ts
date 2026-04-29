@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { t } from '../trpc.js';
-import { db } from '../../db/client.js';
+import { withClinicContext } from '../../db/client.js';
 import { logger } from '../../lib/logger.js';
 
 const SENSITIVE_KEYS = new Set([
@@ -46,34 +46,43 @@ export const auditMutation = t.middleware(async ({ ctx, path, type, input, next 
   const durationMs = Date.now() - startedAt;
   const action = inferAction(path, result.ok);
 
+  // SEC-02: capturar dados localmente antes do setImmediate quebrar o ALS.
+  const clinicId = ctx.clinicId;
+  const userId   = ctx.user.sub;
+  const ip       = ctx.req.ip;
+  const ua       = ctx.req.headers['user-agent'];
+  const aggregate = path.split('.')[0] ?? 'unknown';
+  const maskedInput = maskSensitive(input);
+  const eventType = path.replace(/\./g, '_').replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+
   setImmediate(async () => {
     try {
-      const aggregate = path.split('.')[0] ?? 'unknown';
-      const maskedInput = maskSensitive(input);
-
-      await db.query(
-        `INSERT INTO audit.domain_events
-           (clinic_id, aggregate_type, aggregate_id, event_type, payload, metadata)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          ctx.clinicId,
-          aggregate,
-          ctx.user?.sub ?? 'unknown',
-          // Converte path tRPC para formato event_type compatível com CHECK constraint
-          path.replace(/\./g, '_').replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, ''),
-          JSON.stringify({ input: maskedInput, ok: result.ok }),
-          JSON.stringify({
-            user_id: ctx.user?.sub,
-            clinic_id: ctx.clinicId,
-            ip: ctx.req.ip,
-            user_agent: ctx.req.headers['user-agent'],
-            correlation_id: correlationId,
-            duration_ms: durationMs,
-            path,
-            action,
-          }),
-        ],
-      );
+      // Abre uma transação curta com SET LOCAL app.current_clinic_id — RLS
+      // aplica corretamente o INSERT em audit.domain_events.
+      await withClinicContext(clinicId, async (client) => {
+        await client.query(
+          `INSERT INTO audit.domain_events
+             (clinic_id, aggregate_type, aggregate_id, event_type, payload, metadata)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            clinicId,
+            aggregate,
+            userId,
+            eventType,
+            JSON.stringify({ input: maskedInput, ok: result.ok }),
+            JSON.stringify({
+              user_id: userId,
+              clinic_id: clinicId,
+              ip,
+              user_agent: ua,
+              correlation_id: correlationId,
+              duration_ms: durationMs,
+              path,
+              action,
+            }),
+          ],
+        );
+      });
     } catch (err) {
       // Falha no audit nunca quebra a operação principal
       logger.error({ err, path }, 'Audit log write failed');
@@ -92,23 +101,24 @@ export const auditPHIAccess = t.middleware(async ({ ctx, path, next }) => {
 
   if (!ctx.user || !ctx.clinicId) return result;
 
+  // SEC-02: capturar antes do setImmediate.
+  const clinicId    = ctx.clinicId;
+  const userId      = ctx.user.sub;
+  const ip          = ctx.req.ip;
+  const ua          = ctx.req.headers['user-agent'] ?? null;
+  const resourceType = path.split('.')[0] ?? 'unknown';
+  const action      = result.ok ? 'read' : 'error';
+
   setImmediate(async () => {
     try {
-      await db.query(
-        `INSERT INTO audit.access_log
-           (clinic_id, user_id, resource_type, resource_id, action, ip_address, user_agent, request_path)
-         VALUES ($1, $2, $3, $4, $5, $6::inet, $7, $8)`,
-        [
-          ctx.clinicId,
-          ctx.user?.sub,
-          path.split('.')[0] ?? 'unknown',
-          ctx.user?.sub ?? 'unknown',
-          result.ok ? 'read' : 'error',
-          ctx.req.ip,
-          ctx.req.headers['user-agent'] ?? null,
-          path,
-        ],
-      );
+      await withClinicContext(clinicId, async (client) => {
+        await client.query(
+          `INSERT INTO audit.access_log
+             (clinic_id, user_id, resource_type, resource_id, action, ip_address, user_agent, request_path)
+           VALUES ($1, $2, $3, $4, $5, $6::inet, $7, $8)`,
+          [clinicId, userId, resourceType, userId, action, ip, ua, path],
+        );
+      });
     } catch (err) {
       logger.error({ err, path }, 'PHI access log write failed');
     }

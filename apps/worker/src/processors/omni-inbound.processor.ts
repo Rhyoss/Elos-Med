@@ -207,27 +207,28 @@ async function persistInbound(
 
     // 5. Atualiza conversa se já existia
     if (!isNewConversation) {
+      // SEC-W: defesa em profundidade — `dermaos_worker` tem policy USING true.
       await client.query(
         `UPDATE omni.conversations
             SET last_message_at      = NOW(),
                 last_message_preview = $2,
                 unread_count         = unread_count + 1,
                 updated_at           = NOW()
-          WHERE id = $1`,
-        [conversationId, makePreview(sanitizedContent ?? '[mídia]')],
+          WHERE id = $1 AND clinic_id = $3`,
+        [conversationId, makePreview(sanitizedContent ?? '[mídia]'), clinicId],
       );
     }
 
-    // 6. Contato: last_contacted_at
+    // 6. Contato: last_contacted_at — SEC-W defesa em profundidade
     await client.query(
-      `UPDATE omni.contacts SET last_contacted_at = NOW() WHERE id = $1`,
-      [contactId],
+      `UPDATE omni.contacts SET last_contacted_at = NOW() WHERE id = $1 AND clinic_id = $2`,
+      [contactId, clinicId],
     );
 
-    // 7. Nome do contato para o payload de realtime
+    // 7. Nome do contato para o payload de realtime — SEC-W defesa em profundidade
     const contactRow = await client.query<{ name: string | null }>(
-      `SELECT name FROM omni.contacts WHERE id = $1`,
-      [contactId],
+      `SELECT name FROM omni.contacts WHERE id = $1 AND clinic_id = $2`,
+      [contactId, clinicId],
     );
 
     return {

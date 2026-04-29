@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../../trpc/trpc.js';
@@ -30,6 +31,38 @@ const COOKIE_OPTS_BASE = {
   sameSite: 'lax' as const,
 };
 
+/**
+ * Helper para acessar os 3 namespaces JWT registrados no bootstrap
+ * (SEC-06/21): `access`, `refresh`, `patient`. Cada um tem seu próprio
+ * segredo + audience.
+ */
+type JwtNamespace = 'access' | 'refresh' | 'patient';
+type JwtNamespaceAPI = {
+  sign:   (payload: Record<string, unknown>, opts?: Record<string, unknown>) => string;
+  verify: <T>(token: string) => T;
+};
+
+function serverJwt(ctx: { req: { server: unknown } }, ns: JwtNamespace): JwtNamespaceAPI {
+  const server = ctx.req.server as Record<JwtNamespace, JwtNamespaceAPI>;
+  return server[ns];
+}
+
+// SEC-11: verifica um hash dummy de mesmo custo argon2 para uniformizar
+// timing entre o caso "user existe" e "user não existe / invite pendente".
+// O hash é gerado uma vez e reusado.
+const DUMMY_PASSWORD = 'never-matched-' + crypto.randomBytes(16).toString('hex');
+let DUMMY_HASH_PROMISE: Promise<string> | null = null;
+async function dummyHash(): Promise<string> {
+  if (!DUMMY_HASH_PROMISE) {
+    DUMMY_HASH_PROMISE = (await import('./auth.service.js')).hashPassword(DUMMY_PASSWORD);
+  }
+  return DUMMY_HASH_PROMISE;
+}
+async function dummyPasswordCheck(): Promise<void> {
+  const { verifyPassword: vp } = await import('./auth.service.js');
+  await vp(await dummyHash(), 'never-matches').catch(() => undefined);
+}
+
 function setAuthCookies(
   res: import('fastify').FastifyReply,
   accessToken: string,
@@ -58,19 +91,18 @@ export const authRouter = router({
     .mutation(async ({ input, ctx }) => {
       const { email, password } = input;
 
+      // SEC-02: rota pré-tenant — usa função SECURITY DEFINER que pertence a
+      // `dermaos_authn` (BYPASSRLS). Único caminho permitido para ler
+      // shared.users sem clinic_id no contexto.
       const result = await ctx.db.query<{
         id: string; clinic_id: string; name: string; email: string;
-        password_hash: string; role: string; is_active: boolean;
+        password_hash: string | null; password_version: number;
+        is_invite_pending: boolean;
+        role: string; is_active: boolean;
         failed_login_attempts: number; locked_until: string | null;
         clinic_slug: string; clinic_active: boolean; clinic_name: string;
       }>(
-        `SELECT u.id, u.clinic_id, u.name, u.email, u.password_hash, u.role,
-                u.is_active, u.failed_login_attempts, u.locked_until,
-                c.slug AS clinic_slug, c.name AS clinic_name, c.is_active AS clinic_active
-         FROM shared.users u
-         JOIN shared.clinics c ON c.id = u.clinic_id
-         WHERE u.email = $1
-         LIMIT 1`,
+        `SELECT * FROM shared.find_user_for_login($1)`,
         [email],
       );
 
@@ -80,7 +112,14 @@ export const authRouter = router({
         message: 'Email ou senha inválidos',
       });
 
-      if (!user) throw invalidCredentials;
+      // SEC-11: trata user-not-found, invite-pending e password-hash-null
+      // como o MESMO erro (anti-enumeração + anti-oracle).
+      // Para uniformizar tempo de resposta com o caminho válido, executamos
+      // uma verificação argon2 dummy no caso falho.
+      if (!user || user.is_invite_pending || !user.password_hash) {
+        await dummyPasswordCheck();
+        throw invalidCredentials;
+      }
 
       if (!user.is_active || !user.clinic_active) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Conta desativada' });
@@ -100,15 +139,8 @@ export const authRouter = router({
 
       if (!passwordValid) {
         await ctx.db.query(
-          `UPDATE shared.users
-           SET failed_login_attempts = failed_login_attempts + 1,
-               locked_until = CASE
-                 WHEN failed_login_attempts + 1 >= 5
-                 THEN NOW() + INTERVAL '30 minutes'
-                 ELSE locked_until
-               END
-           WHERE id = $1`,
-          [user.id],
+          `SELECT * FROM shared.register_login_failure($1, $2)`,
+          [user.id, ctx.req.ip],
         );
 
         if (user.failed_login_attempts + 1 >= 5) {
@@ -121,10 +153,7 @@ export const authRouter = router({
       }
 
       await ctx.db.query(
-        `UPDATE shared.users
-         SET failed_login_attempts = 0, locked_until = NULL,
-             last_login_at = NOW(), last_login_ip = $2
-         WHERE id = $1`,
+        `SELECT shared.register_login_success($1, $2)`,
         [user.id, ctx.req.ip],
       );
 
@@ -136,13 +165,13 @@ export const authRouter = router({
         name: user.name,
       };
 
-      const accessToken = ctx.req.server.jwt.sign(payload, { expiresIn: '15m' });
-      const refreshToken = ctx.req.server.jwt.sign(
-        { sub: user.id, type: 'refresh' },
-        { expiresIn: '7d' },
-      );
+      // SEC-06: cada token é assinado pelo seu próprio plugin (chaves
+      // distintas + audience distinta). SEC-14: jti único por sessão.
+      const jti = crypto.randomUUID();
+      const accessToken  = serverJwt(ctx, 'access').sign({ ...payload, jti });
+      const refreshToken = serverJwt(ctx, 'refresh').sign({ sub: user.id, jti });
 
-      await storeRefreshToken(ctx.redis, user.id, refreshToken);
+      await storeRefreshToken(ctx.redis, user.id, jti, refreshToken);
       setAuthCookies(ctx.res, accessToken, refreshToken);
 
       await eventBus.publish('user.login', user.clinic_id, user.id, {}, {
@@ -192,28 +221,31 @@ export const authRouter = router({
       throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Refresh token ausente' });
     }
 
-    let decoded: { sub: string; type?: string };
+    // SEC-06: refresh token usa segredo PRÓPRIO + audience distinta
+    // (`dermaos-refresh`). Acesso tokens NÃO podem ser reapresentados aqui.
+    let decoded: { sub: string; jti?: string };
     try {
-      decoded = ctx.req.server.jwt.verify<{ sub: string; type: string }>(refreshToken);
+      decoded = serverJwt(ctx, 'refresh').verify<{ sub: string; jti: string }>(refreshToken);
     } catch {
       throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Refresh token inválido' });
     }
 
-    if (decoded.type !== 'refresh') {
-      throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Token inválido' });
+    if (!decoded.jti) {
+      throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Token sem jti' });
     }
 
-    const valid = await validateAndRevokeRefreshToken(ctx.redis, decoded.sub, refreshToken);
+    const valid = await validateAndRevokeRefreshToken(ctx.redis, decoded.sub, decoded.jti, refreshToken);
     if (!valid) {
       clearAuthCookies(ctx.res);
       throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Refresh token expirado ou já utilizado' });
     }
 
+    // SEC-02: pré-tenant — usa função SECURITY DEFINER.
     const userResult = await ctx.db.query<{
       id: string; clinic_id: string; name: string; email: string;
       role: string; is_active: boolean;
     }>(
-      'SELECT id, clinic_id, name, email, role, is_active FROM shared.users WHERE id = $1',
+      `SELECT * FROM shared.find_user_for_refresh($1)`,
       [decoded.sub],
     );
 
@@ -231,20 +263,23 @@ export const authRouter = router({
       name: user.name,
     };
 
-    const newAccessToken = ctx.req.server.jwt.sign(payload, { expiresIn: '15m' });
-    const newRefreshToken = ctx.req.server.jwt.sign(
-      { sub: user.id, type: 'refresh' },
-      { expiresIn: '7d' },
-    );
+    // SEC-14: rotação de jti em cada refresh — refresh token reutilizado é
+    // rejeitado (validateAndRevokeRefreshToken já invalidou o antigo).
+    const newJti = crypto.randomUUID();
+    const newAccessToken  = serverJwt(ctx, 'access').sign({ ...payload, jti: newJti });
+    const newRefreshToken = serverJwt(ctx, 'refresh').sign({ sub: user.id, jti: newJti });
 
-    await storeRefreshToken(ctx.redis, user.id, newRefreshToken);
+    await storeRefreshToken(ctx.redis, user.id, newJti, newRefreshToken);
     setAuthCookies(ctx.res, newAccessToken, newRefreshToken);
 
     return { ok: true };
   }),
 
   logout: protectedProcedure.mutation(async ({ ctx }) => {
-    await revokeRefreshToken(ctx.redis, ctx.user.sub);
+    // SEC-14: logout do dispositivo atual (jti vem do access token).
+    // Outras sessões ativas do usuário continuam válidas.
+    const jti = (ctx.user as { jti?: string }).jti;
+    await revokeRefreshToken(ctx.redis, ctx.user.sub, jti);
     clearAuthCookies(ctx.res);
 
     await eventBus.publish('user.logout', ctx.clinicId!, ctx.user.sub, {}, {
@@ -252,6 +287,17 @@ export const authRouter = router({
       ip: ctx.req.ip,
     });
 
+    return { success: true };
+  }),
+
+  // SEC-14: logout em TODOS os dispositivos do usuário.
+  logoutAllDevices: protectedProcedure.mutation(async ({ ctx }) => {
+    await revokeRefreshToken(ctx.redis, ctx.user.sub); // sem jti = revoga tudo
+    clearAuthCookies(ctx.res);
+    await eventBus.publish('user.logout', ctx.clinicId!, ctx.user.sub, { allDevices: true }, {
+      userId: ctx.user.sub,
+      ip: ctx.req.ip,
+    });
     return { success: true };
   }),
 

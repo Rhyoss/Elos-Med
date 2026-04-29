@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import crypto from 'node:crypto';
-import { db } from '../db/client.js';
+import { db, getScopedClient, withClinicContext } from '../db/client.js';
 import { logger } from '../lib/logger.js';
 import type { DomainEvent, DomainEventType, EventPayloads } from './event-types.js';
 import { EVENT_AGGREGATE_MAP } from './event-types.js';
@@ -30,21 +30,30 @@ class DomainEventBus extends EventEmitter {
       occurredAt: new Date(),
     };
 
-    // Persistência síncrona antes de emitir — garante rastreabilidade mesmo que handler falhe
+    // SEC-02: o INSERT em audit.domain_events precisa de RLS scope. Se já
+    // estamos dentro de `withClinicScope` (procedure tRPC), usamos o client
+    // scoped. Senão (chamado de setImmediate ou worker), abrimos um scope
+    // próprio com o `clinicId` recebido.
+    const insertSql = `INSERT INTO audit.domain_events
+        (clinic_id, aggregate_type, aggregate_id, event_type, payload, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6)`;
+    const insertParams = [
+      event.clinicId,
+      event.aggregateType,
+      event.aggregateId,
+      event.type,
+      JSON.stringify(event.payload),
+      JSON.stringify(event.metadata),
+    ];
+
     try {
-      await db.query(
-        `INSERT INTO audit.domain_events
-           (clinic_id, aggregate_type, aggregate_id, event_type, payload, metadata)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          event.clinicId,
-          event.aggregateType,
-          event.aggregateId,
-          event.type,
-          JSON.stringify(event.payload),
-          JSON.stringify(event.metadata),
-        ],
-      );
+      if (getScopedClient()) {
+        await db.query(insertSql, insertParams);
+      } else {
+        await withClinicContext(clinicId, async (client) => {
+          await client.query(insertSql, insertParams);
+        });
+      }
     } catch (err) {
       logger.error({ err, eventType: type, aggregateId }, 'Failed to persist domain event');
     }

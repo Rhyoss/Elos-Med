@@ -4,6 +4,7 @@ import { logger } from '../../lib/logger.js';
 import { omniInboundQueue } from '../../jobs/queues.js';
 import type { OmniInboundJob } from '../../jobs/queues.js';
 import { getProviderDriver } from './channels/index.js';
+import { hydrateChannel } from './channels/channel-config.js';
 import type { ChannelRow } from './omni.types.js';
 
 /**
@@ -18,6 +19,10 @@ import type { ChannelRow } from './omni.types.js';
 /**
  * Localiza o canal pelo identificador externo (phone_number_id / page_id / bot_token).
  * Caso não encontre, devolve null — caller decide se 401 ou 404.
+ *
+ * SEC-02: webhooks são pré-tenant. Funções SECURITY DEFINER (owned por
+ * dermaos_authn) são o único caminho permitido para tocar omni.channels
+ * sem ter `app.current_clinic_id` no scope da request.
  */
 async function findChannelByExternalId(
   provider: 'whatsapp' | 'instagram' | 'telegram' | 'email',
@@ -36,14 +41,11 @@ async function findChannelByExternalId(
     : 'email';
 
   const result = await db.query<ChannelRow>(
-    `SELECT * FROM omni.channels
-       WHERE type = $1::omni.channel_type
-         AND is_active = TRUE
-         AND config ->> $2 = $3
-       LIMIT 1`,
+    `SELECT * FROM omni.find_channel_by_config($1::omni.channel_type, $2, $3)`,
     [type, configKey, lookupValue],
   );
-  return result.rows[0] ?? null;
+  // SEC-23: decifra credenciais sensíveis em config (appSecret, botToken, ...)
+  return result.rows[0] ? hydrateChannel(result.rows[0]) : null;
 }
 
 /**
@@ -52,12 +54,10 @@ async function findChannelByExternalId(
  */
 async function findDefaultChannel(type: ChannelRow['type']): Promise<ChannelRow | null> {
   const result = await db.query<ChannelRow>(
-    `SELECT * FROM omni.channels
-       WHERE type = $1::omni.channel_type AND is_active = TRUE
-       ORDER BY created_at ASC LIMIT 1`,
+    `SELECT * FROM omni.find_default_channel($1::omni.channel_type)`,
     [type],
   );
-  return result.rows[0] ?? null;
+  return result.rows[0] ? hydrateChannel(result.rows[0]) : null;
 }
 
 async function logInvalidSignature(provider: string, req: FastifyRequest) {
@@ -70,30 +70,42 @@ async function logInvalidSignature(provider: string, req: FastifyRequest) {
 /* ── Registro das rotas ────────────────────────────────────────────────── */
 
 export async function registerOmniWebhookRoutes(app: FastifyInstance): Promise<void> {
-  // Fastify parseia JSON por padrão mas descarta o body bruto.
-  // Para verificação de assinatura, registramos um parser que preserva o raw buffer.
-  app.addContentTypeParser(
-    'application/json',
-    { parseAs: 'buffer' },
-    (req, body, done) => {
-      try {
-        (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body as Buffer;
-        if ((body as Buffer).length === 0) {
-          done(null, {});
-          return;
+  // SEC-22: o parser que preserva rawBody é registrado em um sub-plugin
+  // scoped. Sem o `register(...)` interno, o parser global afetaria
+  // TODAS as rotas JSON do app (incluindo tRPC), aumentando a superfície
+  // de exposição do rawBody. Aqui o parser só aplica dentro de
+  // `/api/v1/webhooks/*`.
+  await app.register(async (scoped) => {
+    scoped.addContentTypeParser(
+      'application/json',
+      { parseAs: 'buffer' },
+      (req, body, done) => {
+        try {
+          (req as FastifyRequest & { rawBody?: Buffer }).rawBody = body as Buffer;
+          if ((body as Buffer).length === 0) {
+            done(null, {});
+            return;
+          }
+          const parsed = JSON.parse((body as Buffer).toString('utf8'));
+          done(null, parsed);
+        } catch (err) {
+          done(err as Error, undefined);
         }
-        const parsed = JSON.parse((body as Buffer).toString('utf8'));
-        done(null, parsed);
-      } catch (err) {
-        done(err as Error, undefined);
-      }
-    },
-  );
+      },
+    );
+
+    await registerWebhookHandlers(scoped);
+  }, { prefix: '/api/v1/webhooks' });
+
+  logger.info('Omni webhook routes registered at /api/v1/webhooks/*');
+}
+
+async function registerWebhookHandlers(app: FastifyInstance): Promise<void> {
 
   /* ── WhatsApp ────────────────────────────────────────────────────────── */
 
   // GET handshake do Meta (verify token)
-  app.get('/api/v1/webhooks/whatsapp', async (req, reply) => {
+  app.get('/whatsapp', async (req, reply) => {
     const q = req.query as Record<string, string | undefined>;
     const mode  = q['hub.mode'];
     const token = q['hub.verify_token'];
@@ -103,10 +115,9 @@ export async function registerOmniWebhookRoutes(app: FastifyInstance): Promise<v
       return reply.status(400).send('Bad request');
     }
 
+    // SEC-02: pré-tenant — usa função SECURITY DEFINER.
     const result = await db.query<{ id: string }>(
-      `SELECT id FROM omni.channels
-         WHERE type = 'whatsapp' AND is_active = TRUE
-           AND config ->> 'verifyToken' = $1 LIMIT 1`,
+      `SELECT id FROM omni.find_channel_by_config('whatsapp'::omni.channel_type, 'verifyToken', $1)`,
       [token],
     );
     if (!result.rows[0]) {
@@ -115,13 +126,13 @@ export async function registerOmniWebhookRoutes(app: FastifyInstance): Promise<v
     return reply.status(200).send(challenge);
   });
 
-  app.post('/api/v1/webhooks/whatsapp', async (req, reply) => {
+  app.post('/whatsapp', async (req, reply) => {
     return handleWhatsAppWebhook(req, reply);
   });
 
   /* ── Instagram ───────────────────────────────────────────────────────── */
 
-  app.get('/api/v1/webhooks/instagram', async (req, reply) => {
+  app.get('/instagram', async (req, reply) => {
     const q = req.query as Record<string, string | undefined>;
     const mode  = q['hub.mode'];
     const token = q['hub.verify_token'];
@@ -131,10 +142,9 @@ export async function registerOmniWebhookRoutes(app: FastifyInstance): Promise<v
       return reply.status(400).send('Bad request');
     }
 
+    // SEC-02: pré-tenant — usa função SECURITY DEFINER.
     const result = await db.query<{ id: string }>(
-      `SELECT id FROM omni.channels
-         WHERE type = 'instagram' AND is_active = TRUE
-           AND config ->> 'verifyToken' = $1 LIMIT 1`,
+      `SELECT id FROM omni.find_channel_by_config('instagram'::omni.channel_type, 'verifyToken', $1)`,
       [token],
     );
     if (!result.rows[0]) {
@@ -143,23 +153,21 @@ export async function registerOmniWebhookRoutes(app: FastifyInstance): Promise<v
     return reply.status(200).send(challenge);
   });
 
-  app.post('/api/v1/webhooks/instagram', async (req, reply) => {
+  app.post('/instagram', async (req, reply) => {
     return handleInstagramWebhook(req, reply);
   });
 
   /* ── Telegram ────────────────────────────────────────────────────────── */
 
-  app.post('/api/v1/webhooks/telegram', async (req, reply) => {
+  app.post('/telegram', async (req, reply) => {
     return handleTelegramWebhook(req, reply);
   });
 
   /* ── Email (Mailgun/SendGrid/SMTP-webhook) ───────────────────────────── */
 
-  app.post('/api/v1/webhooks/email', async (req, reply) => {
+  app.post('/email', async (req, reply) => {
     return handleEmailWebhook(req, reply);
   });
-
-  logger.info('Omni webhook routes registered at /api/v1/webhooks/*');
 }
 
 /* ── Handlers ──────────────────────────────────────────────────────────── */

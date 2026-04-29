@@ -15,29 +15,39 @@ COMMENT ON FUNCTION shared.current_clinic_id() IS
   'Retorna o clinic_id da sessão atual. App deve SET app.current_clinic_id antes de queries.';
 
 -- ─── Roles de banco de dados ─────────────────────────────────────────────────
+--
+-- IMPORTANTE: as roles dermaos_app, dermaos_worker e dermaos_readonly são
+-- criadas em `000_app_roles.sh` (com NOSUPERUSER NOBYPASSRLS e senha vinda
+-- de POSTGRES_*_PASSWORD). Este script apenas:
+--   1. Cria a role administrativa (dermaos_admin) se necessária.
+--   2. Reaplica defensivamente os atributos das roles da aplicação
+--      (caso o ambiente tenha sido provisionado fora do entrypoint do Docker —
+--      ex.: Cloud SQL via Console com defaults indesejados).
+--   3. Concede permissões de schema e tabelas.
 
+-- Defensivo: garantir que NENHUMA role da aplicação tem SUPERUSER ou BYPASSRLS.
+-- Sem isso, RLS é totalmente ignorada (CWE-269).
 DO $$
+DECLARE
+  app_role TEXT;
 BEGIN
-  -- Role principal da aplicação (leitura/escrita com RLS ativo)
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'dermaos_app') THEN
-    CREATE ROLE dermaos_app LOGIN;
-  END IF;
-  -- Role somente leitura (relatórios, BI)
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'dermaos_readonly') THEN
-    CREATE ROLE dermaos_readonly LOGIN;
-  END IF;
-  -- Role do worker (jobs em background — acesso cross-clinic controlado)
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'dermaos_worker') THEN
-    CREATE ROLE dermaos_worker LOGIN;
-  END IF;
-  -- Role administrativo (sem RLS — apenas migrations e manutenção)
+  FOREACH app_role IN ARRAY ARRAY['dermaos_app', 'dermaos_worker', 'dermaos_readonly']
+  LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = app_role) THEN
+      EXECUTE format(
+        'ALTER ROLE %I NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE',
+        app_role
+      );
+    END IF;
+  END LOOP;
+
+  -- Role administrativa — apenas para migrations e manutenção.
+  -- Em Cloud SQL, esta role é o usuário com cloudsqlsuperuser provisionado
+  -- via Terraform/Console; aqui só criamos se ainda não existe (dev local).
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'dermaos_admin') THEN
-    CREATE ROLE dermaos_admin LOGIN;
+    CREATE ROLE dermaos_admin LOGIN CREATEDB CREATEROLE;
   END IF;
 END $$;
-
--- Senha dos roles definida via variável de ambiente no entrypoint da aplicação
--- As senhas reais são configuradas no init script do container
 
 -- ─── Permissões de schema ────────────────────────────────────────────────────
 
