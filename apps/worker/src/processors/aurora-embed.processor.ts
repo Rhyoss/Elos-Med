@@ -68,6 +68,8 @@ async function setStatus(
   errorMessage?: string | null,
 ): Promise<void> {
   await withClinicContext(db, clinicId, async (c) => {
+    // SEC-W: defesa em profundidade — `dermaos_worker` tem policy USING true,
+    // RLS sozinha não bloqueia cross-tenant. Filtra explicitamente clinic_id.
     await c.query(
       `UPDATE omni.ai_knowledge_base
           SET metadata = COALESCE(metadata, '{}'::jsonb)
@@ -76,8 +78,8 @@ async function setStatus(
                                  THEN jsonb_build_object('embedding_error', NULL)
                                  ELSE jsonb_build_object('embedding_error', $3::text) END,
               updated_at = NOW()
-        WHERE id = $1`,
-      [documentId, status, errorMessage ?? null],
+        WHERE id = $1 AND clinic_id = $4`,
+      [documentId, status, errorMessage ?? null, clinicId],
     );
   });
 }
@@ -88,9 +90,10 @@ async function loadContent(
   documentId: string,
 ): Promise<string | null> {
   return withClinicContext(db, clinicId, async (c) => {
+    // SEC-W: defesa em profundidade.
     const r = await c.query<{ content: string }>(
-      `SELECT content FROM omni.ai_knowledge_base WHERE id = $1 LIMIT 1`,
-      [documentId],
+      `SELECT content FROM omni.ai_knowledge_base WHERE id = $1 AND clinic_id = $2 LIMIT 1`,
+      [documentId, clinicId],
     );
     return r.rows[0]?.content ?? null;
   });
@@ -104,6 +107,7 @@ async function saveVector(
 ): Promise<void> {
   const literal = `[${vector.join(',')}]`;
   await withClinicContext(db, clinicId, async (c) => {
+    // SEC-W: defesa em profundidade.
     await c.query(
       `UPDATE omni.ai_knowledge_base
           SET embedding = $2::vector,
@@ -111,8 +115,8 @@ async function saveVector(
                           || jsonb_build_object('embedding_status', 'completed')
                           || jsonb_build_object('embedding_error', NULL),
               updated_at = NOW()
-        WHERE id = $1`,
-      [documentId, literal],
+        WHERE id = $1 AND clinic_id = $3`,
+      [documentId, literal, clinicId],
     );
   });
 }

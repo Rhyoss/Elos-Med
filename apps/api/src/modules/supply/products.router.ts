@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router } from '../../trpc/trpc.js';
 import { protectedProcedure } from '../../trpc/middleware/auth.middleware.js';
 import { requirePermission } from '../../trpc/middleware/rbac.middleware.js';
@@ -78,11 +79,32 @@ export const productsRouter = router({
       return searchProducts(input.query, ctx.clinicId!, input.page, input.perPage);
     }),
 
+  // SEC-04: presigned URL é derivada de productId (não de objectKey arbitrário).
+  // O objectKey é resolvido no banco com filtro por clinic_id, garantindo
+  // que o produto pertence ao tenant do solicitante (impede IDOR cross-tenant).
   photoUrl: protectedProcedure
     .use(requirePermission('supply', 'read'))
-    .input(z.object({ objectKey: z.string().min(1) }))
-    .query(async ({ input }) => {
-      const url = await presignGet(input.objectKey, PHOTO_URL_TTL_SECONDS, PRODUCT_IMAGES_BUCKET);
+    .input(z.object({ productId: z.string().uuid() }))
+    .query(async ({ input, ctx }): Promise<{ url: string | null }> => {
+      const r = await ctx.db.query<{ photo_object_key: string | null }>(
+        `SELECT photo_object_key
+           FROM supply.products
+          WHERE id = $1 AND clinic_id = $2 AND deleted_at IS NULL
+          LIMIT 1`,
+        [input.productId, ctx.clinicId!],
+      );
+      const product = r.rows[0];
+      if (!product) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Produto não encontrado.' });
+      }
+      if (!product.photo_object_key) {
+        return { url: null };
+      }
+      const url = await presignGet(
+        product.photo_object_key,
+        PHOTO_URL_TTL_SECONDS,
+        PRODUCT_IMAGES_BUCKET,
+      );
       return { url };
     }),
 });

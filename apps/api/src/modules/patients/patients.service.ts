@@ -115,12 +115,15 @@ export interface DuplicateGroup {
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
+// SEC-13: substituiu `name_search` plaintext por `name_search_tokens` (HMAC).
+import {
+  buildNameSearchTokens,
+  buildSearchQueryTokens,
+  normalizeForIndex,
+} from '../../lib/search-index.js';
+
 function normalizeForSearch(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
+  return normalizeForIndex(name);
 }
 
 function hashCpf(cpf: string, clinicId: string): string {
@@ -247,31 +250,35 @@ export async function createPatient(
 
     const nameEncrypted  = encrypt(data.name);
     const nameSearch     = normalizeForSearch(data.name);
+    const nameTokens     = buildNameSearchTokens(data.name); // SEC-13 blind index
     const cpfHash        = data.cpf ? hashCpf(data.cpf, clinicId) : null;
     const cpfEncrypted   = encryptOptional(data.cpf);
     const emailEncrypted = encryptOptional(data.email);
     const phoneEncrypted = encryptOptional(data.phone);
     const phoneSecEncrypted = encryptOptional(data.phoneSecondary);
 
+    // SEC-13: também gravamos `name_search_tokens` (HMAC). A coluna velha
+    // `name_search` é mantida durante a migração; futura migration drop dela
+    // após backfill (`pnpm tsx src/scripts/rebuild-name-tokens.ts`).
     const result = await client.query<PatientRow>(
       `INSERT INTO shared.patients (
-         clinic_id, name, name_search, cpf_hash, cpf_encrypted,
+         clinic_id, name, name_search, name_search_tokens, cpf_hash, cpf_encrypted,
          birth_date, gender, email_encrypted, phone_encrypted, phone_secondary_encrypted,
          address, blood_type, allergies, chronic_conditions, active_medications,
          source_channel, source_campaign, referred_by,
          portal_enabled, portal_email, internal_notes,
          created_by, status
        ) VALUES (
-         $1,  $2,  $3,  $4,  $5,
-         $6,  $7,  $8,  $9,  $10,
-         $11, $12, $13::text[], $14::text[], $15::text[],
-         $16, $17, $18,
-         $19, $20, $21,
-         $22, 'active'
+         $1,  $2,  $3,  $4::text[], $5,  $6,
+         $7,  $8,  $9,  $10, $11,
+         $12, $13, $14::text[], $15::text[], $16::text[],
+         $17, $18, $19,
+         $20, $21, $22,
+         $23, 'active'
        )
        RETURNING *`,
       [
-        clinicId, nameEncrypted, nameSearch, cpfHash, cpfEncrypted,
+        clinicId, nameEncrypted, nameSearch, nameTokens, cpfHash, cpfEncrypted,
         data.birthDate ?? null, data.gender ?? null, emailEncrypted, phoneEncrypted, phoneSecEncrypted,
         data.address ? JSON.stringify(data.address) : null,
         data.bloodType ?? null,
@@ -324,6 +331,9 @@ export async function updatePatient(
     if (data.name !== undefined) {
       addField('name',        encrypt(data.name));
       addField('name_search', normalizeForSearch(data.name));
+      // SEC-13: regenera tokens HMAC do blind index a cada update do nome.
+      setClauses.push(`name_search_tokens = $${idx++}::text[]`);
+      values.push(buildNameSearchTokens(data.name));
     }
     if (data.cpf !== undefined) {
       const newHash = data.cpf ? hashCpf(data.cpf, clinicId) : null;
@@ -403,14 +413,13 @@ export async function listPatients(
   clinicId: string,
 ): Promise<PaginatedPatients> {
   const offset  = (params.page - 1) * params.pageSize;
-  const search  = params.search ? `%${params.search.toLowerCase()}%` : null;
 
   const sortColumn: Record<string, string> = {
-    name:        'p.name_search',
+    name:        'p.created_at',  // SEC-13: ordenação por nome plaintext será removida; cair para created_at
     createdAt:   'p.created_at',
     lastVisitAt: 'p.last_visit_at',
   };
-  const orderBy = `${sortColumn[params.sortBy] ?? 'p.name_search'} ${params.sortDir === 'desc' ? 'DESC NULLS LAST' : 'ASC NULLS LAST'}`;
+  const orderBy = `${sortColumn[params.sortBy] ?? 'p.created_at'} ${params.sortDir === 'desc' ? 'DESC NULLS LAST' : 'ASC NULLS LAST'}`;
 
   const conditions: string[] = [
     'p.clinic_id = $1',
@@ -420,9 +429,13 @@ export async function listPatients(
   const values: unknown[] = [clinicId];
   let   idx               = 2;
 
-  if (search) {
-    conditions.push(`p.name_search ILIKE $${idx++}`);
-    values.push(search);
+  // SEC-13: busca por nome usa blind-index (HMAC tokens), não ILIKE plaintext.
+  if (params.search && params.search.trim().length >= 2) {
+    const tokens = buildSearchQueryTokens(params.search);
+    if (tokens.length > 0) {
+      conditions.push(`p.name_search_tokens && $${idx++}::text[]`);
+      values.push(tokens);
+    }
   }
   if (params.status) {
     conditions.push(`p.status = $${idx++}`);

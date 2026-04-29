@@ -46,28 +46,78 @@ async function bootstrap() {
     crossOriginEmbedderPolicy: false,
   });
 
+  // SEC-08: lista explícita de origins. Em produção, exige CORS_ORIGINS
+  // (CSV) — refuses regex aberto que aceita qualquer subdomínio.
+  const corsOrigins = env.NODE_ENV === 'development'
+    ? ['http://localhost:3000']
+    : env.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean);
+
+  if (env.NODE_ENV !== 'development' && corsOrigins.length === 0) {
+    throw new Error('CORS_ORIGINS obrigatório em produção (SEC-08)');
+  }
+
   await app.register(fastifyCors, {
-    origin: env.NODE_ENV === 'development'
-      ? ['http://localhost:3000']
-      : [/\.dermaos\.com\.br$/],
+    origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
+  // SEC-07: COOKIE_SECRET é distinto de JWT_SECRET
   await app.register(fastifyCookie, {
-    secret: env.JWT_SECRET,
+    secret: env.COOKIE_SECRET,
     hook: 'onRequest',
   });
 
+  // SEC-06: dois plugins JWT em namespaces separados — chaves distintas,
+  // rotacionáveis independentemente; access tokens não podem ser
+  // reapresentados como refresh tokens (e vice-versa) mesmo com
+  // adulteração do payload `type`.
   await app.register(fastifyJwt, {
+    namespace: 'access',
     secret: env.JWT_SECRET,
+    sign: {
+      iss:      'dermaos-api',
+      aud:      'dermaos-staff',
+      expiresIn: env.JWT_ACCESS_EXPIRES_IN,
+    },
+    verify: { allowedIss: 'dermaos-api', allowedAud: 'dermaos-staff' },
     cookie: {
       cookieName: 'access_token',
       signed: false,
     },
   });
 
+  await app.register(fastifyJwt, {
+    namespace: 'refresh',
+    secret: env.JWT_REFRESH_SECRET,
+    sign: {
+      iss:      'dermaos-api',
+      aud:      'dermaos-refresh',
+      expiresIn: env.JWT_REFRESH_EXPIRES_IN,
+    },
+    verify: { allowedIss: 'dermaos-api', allowedAud: 'dermaos-refresh' },
+  });
+
+  // SEC-21: namespace dedicado ao Patient Portal. Tokens com aud=patient
+  // NÃO podem ser usados em rotas de staff. (Mesmo segredo do `access`
+  // mas audience distinta — a verificação de aud impede o cross-use.)
+  await app.register(fastifyJwt, {
+    namespace: 'patient',
+    secret: env.JWT_SECRET,
+    sign: {
+      iss:      'dermaos-api',
+      aud:      'dermaos-patient',
+      expiresIn: env.JWT_ACCESS_EXPIRES_IN,
+    },
+    verify: { allowedIss: 'dermaos-api', allowedAud: 'dermaos-patient' },
+    cookie: {
+      cookieName: 'patient_access_token',
+      signed: false,
+    },
+  });
+
   await app.register(fastifyRateLimit, {
+    global: true,
     max: env.RATE_LIMIT_MAX,
     timeWindow: env.RATE_LIMIT_WINDOW_MS,
     redis,
@@ -77,6 +127,26 @@ async function bootstrap() {
       error: 'Too Many Requests',
       message: 'Muitas requisições. Tente novamente em instantes.',
     }),
+  });
+
+  // SEC-09: rate limit específico para os paths reais do tRPC de auth.
+  // O nginx-level rate limit aponta para `/api/auth/login` (path inexistente);
+  // os endpoints reais são `/api/trpc/auth.login`, etc.
+  await app.register(async (scoped) => {
+    const authRouteRegex = /^\/api\/trpc\/auth\.(login|forgotPassword|resetPassword)\b/;
+    scoped.addHook('onRequest', async (req, reply) => {
+      if (!authRouteRegex.test(req.url)) return;
+      // Limit: 5/min por IP. Usa o mesmo backend Redis.
+      const key = `auth_rl:${req.ip}`;
+      const count = await redis.incr(key);
+      if (count === 1) await redis.expire(key, 60);
+      if (count > 5) {
+        return reply.status(429).send({
+          error: 'Too Many Requests',
+          message: 'Muitas tentativas de autenticação. Aguarde 1 minuto.',
+        });
+      }
+    });
   });
 
   // ─── REST: upload de imagens clínicas (multipart) ─────────────────────────

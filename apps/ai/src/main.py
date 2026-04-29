@@ -3,6 +3,7 @@ DermaOS AI Service — FastAPI + Ollama
 Dados clínicos PHI processados localmente via Ollama.
 Dados não-PHI podem ser enviados para Claude API.
 """
+import hmac
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -45,14 +46,30 @@ app.add_middleware(
 
 
 # ─── Middleware de autenticação interna ───────────────────────────────────────
+# SEC-05: comparação em tempo constante via hmac.compare_digest evita
+# vazamento por timing side-channel. Encode em utf-8 com .encode() para evitar
+# os subtipos `str` mais fracos do CPython.
 @app.middleware("http")
 async def verify_service_key(request: Request, call_next):
     # Rota de health não requer autenticação
     if request.url.path in ("/health", "/docs", "/openapi.json"):
         return await call_next(request)
 
-    service_key = request.headers.get("X-Service-Key")
-    if service_key != settings.ai_service_key:
+    provided = request.headers.get("X-Service-Key", "")
+    expected = settings.ai_service_key
+
+    # `compare_digest` exige bytes/str do mesmo tipo. Sempre passamos bytes
+    # do mesmo comprimento (encode + ljust até o tamanho esperado) para que a
+    # comparação não vaze nem mesmo o tamanho.
+    provided_b = provided.encode("utf-8")[: len(expected)].ljust(len(expected), b"\x00")
+    expected_b = expected.encode("utf-8")
+
+    if not hmac.compare_digest(provided_b, expected_b) or len(provided) != len(expected):
+        logger.warning(
+            "ai_service_key_invalid",
+            path=request.url.path,
+            client_ip=request.client.host if request.client else None,
+        )
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
 
     return await call_next(request)

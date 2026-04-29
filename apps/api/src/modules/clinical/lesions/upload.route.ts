@@ -42,7 +42,7 @@ export async function registerLesionUploadRoute(app: FastifyInstance): Promise<v
       // ── Autenticação via cookie JWT ─────────────────────────────────
       let user: JwtUser;
       try {
-        user = await req.jwtVerify<JwtUser>();
+        user = await req.accessJwtVerify<JwtUser>();
       } catch {
         return reply.status(401).send({
           code:    'UNAUTHORIZED',

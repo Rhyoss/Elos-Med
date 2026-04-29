@@ -180,19 +180,20 @@ export function buildSupplyConsumptionProcessor(deps: Deps) {
             );
             const qtyBefore = Number(qtyBeforeR.rows[0]?.qty ?? 0);
 
+            // SEC-W: defesa em profundidade — `dermaos_worker` tem policy USING true.
             await client.query(
               `UPDATE supply.inventory_lots
                   SET quantity_current = quantity_current - $2, updated_at = NOW()
-                WHERE id = $1`,
-              [lot.id, take],
+                WHERE id = $1 AND clinic_id = $3`,
+              [lot.id, take, data.clinicId],
             );
 
-            // Marca como consumed se zerou
+            // Marca como consumed se zerou — SEC-W defesa em profundidade
             await client.query(
               `UPDATE supply.inventory_lots
                   SET status = 'consumed', updated_at = NOW()
-                WHERE id = $1 AND quantity_current = 0 AND status = 'active'`,
-              [lot.id],
+                WHERE id = $1 AND clinic_id = $2 AND quantity_current = 0 AND status = 'active'`,
+              [lot.id, data.clinicId],
             );
 
             const qtyAfter = qtyBefore - take;

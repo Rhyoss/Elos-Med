@@ -133,7 +133,7 @@ export async function registerAnalyticsEventsRoute(app: FastifyInstance): Promis
       // ── Auth ────────────────────────────────────────────────────────────
       let user: JwtUser;
       try {
-        user = await req.jwtVerify<JwtUser>();
+        user = await req.accessJwtVerify<JwtUser>();
       } catch {
         return reply.status(401).send({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
       }

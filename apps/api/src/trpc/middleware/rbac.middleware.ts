@@ -7,7 +7,7 @@ import {
   checkPermission,
   getPermissionsForRole,
 } from '@dermaos/shared';
-import { db } from '../../db/client.js';
+import { withClinicContext } from '../../db/client.js';
 import { logger } from '../../lib/logger.js';
 import type { AuthenticatedContext } from './auth.middleware.js';
 
@@ -59,29 +59,36 @@ export function requirePermission(resource: Resource, action: Action) {
 /**
  * Registra acesso a recursos sensíveis em audit.access_log.
  * Deve ser composto após isAuthenticated.
+ *
+ * SEC-02: o write do audit acontece em `setImmediate` para não bloquear a
+ * resposta — mas isso quebra o AsyncLocalStorage da request original.
+ * Capturamos os valores localmente e abrimos um NOVO `withClinicContext`
+ * (transação curta + SET LOCAL app.current_clinic_id) para o INSERT.
  */
 export const withAudit = t.middleware(async ({ ctx, path, next }) => {
   const result = await next({ ctx });
 
   if (ctx.user && ctx.clinicId) {
+    // Capturar tudo localmente — `ctx` pode ser GC'd antes do setImmediate rodar.
+    const clinicId    = ctx.clinicId;
+    const userId      = ctx.user.sub;
+    const resourceType = path.split('.')[0] ?? 'trpc';
+    const action      = result.ok ? 'read' : 'error';
+    const ipAddress   = ctx.req.ip;
+    const requestPath = path;
+
     setImmediate(async () => {
       try {
-        await db.query(
-          `INSERT INTO audit.access_log
-             (clinic_id, user_id, resource_type, resource_id, action, ip_address, request_path)
-           VALUES ($1, $2, $3, $4, $5, $6::inet, $7)`,
-          [
-            ctx.clinicId,
-            ctx.user?.sub,
-            path.split('.')[0] ?? 'trpc',
-            ctx.user?.sub ?? 'unknown',
-            result.ok ? 'read' : 'error',
-            ctx.req.ip,
-            path,
-          ],
-        );
+        await withClinicContext(clinicId, async (client) => {
+          await client.query(
+            `INSERT INTO audit.access_log
+               (clinic_id, user_id, resource_type, resource_id, action, ip_address, request_path)
+             VALUES ($1, $2, $3, $4, $5, $6::inet, $7)`,
+            [clinicId, userId, resourceType, userId, action, ipAddress, requestPath],
+          );
+        });
       } catch (err) {
-        logger.error({ err, path }, 'Audit log write failed');
+        logger.error({ err, path: requestPath }, 'Audit log write failed');
       }
     });
   }

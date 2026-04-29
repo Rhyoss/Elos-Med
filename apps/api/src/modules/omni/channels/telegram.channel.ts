@@ -50,9 +50,13 @@ export const telegramChannel: IMessageChannel = {
 
   verifyWebhookSignature(channel, _rawBody, headers): boolean {
     const cfg = readConfig(channel);
+    // SEC-03 (fail-closed): rejeita sem webhookSecret, mesmo em modo mock.
     if (!cfg.webhookSecret) {
-      logger.warn({ channelId: channel.id }, 'Telegram webhook secret not configured');
-      return cfg.mode !== 'live';
+      logger.warn(
+        { channelId: channel.id, channelType: 'telegram' },
+        'Telegram webhook rejected — webhookSecret missing (SEC-03)',
+      );
+      return false;
     }
     const received = headers['x-telegram-bot-api-secret-token'];
     const token = Array.isArray(received) ? received[0] : received;

@@ -6,11 +6,23 @@ services:
     image: pgvector/pgvector:pg16
     container_name: dermaos-db
     restart: unless-stopped
+    # SEC-01: POSTGRES_USER vira a conta administrativa (SUPERUSER) usada
+    # apenas em bootstrap/migrations. As contas de runtime (app/worker/readonly)
+    # são criadas em `db/init/000_app_roles.sh` com NOSUPERUSER NOBYPASSRLS.
+    # Em Cloud SQL (GCP), `POSTGRES_ADMIN_USER` corresponde ao usuário com
+    # cloudsqlsuperuser, e os passwords vêm do Secret Manager.
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-dermaos}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      # Repassadas para o script 000_app_roles.sh (não persistem no DB).
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
+      POSTGRES_WORKER_USER: ${POSTGRES_WORKER_USER}
+      POSTGRES_WORKER_PASSWORD: ${POSTGRES_WORKER_PASSWORD}
+      POSTGRES_READONLY_USER: ${POSTGRES_READONLY_USER}
+      POSTGRES_READONLY_PASSWORD: ${POSTGRES_READONLY_PASSWORD}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -30,7 +42,7 @@ services:
         -c log_min_duration_statement=1000
         -c log_line_prefix='%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-dermaos}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ADMIN_USER} -d ${POSTGRES_DB:-dermaos}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -107,8 +119,21 @@ services:
         mc mb --ignore-existing local/documents;
         mc mb --ignore-existing local/exports;
         mc mb --ignore-existing local/avatars;
-        mc anonymous set download local/avatars;
-        echo 'MinIO buckets ready.';
+        mc mb --ignore-existing local/prescriptions;
+        mc mb --ignore-existing local/product-images;
+        mc mb --ignore-existing local/reports;
+        mc mb --ignore-existing local/clinic-assets;
+        # SEC-18: NÃO expor buckets como anônimos. Avatares são servidos
+        # via presigned URL gerada pela API (TTL 24h), igual aos demais.
+        mc anonymous set none local/avatars;
+        mc anonymous set none local/clinical-images;
+        mc anonymous set none local/documents;
+        mc anonymous set none local/exports;
+        mc anonymous set none local/prescriptions;
+        mc anonymous set none local/product-images;
+        mc anonymous set none local/reports;
+        mc anonymous set none local/clinic-assets;
+        echo 'MinIO buckets ready (privados — acesso apenas via presigned URL).';
         exit 0;
       "
     networks:
@@ -179,7 +204,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dermaos}
+      DATABASE_URL: postgresql://${POSTGRES_APP_USER}:${POSTGRES_APP_PASSWORD}@db:5432/${POSTGRES_DB:-dermaos}
       REDIS_URL: redis://:${REDIS_PASSWORD}@cache:6379
       MINIO_ENDPOINT: storage
       MINIO_PORT: 9000
@@ -192,7 +217,11 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      APP_URL: ${APP_URL:-http://localhost:3000}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      SEARCH_INDEX_KEY: ${SEARCH_INDEX_KEY}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
       TENANT_HMAC_SECRET: ${TENANT_HMAC_SECRET}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY}
@@ -243,7 +272,9 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dermaos}
+      # Worker usa role própria (NOSUPERUSER NOBYPASSRLS) com policies *_worker_all
+      # para acesso cross-clinic controlado em jobs de billing/relatórios.
+      DATABASE_URL: postgresql://${POSTGRES_WORKER_USER}:${POSTGRES_WORKER_PASSWORD}@db:5432/${POSTGRES_DB:-dermaos}
       REDIS_URL: redis://:${REDIS_PASSWORD}@cache:6379
       MINIO_ENDPOINT: storage
       MINIO_PORT: 9000
@@ -263,6 +294,11 @@ services:
       - dermaos-internal
 
   # ─── AI Service (Python FastAPI + Ollama) ──────────────────────────────────
+  # SEC-10: o serviço de IA NÃO é exposto publicamente. Acesso externo (se
+  # algum dia necessário) deve passar pelo nginx via /ai/, que aplica rate
+  # limit e injeta o header X-Service-Key. Em GCP, este serviço roda em VPC
+  # interna (Cloud Run com `--ingress=internal-and-cloud-load-balancing` ou
+  # GKE com NetworkPolicy bloqueando ingress externo).
   ai:
     build:
       context: ./apps/ai
@@ -275,17 +311,19 @@ services:
       ollama:
         condition: service_started
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dermaos}
+      DATABASE_URL: postgresql://${POSTGRES_APP_USER}:${POSTGRES_APP_PASSWORD}@db:5432/${POSTGRES_DB:-dermaos}
       OLLAMA_BASE_URL: http://ollama:11434
       AI_SERVICE_KEY: ${AI_SERVICE_KEY}
       PYTHONUNBUFFERED: "1"
-    ports:
-      - "${AI_PORT:-8000}:8000"
+    # ports: removido — porta 8000 só é alcançável via dermaos-internal.
+    # Acesso externo só pelo proxy nginx em /ai/ (que valida rate limit).
     networks:
       - dermaos-internal
-      - dermaos-public
 
   # ─── Nginx Reverse Proxy ───────────────────────────────────────────────────
+  # SEC-10: o proxy é o ÚNICO ponto de entrada da rede pública. Ele participa
+  # de ambas as redes para fazer proxy_pass para o ai (que ficou restrito a
+  # dermaos-internal).
   proxy:
     image: nginx:alpine
     container_name: dermaos-proxy
@@ -302,6 +340,7 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
     networks:
       - dermaos-public
+      - dermaos-internal
     healthcheck:
       test: ["CMD", "nginx", "-t"]
       interval: 30s

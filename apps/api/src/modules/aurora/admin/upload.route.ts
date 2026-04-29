@@ -96,7 +96,7 @@ export async function registerAuroraKnowledgeUploadRoute(
     async (req: FastifyRequest<{ Params: UploadParams }>, reply: FastifyReply) => {
       let user: JwtUser;
       try {
-        user = await req.jwtVerify<JwtUser>();
+        user = await req.accessJwtVerify<JwtUser>();
       } catch {
         return reply.status(401).send({
           code: 'UNAUTHORIZED',

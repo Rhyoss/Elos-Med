@@ -81,10 +81,16 @@ export const whatsappChannel: IMessageChannel = {
 
   verifyWebhookSignature(channel, rawBody, headers): boolean {
     const cfg = readConfig(channel);
+    // SEC-03 (fail-closed): sem segredo configurado, REJEITAMOS o webhook
+    // independente de mode/mock. Aceitar webhooks sem assinatura abriria a
+    // porta para qualquer atacante injetar mensagens em qualquer clínica.
+    // O modo mock só simula ENVIO; recepção sempre exige autenticidade.
     if (!cfg.appSecret) {
-      // Em modo mock/desenvolvimento permitimos sem assinatura mas logamos
-      logger.warn({ channelId: channel.id }, 'WhatsApp webhook signature check skipped — no appSecret configured');
-      return cfg.mode !== 'live';
+      logger.warn(
+        { channelId: channel.id, channelType: 'whatsapp' },
+        'WhatsApp webhook rejected — appSecret missing (SEC-03)',
+      );
+      return false;
     }
 
     const header = headers['x-hub-signature-256'];

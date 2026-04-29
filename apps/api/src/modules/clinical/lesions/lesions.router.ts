@@ -1,5 +1,6 @@
 import { router } from '../../../trpc/trpc.js';
-import { protectedProcedure } from '../../../trpc/middleware/auth.middleware.js';
+// SEC-16: lesões são PHI — auditedProcedure registra leituras E mutations.
+import { auditedProcedure as protectedProcedure } from '../../../trpc/middleware/auth.middleware.js';
 import { requirePermission } from '../../../trpc/middleware/rbac.middleware.js';
 import {
   createLesionSchema,

@@ -52,9 +52,13 @@ export const instagramChannel: IMessageChannel = {
 
   verifyWebhookSignature(channel, rawBody, headers): boolean {
     const cfg = readConfig(channel);
+    // SEC-03 (fail-closed): rejeita sem appSecret, mesmo em modo mock.
     if (!cfg.appSecret) {
-      logger.warn({ channelId: channel.id }, 'Instagram webhook signature check skipped — no appSecret');
-      return cfg.mode !== 'live';
+      logger.warn(
+        { channelId: channel.id, channelType: 'instagram' },
+        'Instagram webhook rejected — appSecret missing (SEC-03)',
+      );
+      return false;
     }
 
     const header = headers['x-hub-signature-256'];

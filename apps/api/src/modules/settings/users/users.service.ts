@@ -119,11 +119,14 @@ export async function createUser(
       throw new TRPCError({ code: 'CONFLICT', message: 'E-mail já cadastrado nesta clínica.' });
     }
 
-    // Create user with a temporary argon2 placeholder — real password set via invite
+    // SEC-11: usuário convidado fica com password_hash = NULL e
+    // is_invite_pending = TRUE. Substituiu o sentinel 'INVITE_PENDING'
+    // que causava 500 no login (oracle de enumeração).
     const { rows: newUser } = await client.query(
       `INSERT INTO shared.users
-         (clinic_id, name, email, password_hash, role, permissions, created_by, is_email_verified)
-       VALUES ($1, $2, $3, 'INVITE_PENDING', $4::shared.user_role, $5, $6, false)
+         (clinic_id, name, email, password_hash, is_invite_pending,
+          role, permissions, created_by, is_email_verified)
+       VALUES ($1, $2, $3, NULL, TRUE, $4::shared.user_role, $5, $6, false)
        RETURNING id, name, email, role`,
       [
         clinicId,

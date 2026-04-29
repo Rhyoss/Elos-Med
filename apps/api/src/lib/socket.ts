@@ -54,7 +54,11 @@ export function initSocketGateway(app: FastifyInstance): SocketIOServer {
         return next(new Error('UNAUTHORIZED: missing token'));
       }
 
-      const payload = app.jwt.verify<{ sub: string; clinicId: string; role: string }>(token);
+      // SEC-06/21: usa o namespace `access` — tokens com aud=patient
+      // (Patient Portal) NÃO conseguem entrar nas salas de staff.
+      const payload = (app as unknown as {
+        access: { verify: <T>(t: string) => T };
+      }).access.verify<{ sub: string; clinicId: string; role: string }>(token);
       const data: AuthedSocketData = {
         userId:   payload.sub,
         clinicId: payload.clinicId,
