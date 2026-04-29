@@ -130,7 +130,7 @@ services:
     volumes:
       - dermaos_typesense_data:/data
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8108/health"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8108'"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -150,22 +150,14 @@ services:
     environment:
       OLLAMA_KEEP_ALIVE: "24h"
       OLLAMA_NUM_PARALLEL: "2"
-    # GPU reservation opcional — funciona sem GPU (CPU fallback)
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     networks:
       - dermaos-internal
 
   # ─── API Backend (Fastify + tRPC) ──────────────────────────────────────────
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/api/Dockerfile
       target: runner
     container_name: dermaos-api
     restart: unless-stopped
@@ -208,8 +200,8 @@ services:
   # ─── Web Frontend (Next.js 15) ─────────────────────────────────────────────
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/web/Dockerfile
       target: runner
     container_name: dermaos-web
     restart: unless-stopped
@@ -229,8 +221,8 @@ services:
   # ─── Worker (BullMQ background jobs) ──────────────────────────────────────
   worker:
     build:
-      context: ./apps/worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/worker/Dockerfile
       target: runner
     container_name: dermaos-worker
     restart: unless-stopped
@@ -260,8 +252,8 @@ services:
   # ─── AI Service (Python FastAPI + Ollama) ──────────────────────────────────
   ai:
     build:
-      context: ./apps/ai
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/ai/Dockerfile
     container_name: dermaos-ai
     restart: unless-stopped
     depends_on:

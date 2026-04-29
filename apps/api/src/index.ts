@@ -26,6 +26,9 @@ async function bootstrap() {
   const app = Fastify({
     logger: false, // Usamos pino diretamente
     trustProxy: true,
+    // tRPC httpBatchLink concatena nomes de procedure por vírgula; com 4+ procs
+    // estourava o default de 100 do Fastify e retornava 404.
+    maxParamLength: 5000,
   });
 
   // ─── Plugins de segurança ──────────────────────────────────────────────────

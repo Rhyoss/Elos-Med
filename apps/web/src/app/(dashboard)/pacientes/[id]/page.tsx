@@ -6,5 +6,5 @@ export default async function PatientIndexPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  redirect(`/pacientes/${id}/perfil`);
+  redirect(`/pacientes/${id}/prontuario`);
 }

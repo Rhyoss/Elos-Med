@@ -5,18 +5,18 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Instala dependências primeiro (cache layer)
-COPY package.json pnpm-lock.yaml* ./
+# Install dependencies (install all workspace dependencies)
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/shared/package.json ./packages/shared/
-RUN pnpm install --frozen-lockfile --filter @dermaos/api... 2>/dev/null || \
-    pnpm install --frozen-lockfile
+COPY apps/api/package.json ./apps/api/
 
-# Copia e compila o código
+RUN pnpm install --frozen-lockfile
+
+# Copy source and build
 COPY packages/shared/src ./packages/shared/src
 COPY packages/shared/tsconfig.json ./packages/shared/
 COPY apps/api/src ./apps/api/src
 COPY apps/api/tsconfig.json ./apps/api/
-COPY apps/api/package.json ./apps/api/
 
 WORKDIR /app/apps/api
 RUN pnpm build

@@ -5,7 +5,11 @@ import type { AppRouter } from '@dermaos/api/trpc/router';
 const getBaseUrl = () => {
   if (typeof window !== 'undefined') return ''; // Browser: URL relativa
   if (process.env['NEXT_PUBLIC_API_URL']) return process.env['NEXT_PUBLIC_API_URL'];
-  return 'http://api:3001'; // SSR dentro do Docker
+  // SSR: dentro do Docker usa hostname `api`, local usa `localhost:3001`
+  if (process.env['DOCKER'] === '1' || process.env['HOSTNAME']?.startsWith('dermaos-')) {
+    return 'http://api:3001';
+  }
+  return 'http://localhost:3001';
 };
 
 export const trpcClient = createTRPCClient<AppRouter>({

@@ -1,0 +1,71 @@
+# Root monorepo .dockerignore
+# Excludes files from COPY . operations to reduce image size and build context
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Package managers
+node_modules
+.pnpm-store
+pnpm-debug.log*
+npm-debug.log*
+yarn-error.log*
+
+# Build artifacts (per-app, don't copy root-level artifacts to container)
+dist
+build
+.next
+.nuxt
+coverage
+
+# Development
+.env.local
+.env.*.local
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.circleci
+.travis.yml
+
+# Documentation & configs (non-essential for runtime)
+*.md
+docs
+wiki
+LICENSE
+CHANGELOG*
+
+# Testing
+__tests__
+test
+tests
+.jest
+.mocha
+vitest.config.*
+*.test.*
+*.spec.*
+
+# Archive
+_archive-*
+deprecated
+
+# OS
+Thumbs.db
+.AppleDouble
+.LSOverride
+.classpath
+.project
+.settings/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore

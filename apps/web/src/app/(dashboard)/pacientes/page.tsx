@@ -239,7 +239,7 @@ export default function PacientesPage() {
                       <tr
                         key={p.id}
                         onClick={() => setSelected(p)}
-                        onDoubleClick={() => router.push(`/pacientes/${p.id}/perfil`)}
+                        onDoubleClick={() => router.push(`/pacientes/${p.id}/prontuario`)}
                         title="Click: pré-visualização. Duplo-click: abrir prontuário."
                         style={{
                           borderBottom: `1px solid ${T.divider}`,
@@ -291,7 +291,7 @@ export default function PacientesPage() {
                         </td>
                         <td style={{ padding: '11px 16px' }}>
                           <Link
-                            href={`/pacientes/${p.id}/perfil`}
+                            href={`/pacientes/${p.id}/prontuario`}
                             onClick={(e) => e.stopPropagation()}
                             aria-label={`Abrir prontuário de ${p.name}`}
                             style={{
@@ -417,7 +417,7 @@ export default function PacientesPage() {
               ))}
             </div>
             <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <Btn small icon="edit" onClick={() => router.push(`/pacientes/${selected.id}/perfil`)}>
+              <Btn small icon="edit" onClick={() => router.push(`/pacientes/${selected.id}/prontuario`)}>
                 Abrir prontuário
               </Btn>
               <Link href={`/agenda?paciente=${selected.id}`} style={{ textDecoration: 'none' }}>

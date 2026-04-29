@@ -5,19 +5,19 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml* ./
 COPY packages/shared/package.json ./packages/shared/
-COPY apps/api/package.json ./apps/api/
+COPY apps/worker/package.json ./apps/worker/
 
 RUN pnpm install
 
 COPY packages/shared/src ./packages/shared/src
 COPY packages/shared/tsconfig.json ./packages/shared/
-COPY apps/api/src ./apps/api/src
-COPY apps/api/tsconfig.json ./apps/api/
+COPY apps/worker/src ./apps/worker/src
+COPY apps/worker/tsconfig.json ./apps/worker/
 
-WORKDIR /app/apps/api
+WORKDIR /app/apps/worker
 
-EXPOSE 3001
+ENV NODE_ENV=development
 
 CMD ["pnpm", "dev"]

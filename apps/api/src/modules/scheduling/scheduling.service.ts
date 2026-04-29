@@ -359,31 +359,34 @@ export async function createAppointment(
       });
     }
 
-    // Valida sobreposição com break configurado
-    const config = await fetchProviderConfig(client, input.providerId, clinicId);
-    const day    = config.workingHours[dayKeyOf(start)];
-    if (!day) {
-      throw new TRPCError({
-        code: 'BAD_REQUEST',
-        message: 'Profissional não atende neste dia da semana',
-      });
-    }
-    const dayStart = parseHhmmOn(start, day.start);
-    const dayEnd   = parseHhmmOn(start, day.end);
-    if (start < dayStart || end > dayEnd) {
-      throw new TRPCError({
-        code: 'BAD_REQUEST',
-        message: 'Horário fora do expediente do profissional',
-      });
-    }
-    for (const br of day.breaks ?? []) {
-      const bStart = parseHhmmOn(start, br.start);
-      const bEnd   = parseHhmmOn(start, br.end);
-      if (rangesOverlap(start, end, bStart, bEnd)) {
+    // Walk-in pula validação de schedule (paciente apareceu sem agendamento prévio).
+    // Para os demais sources, valida sobreposição com expediente/break configurado.
+    if (input.source !== 'walk_in') {
+      const config = await fetchProviderConfig(client, input.providerId, clinicId);
+      const day    = config.workingHours[dayKeyOf(start)];
+      if (!day) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
-          message: 'Horário conflita com intervalo do profissional',
+          message: 'Profissional não atende neste dia da semana',
         });
+      }
+      const dayStart = parseHhmmOn(start, day.start);
+      const dayEnd   = parseHhmmOn(start, day.end);
+      if (start < dayStart || end > dayEnd) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Horário fora do expediente do profissional',
+        });
+      }
+      for (const br of day.breaks ?? []) {
+        const bStart = parseHhmmOn(start, br.start);
+        const bEnd   = parseHhmmOn(start, br.end);
+        if (rangesOverlap(start, end, bStart, bEnd)) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Horário conflita com intervalo do profissional',
+          });
+        }
       }
     }
 

@@ -98,6 +98,9 @@ importers:
       socket.io:
         specifier: ^4.8.0
         version: 4.8.3
+      superjson:
+        specifier: ^2.2.6
+        version: 2.2.6
       typesense:
         specifier: ^1.8.0
         version: 1.8.2(@babel/runtime@7.29.2)
@@ -241,7 +244,7 @@ importers:
         specifier: ^4.8.0
         version: 4.8.3
       superjson:
-        specifier: ^2.2.0
+        specifier: ^2.2.6
         version: 2.2.6
       tailwind-merge:
         specifier: ^2.6.0
