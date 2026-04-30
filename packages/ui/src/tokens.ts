@@ -74,21 +74,21 @@ export const typography = {
   },
   // Sans scale — interface, body, headings
   sans: {
-    display: { size: 32, weight: 700, lineHeight: 1.05, letterSpacing: '-0.02em' },
-    h1:      { size: 24, weight: 700, lineHeight: 1.15, letterSpacing: '-0.01em' },
-    h2:      { size: 20, weight: 600, lineHeight: 1.20 },
-    h3:      { size: 16, weight: 600, lineHeight: 1.25 },
-    bodyLg:  { size: 15, weight: 400, lineHeight: 1.65 },
-    body:    { size: 13, weight: 400, lineHeight: 1.50 },
-    caption: { size: 11, weight: 400, lineHeight: 1.45 },
+    display: { size: 40, weight: 700, lineHeight: 1.05, letterSpacing: '-0.02em' },
+    h1:      { size: 30, weight: 700, lineHeight: 1.15, letterSpacing: '-0.01em' },
+    h2:      { size: 24, weight: 600, lineHeight: 1.20 },
+    h3:      { size: 18, weight: 600, lineHeight: 1.30 },
+    bodyLg:  { size: 17, weight: 400, lineHeight: 1.65 },
+    body:    { size: 15, weight: 400, lineHeight: 1.55 },
+    caption: { size: 13, weight: 400, lineHeight: 1.45 },
   },
   // Mono scale — data, labels, IDs, codes
   mono: {
-    xl: { size: 22, weight: 500, letterSpacing: '-0.02em' },
-    l:  { size: 16, weight: 500, letterSpacing: '0.04em'  },
-    m:  { size: 12, weight: 500, letterSpacing: '0.04em'  },
-    s:  { size: 10, weight: 500, letterSpacing: '1.1px'   },
-    xs: { size: 9,  weight: 500, letterSpacing: '1.1px'   },
+    xl: { size: 28, weight: 500, letterSpacing: '-0.02em' },
+    l:  { size: 18, weight: 500, letterSpacing: '0.04em'  },
+    m:  { size: 13, weight: 500, letterSpacing: '0.04em'  },
+    s:  { size: 11, weight: 500, letterSpacing: '1px'     },
+    xs: { size: 10, weight: 500, letterSpacing: '1px'     },
   },
   weight:     { regular: 400, medium: 500, semibold: 600, bold: 700 },
   lineHeight: { tight: 1.0, snug: 1.25, normal: 1.5, relaxed: 1.65 },
@@ -204,6 +204,28 @@ export const motion = {
   },
 } as const;
 
+// ── Focus ring (canonical) ──────────────────────────────────────────
+export const focusRing = {
+  width:  2,
+  offset: 2,
+  color:  '#174D38',
+  soft:   'rgba(23,77,56,0.32)',
+} as const;
+
+// ── Density (clinical density vs executive comfort) ─────────────────
+export const density = {
+  compact: {
+    rowHeight: 36, paddingX: 12, paddingY: 6,
+  },
+  default: {
+    rowHeight: 44, paddingX: 16, paddingY: 10,
+  },
+  comfortable: {
+    rowHeight: 52, paddingX: 20, paddingY: 14,
+  },
+} as const;
+export type Density = keyof typeof density;
+
 // ── Reference-style alias (mirrors `T` 1:1) ─────────────────────────
 //
 // Shape preserved verbatim from `ds-final-components.jsx` so any inline-style
@@ -294,6 +316,8 @@ export const tokens = {
   gradients,
   zIndex,
   motion,
+  focusRing,
+  density,
 } as const;
 
 export type Tokens = typeof tokens;

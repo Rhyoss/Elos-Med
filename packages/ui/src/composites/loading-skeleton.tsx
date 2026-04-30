@@ -73,6 +73,72 @@ function SkeletonChart({ className }: { className?: string }) {
   );
 }
 
+/* Form skeleton — placeholder para formulários (label + campo) */
+function SkeletonForm({
+  fields = 4,
+  showActions = true,
+  className,
+}: {
+  fields?: number;
+  showActions?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn('flex flex-col gap-5', className)}
+      aria-label="Carregando formulário"
+      aria-busy="true"
+    >
+      {Array.from({ length: fields }).map((_, i) => (
+        <div key={i} className="flex flex-col gap-2">
+          <SkeletonBase className="h-3.5 w-24" />
+          <SkeletonBase className="h-10 w-full" />
+        </div>
+      ))}
+      {showActions && (
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <SkeletonBase className="h-10 w-24" />
+          <SkeletonBase className="h-10 w-32" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Timeline skeleton — para prontuário, evolução, histórico */
+function SkeletonTimeline({
+  items = 4,
+  className,
+}: {
+  items?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn('flex flex-col gap-6', className)}
+      aria-label="Carregando timeline"
+      aria-busy="true"
+    >
+      {Array.from({ length: items }).map((_, i) => (
+        <div key={i} className="flex gap-4">
+          <div className="flex flex-col items-center gap-2 shrink-0">
+            <SkeletonBase className="h-8 w-8 rounded-full" />
+            {i < items - 1 && <SkeletonBase className="w-px flex-1 min-h-[40px] rounded-none" />}
+          </div>
+          <div className="flex flex-col gap-2 flex-1 pb-2">
+            <div className="flex items-center gap-3">
+              <SkeletonBase className="h-4 w-32" />
+              <SkeletonBase className="h-3 w-20" />
+            </div>
+            <SkeletonBase className="h-3 w-full max-w-[420px]" />
+            <SkeletonBase className="h-3 w-2/3 max-w-[280px]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── LoadingSkeleton namespace ───────────────────────────────────────────── */
 
 function LoadingSkeletonTable({ count = 5, columns = 5 }: { count?: number; columns?: number }) {
@@ -92,6 +158,8 @@ export const LoadingSkeleton = Object.assign(SkeletonBase, {
   Table: LoadingSkeletonTable,
   Avatar: SkeletonAvatar,
   Chart: SkeletonChart,
+  Form: SkeletonForm,
+  Timeline: SkeletonTimeline,
 });
 
 export {
@@ -101,4 +169,6 @@ export {
   SkeletonTableRow,
   SkeletonAvatar,
   SkeletonChart,
+  SkeletonForm,
+  SkeletonTimeline,
 };

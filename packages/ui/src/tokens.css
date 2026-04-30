@@ -67,23 +67,33 @@
   --ds-divider:   rgba(200,200,200,0.45);
   --ds-skeleton:  rgba(200,200,200,0.18);
 
-  /* ── Typography ─────────────────────────────────────────────────── */
+  /* ── Typography ─────────────────────────────────────────────────────
+     Synced 1:1 with tokens.ts. Generous scale for clinical density:
+     body ≥ 15px, captions ≥ 13px, h1 ≥ 24px. Mono used for IDs,
+     timestamps, technical metadata. */
   --ds-font-sans: 'IBM Plex Sans', system-ui, sans-serif;
   --ds-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  --ds-fs-display:   32px;
-  --ds-fs-h1:        24px;
-  --ds-fs-h2:        20px;
-  --ds-fs-h3:        16px;
-  --ds-fs-body-lg:   15px;
-  --ds-fs-body:      13px;
-  --ds-fs-caption:   11px;
+  --ds-fs-display:   40px;
+  --ds-fs-h1:        30px;
+  --ds-fs-h2:        24px;
+  --ds-fs-h3:        18px;
+  --ds-fs-body-lg:   17px;
+  --ds-fs-body:      15px;
+  --ds-fs-caption:   13px;
 
-  --ds-fs-mono-xl:   22px;
-  --ds-fs-mono-l:    16px;
-  --ds-fs-mono-m:    12px;
-  --ds-fs-mono-s:    10px;
-  --ds-fs-mono-xs:   9px;
+  --ds-fs-mono-xl:   28px;
+  --ds-fs-mono-l:    18px;
+  --ds-fs-mono-m:    13px;
+  --ds-fs-mono-s:    11px;
+  --ds-fs-mono-xs:   10px;
+
+  /* Letter-spacing for mono — matches tokens.ts */
+  --ds-ls-mono-xl:   -0.02em;
+  --ds-ls-mono-l:    0.04em;
+  --ds-ls-mono-m:    0.04em;
+  --ds-ls-mono-s:    1px;
+  --ds-ls-mono-xs:   1px;
 
   --ds-fw-regular:   400;
   --ds-fw-medium:    500;
@@ -173,6 +183,29 @@
   --ds-ease-standard:   cubic-bezier(0.4, 0, 0.2, 1);
   --ds-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
   --ds-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ── Focus ring (canonical) ────────────────────────────────────────
+     2px ring + 2px offset against the page surface. Used by all
+     interactive primitives via :focus-visible. Falls back to the
+     primary color so brand and focus stay coherent. */
+  --ds-focus-ring-width:    2px;
+  --ds-focus-ring-offset:   2px;
+  --ds-focus-ring-color:    #174D38;
+  --ds-focus-ring-soft:     rgba(23,77,56,0.32);
+
+  /* ── Density (clinical screens vs. executive shells) ───────────────
+     `default` is the base — comfortable matches dashboards/cards,
+     compact is for dense tables / prontuário side panels. Components
+     read these via `data-density="<level>"`. */
+  --ds-density-row-default:    44px;
+  --ds-density-row-compact:    36px;
+  --ds-density-row-comfort:    52px;
+  --ds-density-pad-x-default:  16px;
+  --ds-density-pad-x-compact:  12px;
+  --ds-density-pad-x-comfort:  20px;
+  --ds-density-pad-y-default:  10px;
+  --ds-density-pad-y-compact:  6px;
+  --ds-density-pad-y-comfort:  14px;
 }
 
 /* ── Shimmer keyframe (used by Skeleton) ──────────────────────────── */

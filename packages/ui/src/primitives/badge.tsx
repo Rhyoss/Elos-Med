@@ -3,7 +3,9 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../utils';
 
 const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 font-medium rounded-full border transition-colors',
+  `inline-flex items-center gap-1.5 font-medium rounded-full border
+   transition-colors focus-visible:outline-none focus-visible:ring-2
+   focus-visible:ring-ring focus-visible:ring-offset-1`,
   {
     variants: {
       variant: {
@@ -17,10 +19,15 @@ const badgeVariants = cva(
         ai:         'border-ai/30 bg-ai-100 text-ai-700 dark:bg-ai-100/10 dark:text-ai-700',
         primary:    'border-primary/30 bg-primary-100 text-primary-700 dark:bg-primary-100/10 dark:text-primary-700',
         gold:       'border-gold-500/30 bg-gold-100 text-gold-700 dark:bg-gold-100/10 dark:text-gold-700',
+        /* Module-specific tones — match colors.modules in tokens.ts */
+        supply:     'border-supply-500/30 bg-supply-100 text-supply-700 dark:bg-supply-100/10 dark:text-supply-700',
+        financial:  'border-financial-500/30 bg-financial-100 text-financial-700 dark:bg-financial-100/10 dark:text-financial-700',
+        clinical:   'border-clinical-500/30 bg-clinical-100 text-clinical-700 dark:bg-clinical-100/10 dark:text-clinical-700',
       },
       size: {
-        sm: 'px-2 py-0.5 text-xs',
+        sm: 'px-2 py-0.5 text-[11px]',
         md: 'px-2.5 py-0.5 text-xs',
+        lg: 'px-3 py-1 text-[13px]',
       },
     },
     defaultVariants: {
@@ -31,16 +38,19 @@ const badgeVariants = cva(
 );
 
 const dotVariants: Record<NonNullable<BadgeProps['variant']>, string> = {
-  success: 'bg-success-500',
-  warning: 'bg-warning-500',
-  danger:  'bg-danger-500',
+  success:     'bg-success-500',
+  warning:     'bg-warning-500',
+  danger:      'bg-danger-500',
   destructive: 'bg-danger-500',
-  info:    'bg-info-500',
-  neutral: 'bg-muted-foreground',
-  outline: 'bg-muted-foreground',
-  ai:      'bg-ai',
-  primary: 'bg-primary',
-  gold:    'bg-gold-600',
+  info:        'bg-info-500',
+  neutral:     'bg-muted-foreground',
+  outline:     'bg-muted-foreground',
+  ai:          'bg-ai',
+  primary:     'bg-primary',
+  gold:        'bg-gold-600',
+  supply:      'bg-supply-500',
+  financial:   'bg-financial-500',
+  clinical:    'bg-clinical-500',
 };
 
 export interface BadgeProps

@@ -59,10 +59,10 @@ export function EmptyState({
         {icon ?? <DefaultEmptyIllustration />}
       </div>
 
-      <div className="flex flex-col gap-1.5 max-w-sm">
-        <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      <div className="flex flex-col gap-1.5 max-w-md">
+        <h3 className="text-lg font-semibold tracking-tight text-foreground">{title}</h3>
         {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-[15px] leading-relaxed text-muted-foreground">{description}</p>
         )}
       </div>
 

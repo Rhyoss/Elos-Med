@@ -5,23 +5,27 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
   label?: string;
   error?: string;
   hint?: string;
+  successText?: string;
   showCount?: boolean;
   maxLength?: number;
 }
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, label, error, hint, showCount, maxLength, id, disabled, value, onChange, ...props }, ref) => {
+  ({ className, label, error, hint, successText, showCount, maxLength, id, disabled, value, onChange, ...props }, ref) => {
     const textareaId = id ?? React.useId();
     const errorId = `${textareaId}-error`;
     const hintId  = `${textareaId}-hint`;
+    const successId = `${textareaId}-success`;
 
     const [charCount, setCharCount] = React.useState(
       typeof value === 'string' ? value.length : 0,
     );
 
-    const describedBy = [error && errorId, hint && !error && hintId]
-      .filter(Boolean)
-      .join(' ') || undefined;
+    const describedBy = [
+      error && errorId,
+      !error && successText && successId,
+      !error && !successText && hint && hintId,
+    ].filter(Boolean).join(' ') || undefined;
 
     function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
       setCharCount(e.target.value.length);
@@ -52,13 +56,14 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           aria-invalid={!!error}
           aria-describedby={describedBy}
           className={cn(
-            `flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm
-             ring-offset-background resize-y
+            `flex min-h-[88px] w-full rounded-md border border-input bg-background px-3 py-2 text-[15px]
+             ring-offset-background resize-y leading-relaxed
              placeholder:text-muted-foreground
              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
              disabled:cursor-not-allowed disabled:opacity-50
              transition-colors`,
             error && 'border-danger-500 focus-visible:ring-danger-500',
+            successText && !error && 'border-success-500 focus-visible:ring-success-500',
             className,
           )}
           {...props}
@@ -67,12 +72,17 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         <div className="flex justify-between items-start gap-2">
           <div className="flex-1">
             {error && (
-              <p id={errorId} role="alert" className="text-xs text-danger-500">
+              <p id={errorId} role="alert" className="text-[13px] text-danger-500">
                 {error}
               </p>
             )}
-            {hint && !error && (
-              <p id={hintId} className="text-xs text-muted-foreground">
+            {!error && successText && (
+              <p id={successId} className="text-[13px] text-success-700">
+                {successText}
+              </p>
+            )}
+            {!error && !successText && hint && (
+              <p id={hintId} className="text-[13px] text-muted-foreground">
                 {hint}
               </p>
             )}
