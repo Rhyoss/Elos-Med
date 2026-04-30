@@ -2,14 +2,14 @@
 
 import * as React from 'react';
 import {
-  Glass, Btn, Mono, Select, T,
+  Glass, Btn, Ico, Mono, T,
 } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { useRealtime } from '@/hooks/use-realtime';
 import { startOfDay } from '@/lib/agenda-utils';
 import { MiniCalendar }      from './_components/mini-calendar';
 import { AgendaTimeline }    from './_components/agenda-timeline';
-import { AgendaWeekStrip }   from './_components/agenda-week-strip';
+import { AgendaWeekGrid }    from './_components/agenda-week-grid';
 import { AgendaQueue, type QueueEntry } from './_components/agenda-queue';
 import { DaySummary }        from './_components/day-summary';
 import {
@@ -178,8 +178,6 @@ export default function AgendaPage() {
           justifyContent: 'space-between',
           alignItems: 'center',
           flexShrink: 0,
-          gap: 10,
-          flexWrap: 'wrap',
         }}
       >
         <div>
@@ -188,7 +186,7 @@ export default function AgendaPage() {
             Agenda Clínica
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {[
             { l: 'Hoje',     v: total },
             { l: 'Confirm.', v: confirmados },
@@ -211,7 +209,9 @@ export default function AgendaPage() {
                 style={{
                   padding: '6px 13px',
                   background: view === v ? T.primaryBg : 'transparent',
-                  border: 'none',
+                  borderTop: 'none',
+                  borderBottom: 'none',
+                  borderLeft: 'none',
                   borderRight: i === 0 ? `1px solid ${T.divider}` : 'none',
                   color: view === v ? T.primary : T.textMuted,
                   fontSize: 10,
@@ -226,18 +226,28 @@ export default function AgendaPage() {
             ))}
           </Glass>
 
-          <div style={{ minWidth: 180 }}>
-            <Select
-              value={providerFilter}
-              onChange={(e) => setProviderFilter(e.target.value)}
-              aria-label="Filtrar por profissional"
-            >
-              <option value="all">Todos os profissionais</option>
-              {providersQuery.data?.providers?.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </Select>
-          </div>
+          <select
+            value={providerFilter}
+            onChange={(e) => setProviderFilter(e.target.value)}
+            aria-label="Filtrar por profissional"
+            style={{
+              padding: '6px 10px',
+              borderRadius: T.r.md,
+              background: T.inputBg,
+              border: `1px solid ${T.inputBorder}`,
+              fontSize: 12,
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              color: T.textPrimary,
+              outline: 'none',
+              cursor: 'pointer',
+              minWidth: 160,
+            }}
+          >
+            <option value="all">Todos profissionais</option>
+            {providersQuery.data?.providers?.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
 
           <Btn
             small
@@ -258,7 +268,7 @@ export default function AgendaPage() {
         {/* Mini calendar sidebar */}
         <div
           style={{
-            width: 200,
+            width: 192,
             borderRight: `1px solid ${T.divider}`,
             padding: '14px 12px',
             display: 'flex',
@@ -298,30 +308,34 @@ export default function AgendaPage() {
               gap: 5,
             }}
           >
+            <Ico name="clock" size={12} color={T.primary} />
             <Mono size={9} color={T.primary}>HOJE</Mono>
           </button>
 
           <DaySummary appointments={dayAppointments} selected={selDate} />
         </div>
 
-        {/* Main timeline */}
+        {/* Main timeline / week grid */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {view === 'semana' && (
-            <AgendaWeekStrip
+          {view === 'semana' ? (
+            <AgendaWeekGrid
               weekStart={weekStart}
-              selected={selDate}
-              counts={weekCounts}
-              onSelect={(d) => setSelDate(startOfDay(d))}
-            />
-          )}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '10px 18px' }}>
-            <AgendaTimeline
-              appointments={dayAppointments}
-              date={selDate}
+              appointments={weekAppointments}
+              selectedDate={selDate}
+              onDaySelect={(d) => setSelDate(startOfDay(d))}
               onCardClick={handleCardClick}
               onEmptyClick={handleEmptyClick}
             />
-          </div>
+          ) : (
+            <div style={{ flex: 1, overflowY: 'auto', padding: '10px 18px' }}>
+              <AgendaTimeline
+                appointments={dayAppointments}
+                date={selDate}
+                onCardClick={handleCardClick}
+                onEmptyClick={handleEmptyClick}
+              />
+            </div>
+          )}
         </div>
 
         {/* Queue */}

@@ -8,10 +8,6 @@ interface DaySummaryProps {
   selected:     Date;
 }
 
-/**
- * Resumo do dia: contagem agrupada por categoria de procedimento.
- * Fonte de verdade do agrupamento é a string `service.name` ou `type`.
- */
 export function DaySummary({ appointments, selected }: DaySummaryProps) {
   const lower = (s: string | null | undefined) => (s ?? '').toLowerCase();
 
@@ -33,7 +29,7 @@ export function DaySummary({ appointments, selected }: DaySummaryProps) {
   const rows: Array<{ l: string; v: number; c: string }> = [
     { l: 'Consultas',   v: consultas,     c: T.clinical.color },
     { l: 'Procedim.',   v: procedimentos, c: T.supply.color   },
-    { l: 'Análises IA', v: analisesIa,    c: T.aiMod.color    },
+    { l: 'Análises IA', v: analisesIa,    c: T.ai             },
   ];
 
   return (
@@ -51,16 +47,16 @@ export function DaySummary({ appointments, selected }: DaySummaryProps) {
               alignItems: 'center',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <div
                 style={{
-                  width: 6,
-                  height: 6,
+                  width: 4,
+                  height: 4,
                   borderRadius: '50%',
                   background: s.c,
                 }}
               />
-              <span style={{ fontSize: 11, color: T.textMuted }}>{s.l}</span>
+              <span style={{ fontSize: 10, color: T.textMuted }}>{s.l}</span>
             </div>
             <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary }}>
               {s.v}

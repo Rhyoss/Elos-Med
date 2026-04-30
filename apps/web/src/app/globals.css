@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../../packages/ui/src";
+@config "../../tailwind.config.ts";
 
 /* ============================================================================
    ElosMed — Design System CSS Variables

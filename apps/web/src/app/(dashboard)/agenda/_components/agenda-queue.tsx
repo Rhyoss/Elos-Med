@@ -11,7 +11,6 @@ export interface QueueEntry {
 
 interface AgendaQueueProps {
   entries: QueueEntry[];
-  /** Próximo horário livre — ex: 10:00 / 45 min. */
   nextFree?: { time: string; durationMin: number } | null;
   onEntryClick?: (apptId: string) => void;
 }
@@ -21,9 +20,9 @@ export function AgendaQueue({ entries, nextFree, onEntryClick }: AgendaQueueProp
     <aside
       aria-label="Fila de espera"
       style={{
-        width: 178,
+        width: 166,
         borderLeft: `1px solid ${T.divider}`,
-        padding: '12px 12px',
+        padding: '12px 10px',
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
@@ -43,8 +42,8 @@ export function AgendaQueue({ entries, nextFree, onEntryClick }: AgendaQueueProp
             textAlign: 'center',
           }}
         >
-          <Ico name="check" size={18} color={T.textMuted} />
-          <p style={{ fontSize: 10, color: T.textMuted, marginTop: 4 }}>
+          <Ico name="check" size={16} color={T.textMuted} />
+          <p style={{ fontSize: 10, color: T.textMuted, marginTop: 3 }}>
             Nenhum paciente em espera.
           </p>
         </div>
@@ -96,6 +95,7 @@ export function AgendaQueue({ entries, nextFree, onEntryClick }: AgendaQueueProp
           <Glass
             style={{
               padding: 10,
+              borderRadius: T.r.md,
               background: T.primaryBg,
               border: `1px solid ${T.primaryBorder}`,
             }}

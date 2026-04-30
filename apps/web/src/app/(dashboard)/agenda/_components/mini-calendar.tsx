@@ -69,8 +69,8 @@ export function MiniCalendar({
           onClick={() => onMonthChange(-1)}
           aria-label="Mês anterior"
           style={{
-            width: 24,
-            height: 24,
+            width: 22,
+            height: 22,
             borderRadius: T.r.sm,
             background: T.glass,
             border: `1px solid ${T.glassBorder}`,
@@ -80,7 +80,7 @@ export function MiniCalendar({
             justifyContent: 'center',
           }}
         >
-          <Ico name="arrowLeft" size={12} color={T.textMuted} />
+          <Ico name="arrowLeft" size={10} color={T.textMuted} />
         </button>
         <Mono size={9} spacing="0.8px" color={T.textPrimary}>
           {MONTH_NAMES[month]?.toUpperCase()} {year}
@@ -90,8 +90,8 @@ export function MiniCalendar({
           onClick={() => onMonthChange(1)}
           aria-label="Próximo mês"
           style={{
-            width: 24,
-            height: 24,
+            width: 22,
+            height: 22,
             borderRadius: T.r.sm,
             background: T.glass,
             border: `1px solid ${T.glassBorder}`,
@@ -101,7 +101,7 @@ export function MiniCalendar({
             justifyContent: 'center',
           }}
         >
-          <Ico name="arrowRight" size={12} color={T.textMuted} />
+          <Ico name="arrowRight" size={10} color={T.textMuted} />
         </button>
       </div>
 

@@ -20,7 +20,7 @@ const SheetOverlay = React.forwardRef<
       'fixed inset-0 bg-bg-overlay/60 backdrop-blur-sm data-[state=open]:animate-fade-in',
       className,
     )}
-    style={{ zIndex: 'var(--z-overlay)' }}
+    style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
     {...props}
   />
 ));
@@ -38,6 +38,13 @@ const sideClasses = {
   bottom: 'inset-x-0 bottom-0 w-full',
 };
 
+const sideStyles: Record<string, React.CSSProperties> = {
+  right:  { top: 0, right: 0, bottom: 0, height: '100%', width: '100%', maxWidth: 460 },
+  left:   { top: 0, left: 0, bottom: 0, height: '100%', width: '100%', maxWidth: 460 },
+  top:    { top: 0, left: 0, right: 0, width: '100%' },
+  bottom: { bottom: 0, left: 0, right: 0, width: '100%' },
+};
+
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   SheetContentProps
@@ -51,19 +58,51 @@ const SheetContent = React.forwardRef<
         sideClasses[side],
         className,
       )}
-      style={{ zIndex: 'var(--z-modal)' }}
+      style={{
+        position: 'fixed',
+        zIndex: 400,
+        display: 'flex',
+        flexDirection: 'column' as const,
+        background: 'hsl(0 0% 100%)',
+        borderTop: '1px solid hsl(0 0% 90%)',
+        borderRight: '1px solid hsl(0 0% 90%)',
+        borderBottom: '1px solid hsl(0 0% 90%)',
+        borderLeft: '1px solid hsl(0 0% 90%)',
+        boxShadow: '0 24px 56px rgba(0,0,0,0.14), 0 6px 14px rgba(0,0,0,0.06)',
+        ...sideStyles[side],
+      }}
+      aria-describedby={undefined}
       {...props}
     >
       {children}
       <DialogPrimitive.Close
-        className={cn(
-          `absolute right-4 top-4 rounded-md p-1.5 text-muted-foreground
-           hover:text-foreground hover:bg-hover transition-colors
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`,
-        )}
         aria-label="Fechar painel"
+        style={{
+          position: 'absolute',
+          right: 16,
+          top: 16,
+          padding: 6,
+          borderRadius: 6,
+          border: 'none',
+          background: 'transparent',
+          color: 'hsl(0 0% 55%)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'color 0.15s, background 0.15s',
+          zIndex: 10,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'hsl(0 0% 95%)';
+          e.currentTarget.style.color = 'hsl(0 0% 20%)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.color = 'hsl(0 0% 55%)';
+        }}
       >
-        <X className="h-4 w-4" aria-hidden="true" />
+        <X style={{ width: 16, height: 16 }} aria-hidden="true" />
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </SheetPortal>

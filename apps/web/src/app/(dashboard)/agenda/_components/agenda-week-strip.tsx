@@ -57,7 +57,7 @@ export function AgendaWeekStrip({ weekStart, selected, counts, onSelect }: Agend
           >
             <p
               style={{
-                fontSize: 9,
+                fontSize: 11,
                 fontFamily: "'IBM Plex Mono', monospace",
                 color: isSel ? T.primary : T.textMuted,
               }}
@@ -66,7 +66,7 @@ export function AgendaWeekStrip({ weekStart, selected, counts, onSelect }: Agend
             </p>
             <p
               style={{
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: 700,
                 color: isSel ? T.primary : T.textPrimary,
               }}
