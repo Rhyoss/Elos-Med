@@ -6,13 +6,12 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AlertCircle, ChevronLeft, Loader2, Plus, X } from 'lucide-react';
-import { Button, Badge, Card, CardContent } from '@dermaos/ui';
-import { PageHero, Btn, T } from '@dermaos/ui/ds';
+import {
+  Btn, Glass, Mono, Badge, Ico, PageHero, T,
+} from '@dermaos/ui/ds';
+import { Button, useToast } from '@dermaos/ui';
 import { createPatientSchema } from '@dermaos/shared';
 import { trpc } from '@/lib/trpc-provider';
-
-/* ── Tipos ──────────────────────────────────────────────────────────────── */
 
 type CreatePatientForm = z.infer<typeof createPatientSchema>;
 
@@ -24,32 +23,34 @@ interface ViaCepResponse {
   erro?:      boolean;
 }
 
-/* ── Componentes auxiliares ──────────────────────────────────────────────── */
+/* ── Glass form field ──────────────────────────────────────────────────── */
 
-function FormField({
+function GlassField({
   label,
   required,
   error,
-  children,
   hint,
+  children,
 }: {
   label:     string;
   required?: boolean;
   error?:    string;
-  children:  React.ReactNode;
   hint?:     string;
+  children:  React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-foreground">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <label style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, letterSpacing: '0.3px' }}>
         {label}
-        {required && <span className="text-danger-500 ml-0.5" aria-hidden="true">*</span>}
+        {required && <span style={{ color: T.danger, marginLeft: 2 }} aria-hidden>*</span>}
       </label>
       {children}
-      {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {hint && !error && (
+        <p style={{ fontSize: 12, color: T.textMuted }}>{hint}</p>
+      )}
       {error && (
-        <p className="text-xs text-danger-600 flex items-center gap-1" role="alert" aria-live="polite">
-          <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <p role="alert" aria-live="polite" style={{ fontSize: 12, color: T.danger, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Ico name="alert" size={10} color={T.danger} />
           {error}
         </p>
       )}
@@ -57,25 +58,50 @@ function FormField({
   );
 }
 
-function FieldInput({
+const glassInputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '9px 12px',
+  borderRadius: T.r.md,
+  background: T.glass,
+  backdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
+  WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
+  border: `1px solid ${T.glassBorder}`,
+  fontSize: 15,
+  color: T.textPrimary,
+  fontFamily: "'IBM Plex Sans', sans-serif",
+  transition: 'border-color 0.15s, box-shadow 0.15s',
+  outline: 'none',
+};
+
+const glassInputErrorStyle: React.CSSProperties = {
+  ...glassInputStyle,
+  borderColor: T.dangerBorder,
+};
+
+function GlassInput({
   error,
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & { error?: string }) {
   return (
     <input
       {...props}
-      className={[
-        'w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground',
-        'focus:outline-none focus:ring-2 focus:ring-ring transition-colors',
-        error ? 'border-danger-500' : 'border-input',
-        props.disabled ? 'opacity-50 cursor-not-allowed' : '',
-      ].join(' ')}
+      style={error ? glassInputErrorStyle : glassInputStyle}
       aria-invalid={!!error}
+      onFocus={(e) => {
+        e.currentTarget.style.borderColor = T.primaryBorder;
+        e.currentTarget.style.boxShadow = `0 0 0 2px ${T.primaryBg}`;
+        props.onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.borderColor = error ? T.dangerBorder : T.glassBorder;
+        e.currentTarget.style.boxShadow = 'none';
+        props.onBlur?.(e);
+      }}
     />
   );
 }
 
-function FieldSelect({
+function GlassSelect({
   error,
   children,
   ...props
@@ -83,18 +109,31 @@ function FieldSelect({
   return (
     <select
       {...props}
-      className={[
-        'w-full rounded-md border bg-background px-3 py-2 text-sm',
-        'focus:outline-none focus:ring-2 focus:ring-ring transition-colors',
-        error ? 'border-danger-500' : 'border-input',
-        props.disabled ? 'opacity-50 cursor-not-allowed' : '',
-      ].join(' ')}
+      style={error ? glassInputErrorStyle : glassInputStyle}
       aria-invalid={!!error}
     >
       {children}
     </select>
   );
 }
+
+function GlassTextarea({
+  error,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { error?: string }) {
+  return (
+    <textarea
+      {...props}
+      style={{
+        ...(error ? glassInputErrorStyle : glassInputStyle),
+        resize: 'none',
+      }}
+      aria-invalid={!!error}
+    />
+  );
+}
+
+/* ── Tags input ──────────────────────────────────────────────────────── */
 
 function TagsInput({
   value,
@@ -116,58 +155,59 @@ function TagsInput({
     setInput('');
   }
 
-  function removeTag(tag: string) {
-    onChange(value.filter((t) => t !== tag));
-  }
-
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ',') {
-              e.preventDefault();
-              addTag(input);
-            }
-            if (e.key === 'Backspace' && !input && value.length > 0) {
-              onChange(value.slice(0, -1));
-            }
+            if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(input); }
+            if (e.key === 'Backspace' && !input && value.length > 0) onChange(value.slice(0, -1));
           }}
           placeholder={placeholder}
           aria-label={`Adicionar ${label}`}
-          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm
-                     placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          style={{ ...glassInputStyle, flex: 1 }}
         />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => addTag(input)}
-          aria-label={`Adicionar ${label}`}
-          disabled={!input.trim()}
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-        </Button>
+        <Btn variant="glass" small icon="plus" onClick={() => addTag(input)} disabled={!input.trim()}>
+          Adicionar
+        </Btn>
       </div>
       {value.length > 0 && (
-        <div className="flex flex-wrap gap-1.5" role="list" aria-label={`Lista de ${label}`}>
+        <div role="list" aria-label={`Lista de ${label}`} style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {value.map((tag) => (
             <span
               key={tag}
               role="listitem"
-              className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary-100 px-2.5 py-0.5 text-xs font-medium text-primary-700"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '3px 10px 3px 12px',
+                borderRadius: T.r.lg,
+                background: T.primaryBg,
+                border: `1px solid ${T.primaryBorder}`,
+                fontSize: 13,
+                fontWeight: 500,
+                color: T.primary,
+              }}
             >
               {tag}
               <button
                 type="button"
-                onClick={() => removeTag(tag)}
+                onClick={() => onChange(value.filter((t) => t !== tag))}
                 aria-label={`Remover ${tag}`}
-                className="flex items-center justify-center rounded-full hover:bg-primary-200 p-0.5 focus:outline-none focus:ring-1 focus:ring-ring"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 2,
+                  display: 'flex',
+                  borderRadius: '50%',
+                }}
               >
-                <X className="h-3 w-3" aria-hidden="true" />
+                <Ico name="x" size={10} color={T.primary} />
               </button>
             </span>
           ))}
@@ -177,58 +217,171 @@ function TagsInput({
   );
 }
 
-/* ── Modal de duplicata ──────────────────────────────────────────────────── */
+/* ── Duplicate modal (glassmorphism) ───────────────────────────────────── */
 
-interface DuplicateModalProps {
-  existingId:   string;
+function DuplicateModal({
+  existingName,
+  onView,
+  onDismiss,
+}: {
   existingName: string;
   onView:       () => void;
   onDismiss:    () => void;
-}
-
-function DuplicateModal({ existingId, existingName, onView, onDismiss }: DuplicateModalProps) {
+}) {
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="dup-title"
-      className="fixed inset-0 z-modal flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 400,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+      }}
     >
-      <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4">
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning-100">
-            <AlertCircle className="h-5 w-5 text-warning-600" aria-hidden="true" />
-          </span>
-          <div>
-            <h2 id="dup-title" className="font-semibold text-foreground">Paciente já cadastrado</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Já existe um cadastro com este CPF: <strong>{existingName}</strong>.
-            </p>
+      <div
+        aria-hidden
+        onClick={onDismiss}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(0,0,0,0.35)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          width: '100%',
+          maxWidth: 400,
+          background: T.glass,
+          backdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
+          WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
+          border: `1px solid ${T.glassBorder}`,
+          borderRadius: T.r.xl,
+          boxShadow: '0 24px 56px rgba(0,0,0,0.12), 0 6px 14px rgba(0,0,0,0.06)',
+          padding: '24px 20px',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '44%',
+            background: T.metalHighlight,
+            borderRadius: `${T.r.xl}px ${T.r.xl}px 0 0`,
+            pointerEvents: 'none',
+            opacity: 0.18,
+          }}
+        />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: T.r.lg,
+                background: T.warningBg,
+                border: `1px solid ${T.warningBorder}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Ico name="alert" size={20} color={T.warning} />
+            </div>
+            <div>
+              <h2 id="dup-title" style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary }}>
+                Paciente já cadastrado
+              </h2>
+              <p style={{ fontSize: 14, color: T.textSecondary, marginTop: 6, lineHeight: 1.5 }}>
+                Já existe um cadastro com este CPF: <strong>{existingName}</strong>.
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2 justify-end">
-          <Button variant="ghost" size="sm" onClick={onDismiss}>É outra pessoa</Button>
-          <Button size="sm" onClick={onView}>Ver cadastro existente</Button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Btn variant="ghost" small onClick={onDismiss}>É outra pessoa</Btn>
+            <Btn small icon="eye" onClick={onView}>Ver cadastro</Btn>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Seções do formulário ────────────────────────────────────────────────── */
+/* ── Section wrapper ───────────────────────────────────────────────────── */
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function FormSection({
+  icon,
+  title,
+  subtitle,
+  children,
+}: {
+  icon: 'user' | 'phone' | 'home' | 'activity' | 'globe';
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <h2 className="text-base font-semibold text-foreground border-b border-border pb-2 mb-4">
-      {children}
-    </h2>
+    <Glass style={{ padding: '22px 24px' }}>
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '44%',
+          background: T.metalHighlight,
+          borderRadius: `${T.r.lg}px ${T.r.lg}px 0 0`,
+          pointerEvents: 'none',
+          opacity: 0.12,
+        }}
+      />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: T.r.md,
+              background: T.primaryBg,
+              border: `1px solid ${T.primaryBorder}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Ico name={icon} size={15} color={T.primary} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: T.textPrimary, lineHeight: 1.2 }}>{title}</h2>
+            {subtitle && <Mono size={11}>{subtitle}</Mono>}
+          </div>
+        </div>
+        {children}
+      </div>
+    </Glass>
   );
 }
 
-/* ── Página principal ────────────────────────────────────────────────────── */
+/* ── Main page ─────────────────────────────────────────────────────────── */
 
 export default function NovoPacientePage() {
   const router = useRouter();
+  const { toast } = useToast();
 
   const [duplicate, setDuplicate] = React.useState<{ id: string; name: string } | null>(null);
   const [cepLoading, setCepLoading] = React.useState(false);
@@ -240,7 +393,6 @@ export default function NovoPacientePage() {
     formState: { errors, isSubmitting },
     setValue,
     watch,
-    getValues,
   } = useForm<CreatePatientForm>({
     resolver: zodResolver(createPatientSchema),
     defaultValues: {
@@ -261,11 +413,10 @@ export default function NovoPacientePage() {
         setDuplicate({ id: result.existing.id, name: result.existing.name });
         return;
       }
-      router.push(`/pacientes/${result.patient.id}/perfil`);
+      toast.success('Paciente cadastrado', { description: result.patient.name });
+      router.push(`/pacientes/${result.patient.id}/prontuario`);
     },
-    onError: (err) => {
-      setGlobalError(err.message);
-    },
+    onError: (err) => setGlobalError(err.message),
   });
 
   async function fetchCep(cep: string) {
@@ -282,7 +433,7 @@ export default function NovoPacientePage() {
       setValue('address.state',    json.uf,         { shouldValidate: true });
       setValue('address.zip',      digits,           { shouldValidate: true });
     } catch {
-      // Silently ignore CEP lookup errors
+      // silently ignore
     } finally {
       setCepLoading(false);
     }
@@ -300,12 +451,12 @@ export default function NovoPacientePage() {
           <PageHero
             eyebrow="PRONTUÁRIO ELETRÔNICO · NOVO CADASTRO"
             title="Novo Paciente"
-            description="Preencha os dados para cadastrar um novo paciente"
+            description="Preencha os dados para cadastrar um novo paciente na clínica"
             module="clinical"
             icon="user"
             actions={
               <Link href="/pacientes" style={{ textDecoration: 'none' }}>
-                <Btn variant="glass" small icon="arrowLeft">Voltar para Pacientes</Btn>
+                <Btn variant="glass" small icon="arrowLeft">Voltar</Btn>
               </Link>
             }
           />
@@ -315,290 +466,281 @@ export default function NovoPacientePage() {
           onSubmit={handleSubmit(onSubmit)}
           noValidate
           aria-label="Formulário de cadastro de paciente"
-          className="flex-1 overflow-y-auto"
-          style={{ padding: '0 26px 22px' }}
+          style={{ flex: 1, overflowY: 'auto', padding: '0 26px 22px' }}
         >
-          <div className="max-w-3xl mx-auto flex flex-col gap-8">
-            {/* Erro global */}
+          <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Global error */}
             {globalError && (
-              <div role="alert" className="flex items-start gap-2 rounded-lg border border-danger-500/30 bg-danger-50 px-4 py-3">
-                <AlertCircle className="h-4 w-4 text-danger-600 shrink-0 mt-0.5" aria-hidden="true" />
-                <p className="text-sm text-danger-700">{globalError}</p>
+              <div
+                role="alert"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '12px 16px',
+                  borderRadius: T.r.lg,
+                  background: T.dangerBg,
+                  border: `1px solid ${T.dangerBorder}`,
+                }}
+              >
+                <Ico name="alert" size={16} color={T.danger} />
+                <p style={{ fontSize: 14, color: T.danger }}>{globalError}</p>
               </div>
             )}
 
-            {/* SEÇÃO: Dados Pessoais */}
-            <Card>
-              <CardContent className="pt-6">
-                <SectionTitle>Dados Pessoais</SectionTitle>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <FormField label="Nome completo" required error={errors.name?.message}>
-                      <FieldInput
-                        {...register('name')}
-                        placeholder="Maria da Silva"
-                        autoComplete="name"
-                        error={errors.name?.message}
-                      />
-                    </FormField>
-                  </div>
-
-                  <FormField label="CPF" error={errors.cpf?.message} hint="Somente números (11 dígitos)">
-                    <FieldInput
-                      {...register('cpf', {
-                        onBlur: () => {
-                          const cpf = getValues('cpf');
-                          if (cpf && cpf.length === 11) {
-                            // Duplicata é verificada no servidor ao submeter
-                          }
-                        },
-                      })}
-                      placeholder="00000000000"
-                      maxLength={11}
-                      inputMode="numeric"
-                      error={errors.cpf?.message}
+            {/* Dados Pessoais */}
+            <FormSection icon="user" title="Dados Pessoais" subtitle="INFORMAÇÕES DE IDENTIFICAÇÃO">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <GlassField label="Nome completo" required error={errors.name?.message}>
+                    <GlassInput
+                      {...register('name')}
+                      placeholder="Maria da Silva"
+                      autoComplete="name"
+                      error={errors.name?.message}
                     />
-                  </FormField>
-
-                  <FormField label="Data de nascimento" error={errors.birthDate?.message}>
-                    <FieldInput
-                      type="date"
-                      max={new Date().toISOString().split('T')[0]}
-                      {...register('birthDate')}
-                      error={errors.birthDate?.message}
-                    />
-                  </FormField>
-
-                  <FormField label="Sexo" error={errors.gender?.message}>
-                    <FieldSelect {...register('gender')} error={errors.gender?.message}>
-                      <option value="">Selecione…</option>
-                      <option value="female">Feminino</option>
-                      <option value="male">Masculino</option>
-                      <option value="non_binary">Não-binário</option>
-                      <option value="prefer_not_to_say">Prefiro não informar</option>
-                      <option value="other">Outro</option>
-                    </FieldSelect>
-                  </FormField>
-
-                  <FormField label="Tipo sanguíneo" error={errors.bloodType?.message}>
-                    <FieldSelect {...register('bloodType')} error={errors.bloodType?.message}>
-                      <option value="">Não informado</option>
-                      {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map((bt) => (
-                        <option key={bt} value={bt}>{bt}</option>
-                      ))}
-                    </FieldSelect>
-                  </FormField>
+                  </GlassField>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* SEÇÃO: Contato */}
-            <Card>
-              <CardContent className="pt-6">
-                <SectionTitle>Contato</SectionTitle>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label="Telefone principal" required error={errors.phone?.message} hint="DDD + número (10 ou 11 dígitos)">
-                    <FieldInput
-                      {...register('phone')}
-                      placeholder="11999999999"
-                      inputMode="tel"
-                      maxLength={11}
-                      error={errors.phone?.message}
+                <GlassField label="CPF" error={errors.cpf?.message} hint="Somente números (11 dígitos)">
+                  <GlassInput
+                    {...register('cpf')}
+                    placeholder="00000000000"
+                    maxLength={11}
+                    inputMode="numeric"
+                    error={errors.cpf?.message}
+                  />
+                </GlassField>
+
+                <GlassField label="Data de nascimento" error={errors.birthDate?.message}>
+                  <GlassInput
+                    type="date"
+                    max={new Date().toISOString().split('T')[0]}
+                    {...register('birthDate')}
+                    error={errors.birthDate?.message}
+                  />
+                </GlassField>
+
+                <GlassField label="Sexo" error={errors.gender?.message}>
+                  <GlassSelect {...register('gender')} error={errors.gender?.message}>
+                    <option value="">Selecione…</option>
+                    <option value="female">Feminino</option>
+                    <option value="male">Masculino</option>
+                    <option value="non_binary">Não-binário</option>
+                    <option value="prefer_not_to_say">Prefiro não informar</option>
+                    <option value="other">Outro</option>
+                  </GlassSelect>
+                </GlassField>
+
+                <GlassField label="Tipo sanguíneo" error={errors.bloodType?.message}>
+                  <GlassSelect {...register('bloodType')} error={errors.bloodType?.message}>
+                    <option value="">Não informado</option>
+                    {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map((bt) => (
+                      <option key={bt} value={bt}>{bt}</option>
+                    ))}
+                  </GlassSelect>
+                </GlassField>
+              </div>
+            </FormSection>
+
+            {/* Contato */}
+            <FormSection icon="phone" title="Contato" subtitle="TELEFONE E E-MAIL">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <GlassField label="Telefone principal" required error={errors.phone?.message} hint="DDD + número">
+                  <GlassInput
+                    {...register('phone')}
+                    placeholder="11999999999"
+                    inputMode="tel"
+                    maxLength={11}
+                    error={errors.phone?.message}
+                  />
+                </GlassField>
+
+                <GlassField label="Telefone secundário" error={errors.phoneSecondary?.message}>
+                  <GlassInput
+                    {...register('phoneSecondary')}
+                    placeholder="11988888888"
+                    inputMode="tel"
+                    maxLength={11}
+                    error={errors.phoneSecondary?.message}
+                  />
+                </GlassField>
+
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <GlassField label="E-mail" error={errors.email?.message}>
+                    <GlassInput
+                      {...register('email')}
+                      type="email"
+                      placeholder="maria@email.com"
+                      autoComplete="email"
+                      error={errors.email?.message}
                     />
-                  </FormField>
-
-                  <FormField label="Telefone secundário" error={errors.phoneSecondary?.message}>
-                    <FieldInput
-                      {...register('phoneSecondary')}
-                      placeholder="11988888888"
-                      inputMode="tel"
-                      maxLength={11}
-                      error={errors.phoneSecondary?.message}
-                    />
-                  </FormField>
-
-                  <div className="sm:col-span-2">
-                    <FormField label="E-mail" error={errors.email?.message}>
-                      <FieldInput
-                        {...register('email')}
-                        type="email"
-                        placeholder="maria@email.com"
-                        autoComplete="email"
-                        error={errors.email?.message}
-                      />
-                    </FormField>
-                  </div>
+                  </GlassField>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </FormSection>
 
-            {/* SEÇÃO: Endereço */}
-            <Card>
-              <CardContent className="pt-6">
-                <SectionTitle>Endereço</SectionTitle>
-                <div className="grid gap-4 sm:grid-cols-6">
-                  <div className="sm:col-span-2">
-                    <FormField label="CEP" hint="Preenchimento automático">
-                      <div className="relative">
-                        <FieldInput
-                          {...register('address.zip', {
-                            onBlur: (e) => fetchCep(e.target.value),
-                          })}
-                          placeholder="00000000"
-                          maxLength={8}
-                          inputMode="numeric"
-                          disabled={cepLoading}
+            {/* Endereço */}
+            <FormSection icon="home" title="Endereço" subtitle="LOCALIZAÇÃO DO PACIENTE">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <GlassField label="CEP" hint="Preenchimento automático">
+                    <div style={{ position: 'relative' }}>
+                      <GlassInput
+                        {...register('address.zip', {
+                          onBlur: (e) => fetchCep(e.target.value),
+                        })}
+                        placeholder="00000000"
+                        maxLength={8}
+                        inputMode="numeric"
+                        disabled={cepLoading}
+                      />
+                      {cepLoading && (
+                        <span
+                          aria-label="Buscando CEP…"
+                          style={{
+                            position: 'absolute',
+                            right: 10,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: 14,
+                            height: 14,
+                            borderRadius: '50%',
+                            border: `2px solid ${T.primary}`,
+                            borderTopColor: 'transparent',
+                            animation: 'ds-spin 0.7s linear infinite',
+                            display: 'inline-block',
+                          }}
                         />
-                        {cepLoading && (
-                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" aria-label="Buscando CEP…" />
-                        )}
-                      </div>
-                    </FormField>
-                  </div>
-
-                  <div className="sm:col-span-4">
-                    <FormField label="Rua / Logradouro">
-                      <FieldInput {...register('address.street')} placeholder="Rua das Flores" />
-                    </FormField>
-                  </div>
-
-                  <div className="sm:col-span-1">
-                    <FormField label="Número">
-                      <FieldInput {...register('address.number')} placeholder="123" />
-                    </FormField>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <FormField label="Complemento">
-                      <FieldInput {...register('address.complement')} placeholder="Apto 12" />
-                    </FormField>
-                  </div>
-
-                  <div className="sm:col-span-3">
-                    <FormField label="Bairro">
-                      <FieldInput {...register('address.district')} placeholder="Centro" />
-                    </FormField>
-                  </div>
-
-                  <div className="sm:col-span-4">
-                    <FormField label="Cidade">
-                      <FieldInput {...register('address.city')} placeholder="São Paulo" />
-                    </FormField>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <FormField label="Estado" error={errors.address?.state?.message}>
-                      <FieldInput
-                        {...register('address.state')}
-                        placeholder="SP"
-                        maxLength={2}
-                        style={{ textTransform: 'uppercase' }}
-                        error={errors.address?.state?.message}
-                      />
-                    </FormField>
-                  </div>
+                      )}
+                    </div>
+                  </GlassField>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* SEÇÃO: Dados Clínicos */}
-            <Card>
-              <CardContent className="pt-6">
-                <SectionTitle>Dados Clínicos</SectionTitle>
-                <div className="flex flex-col gap-5">
-                  <FormField label="Alergias" hint="Pressione Enter ou vírgula para adicionar">
-                    <TagsInput
-                      value={allergies}
-                      onChange={(v) => setValue('allergies', v)}
-                      placeholder="Ex: Penicilina, Dipirona…"
-                      label="alergia"
-                    />
-                  </FormField>
-
-                  <FormField label="Condições crônicas" hint="Ex: Diabetes, Hipertensão…">
-                    <TagsInput
-                      value={chronicConditions}
-                      onChange={(v) => setValue('chronicConditions', v)}
-                      placeholder="Ex: Diabetes tipo 2…"
-                      label="condição crônica"
-                    />
-                  </FormField>
-
-                  <FormField label="Medicamentos em uso" hint="Ex: Metformina 850mg…">
-                    <TagsInput
-                      value={activeMedications}
-                      onChange={(v) => setValue('activeMedications', v)}
-                      placeholder="Ex: Metformina 850mg…"
-                      label="medicamento"
-                    />
-                  </FormField>
-
-                  <FormField label="Observações internas" error={errors.internalNotes?.message}>
-                    <textarea
-                      {...register('internalNotes')}
-                      rows={3}
-                      placeholder="Informações relevantes para a equipe clínica…"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm
-                                 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                      aria-invalid={!!errors.internalNotes}
-                    />
-                    {errors.internalNotes && (
-                      <p className="text-xs text-danger-600" role="alert">{errors.internalNotes.message}</p>
-                    )}
-                  </FormField>
+                <div style={{ gridColumn: 'span 4' }}>
+                  <GlassField label="Rua / Logradouro">
+                    <GlassInput {...register('address.street')} placeholder="Rua das Flores" />
+                  </GlassField>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* SEÇÃO: Origem */}
-            <Card>
-              <CardContent className="pt-6">
-                <SectionTitle>Origem</SectionTitle>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label="Canal de origem">
-                    <FieldSelect {...register('sourceChannel')}>
-                      <option value="">Não informado</option>
-                      <option value="whatsapp">WhatsApp</option>
-                      <option value="google">Google</option>
-                      <option value="referral">Indicação</option>
-                      <option value="walk_in">Presencial</option>
-                      <option value="instagram">Instagram</option>
-                      <option value="facebook">Facebook</option>
-                      <option value="site">Site</option>
-                    </FieldSelect>
-                  </FormField>
-
-                  <FormField label="Campanha / UTM">
-                    <FieldInput {...register('sourceCampaign')} placeholder="campanha-verao-2025" />
-                  </FormField>
+                <div style={{ gridColumn: 'span 1' }}>
+                  <GlassField label="Número">
+                    <GlassInput {...register('address.number')} placeholder="123" />
+                  </GlassField>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Ações */}
-            <div className="flex items-center justify-end gap-3 pb-6">
-              <Link href="/pacientes">
-                <Button type="button" variant="ghost" disabled={isSubmitting}>Cancelar</Button>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <GlassField label="Complemento">
+                    <GlassInput {...register('address.complement')} placeholder="Apto 12" />
+                  </GlassField>
+                </div>
+
+                <div style={{ gridColumn: 'span 3' }}>
+                  <GlassField label="Bairro">
+                    <GlassInput {...register('address.district')} placeholder="Centro" />
+                  </GlassField>
+                </div>
+
+                <div style={{ gridColumn: 'span 4' }}>
+                  <GlassField label="Cidade">
+                    <GlassInput {...register('address.city')} placeholder="São Paulo" />
+                  </GlassField>
+                </div>
+
+                <div style={{ gridColumn: 'span 2' }}>
+                  <GlassField label="Estado" error={errors.address?.state?.message}>
+                    <GlassInput
+                      {...register('address.state')}
+                      placeholder="SP"
+                      maxLength={2}
+                      style={{ ...glassInputStyle, textTransform: 'uppercase' }}
+                      error={errors.address?.state?.message}
+                    />
+                  </GlassField>
+                </div>
+              </div>
+            </FormSection>
+
+            {/* Dados Clínicos */}
+            <FormSection icon="activity" title="Dados Clínicos" subtitle="INFORMAÇÕES MÉDICAS">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <GlassField label="Alergias" hint="Pressione Enter ou vírgula para adicionar">
+                  <TagsInput
+                    value={allergies}
+                    onChange={(v) => setValue('allergies', v)}
+                    placeholder="Ex: Penicilina, Dipirona…"
+                    label="alergia"
+                  />
+                </GlassField>
+
+                <GlassField label="Condições crônicas" hint="Ex: Diabetes, Hipertensão…">
+                  <TagsInput
+                    value={chronicConditions}
+                    onChange={(v) => setValue('chronicConditions', v)}
+                    placeholder="Ex: Diabetes tipo 2…"
+                    label="condição crônica"
+                  />
+                </GlassField>
+
+                <GlassField label="Medicamentos em uso" hint="Ex: Metformina 850mg…">
+                  <TagsInput
+                    value={activeMedications}
+                    onChange={(v) => setValue('activeMedications', v)}
+                    placeholder="Ex: Metformina 850mg…"
+                    label="medicamento"
+                  />
+                </GlassField>
+
+                <GlassField label="Observações internas" error={errors.internalNotes?.message}>
+                  <GlassTextarea
+                    {...register('internalNotes')}
+                    rows={3}
+                    placeholder="Informações relevantes para a equipe clínica…"
+                    error={errors.internalNotes?.message}
+                  />
+                </GlassField>
+              </div>
+            </FormSection>
+
+            {/* Origem */}
+            <FormSection icon="globe" title="Origem" subtitle="CANAL DE CAPTAÇÃO">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <GlassField label="Canal de origem">
+                  <GlassSelect {...register('sourceChannel')}>
+                    <option value="">Não informado</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="google">Google</option>
+                    <option value="referral">Indicação</option>
+                    <option value="walk_in">Presencial</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="site">Site</option>
+                  </GlassSelect>
+                </GlassField>
+
+                <GlassField label="Campanha / UTM">
+                  <GlassInput {...register('sourceCampaign')} placeholder="campanha-verao-2026" />
+                </GlassField>
+              </div>
+            </FormSection>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingBottom: 16 }}>
+              <Link href="/pacientes" style={{ textDecoration: 'none' }}>
+                <Btn variant="ghost" small disabled={isSubmitting}>Cancelar</Btn>
               </Link>
-              <Button type="submit" disabled={isSubmitting} aria-busy={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    Salvando…
-                  </>
-                ) : 'Salvar Paciente'}
-              </Button>
+              <Btn type="submit" small icon="check" loading={isSubmitting}>
+                {isSubmitting ? 'Salvando…' : 'Salvar Paciente'}
+              </Btn>
             </div>
           </div>
         </form>
       </div>
 
-      {/* Modal de duplicata */}
       {duplicate && (
         <DuplicateModal
-          existingId={duplicate.id}
           existingName={duplicate.name}
-          onView={() => router.push(`/pacientes/${duplicate.id}/perfil`)}
+          onView={() => router.push(`/pacientes/${duplicate.id}/prontuario`)}
           onDismiss={() => setDuplicate(null)}
         />
       )}

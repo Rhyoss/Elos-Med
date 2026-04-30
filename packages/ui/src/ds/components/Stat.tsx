@@ -24,23 +24,23 @@ export function Stat({ label, value, sub, icon, mod, pct, className, style }: St
   const accent = m ? m.color : T.primary;
   const accentBg = m ? m.bg : T.primaryBg;
   return (
-    <Glass hover className={className} style={{ padding: '16px 18px', ...style }}>
+    <Glass hover className={className} style={{ padding: '20px 22px', ...style }}>
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 12,
+          marginBottom: 14,
         }}
       >
-        <Mono size={8} spacing="1.1px" color={accent}>
+        <Mono size={11} spacing="1px" color={accent}>
           {label.toUpperCase()}
         </Mono>
         {icon && (
           <div
             style={{
-              width: 28,
-              height: 28,
+              width: 34,
+              height: 34,
               borderRadius: T.r.md,
               background: accentBg,
               display: 'flex',
@@ -49,18 +49,18 @@ export function Stat({ label, value, sub, icon, mod, pct, className, style }: St
               flexShrink: 0,
             }}
           >
-            <Ico name={icon} size={14} color={accent} />
+            <Ico name={icon} size={17} color={accent} />
           </div>
         )}
       </div>
       <p
         style={{
-          fontSize: 26,
+          fontSize: 32,
           fontWeight: 700,
           color: T.textPrimary,
           letterSpacing: '-0.02em',
           lineHeight: 1,
-          marginBottom: 3,
+          marginBottom: 4,
         }}
       >
         {value}
@@ -68,9 +68,9 @@ export function Stat({ label, value, sub, icon, mod, pct, className, style }: St
       {sub != null && (
         <p
           style={{
-            fontSize: 11,
+            fontSize: 13,
             color: T.textMuted,
-            marginBottom: pct != null ? 12 : 0,
+            marginBottom: pct != null ? 14 : 0,
           }}
         >
           {sub}

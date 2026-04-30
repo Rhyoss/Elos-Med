@@ -13,9 +13,9 @@ export interface MonoProps {
 
 export function Mono({
   children,
-  size = 10,
+  size = 12,
   color,
-  spacing = '1.1px',
+  spacing = '0.8px',
   weight = 500,
   className,
   style,

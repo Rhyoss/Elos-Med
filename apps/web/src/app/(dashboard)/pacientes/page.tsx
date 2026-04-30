@@ -148,22 +148,22 @@ export default function PacientesPage() {
             }
           />
 
-          {/* Toolbar */}
-          <Glass style={{ padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-            <div style={{ flex: 1, minWidth: 220, maxWidth: 360 }}>
+          {/* Toolbar — single row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <Input
                 leadingIcon="search"
                 type="search"
-                placeholder="Buscar nome, CPF ou telefone…"
+                placeholder="Buscar nome, CPF, telefone, diagnóstico, prontuário…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Buscar pacientes"
               />
             </div>
 
-            <div style={{ minWidth: 160 }}>
+            <div style={{ width: 150, flexShrink: 0 }}>
               <Select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
-                <option value="">Todos os status</option>
+                <option value="">Status</option>
                 <option value="active">Ativo</option>
                 <option value="inactive">Inativo</option>
                 <option value="blocked">Bloqueado</option>
@@ -171,9 +171,9 @@ export default function PacientesPage() {
               </Select>
             </div>
 
-            <div style={{ minWidth: 160 }}>
+            <div style={{ width: 150, flexShrink: 0 }}>
               <Select value={source} onChange={(e) => setSource(e.target.value)} aria-label="Origem">
-                <option value="">Todas as origens</option>
+                <option value="">Origem</option>
                 {SOURCE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
@@ -185,14 +185,12 @@ export default function PacientesPage() {
             )}
 
             {!isLoading && (
-              <span style={{ marginLeft: 'auto' }}>
-                <Mono size={9}>
-                  {total} {total === 1 ? 'PACIENTE' : 'PACIENTES'}
-                  {isFetching && !isLoading && ' · ATUALIZANDO'}
-                </Mono>
-              </span>
+              <Mono size={11}>
+                {total} {total === 1 ? 'PACIENTE' : 'PACIENTES'}
+                {isFetching && !isLoading && ' · ATUALIZANDO'}
+              </Mono>
             )}
-          </Glass>
+          </div>
         </div>
 
         {/* Tabela */}
@@ -207,7 +205,7 @@ export default function PacientesPage() {
                       style={{
                         padding: '9px 16px',
                         textAlign: 'left',
-                        fontSize: 8,
+                        fontSize: 10,
                         fontFamily: "'IBM Plex Mono', monospace",
                         letterSpacing: '1.1px',
                         color: T.textMuted,
@@ -252,7 +250,7 @@ export default function PacientesPage() {
                         }}
                       >
                         <td style={{ padding: '11px 16px' }}>
-                          <Mono size={9}>{p.id.slice(0, 8).toUpperCase()}</Mono>
+                          <Mono size={11}>{p.id.slice(0, 8).toUpperCase()}</Mono>
                         </td>
                         <td style={{ padding: '11px 16px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -270,19 +268,19 @@ export default function PacientesPage() {
                               <Ico name="user" size={12} color={T.clinical.color} />
                             </div>
                             <div>
-                              <p style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary }}>{p.name}</p>
-                              <Mono size={8}>{p.cpfMasked ?? '—'}</Mono>
+                              <p style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{p.name}</p>
+                              <Mono size={10}>{p.cpfMasked ?? '—'}</Mono>
                             </div>
                           </div>
                         </td>
-                        <td style={{ padding: '11px 16px', fontSize: 12, color: T.textSecondary }}>
+                        <td style={{ padding: '12px 16px', fontSize: 14, color: T.textSecondary }}>
                           {p.age != null ? `${p.age} anos` : '—'}
                         </td>
-                        <td style={{ padding: '11px 16px', fontSize: 11, color: T.textSecondary }}>
+                        <td style={{ padding: '12px 16px', fontSize: 13, color: T.textSecondary }}>
                           {diagOf(p)}
                         </td>
                         <td style={{ padding: '11px 16px' }}>
-                          <Mono size={9}>{formatDate(p.lastVisitAt)}</Mono>
+                          <Mono size={11}>{formatDate(p.lastVisitAt)}</Mono>
                         </td>
                         <td style={{ padding: '11px 16px' }}>
                           <Badge variant={STATUS_BADGE[p.status] ?? 'default'}>
@@ -331,7 +329,7 @@ export default function PacientesPage() {
           {/* Paginação */}
           {!isLoading && total > PAGE_SIZE && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-              <Mono size={9}>PÁGINA {page} DE {totalPages}</Mono>
+              <Mono size={11}>PÁGINA {page} DE {totalPages}</Mono>
               <div style={{ display: 'flex', gap: 4 }}>
                 <Btn variant="ghost" small icon="arrowLeft" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
                   Anterior
@@ -367,7 +365,7 @@ export default function PacientesPage() {
               alignItems: 'center',
             }}
           >
-            <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>Prontuário</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary }}>Prontuário</span>
             <button
               onClick={() => setSelected(null)}
               aria-label="Fechar painel"
@@ -392,8 +390,8 @@ export default function PacientesPage() {
             >
               <Ico name="user" size={22} color={T.clinical.color} />
             </div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, marginBottom: 2 }}>{selected.name}</p>
-            <Mono size={9}>{selected.id.slice(0, 8).toUpperCase()}{selected.age != null ? ` · ${selected.age} anos` : ''}</Mono>
+            <p style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary, marginBottom: 3 }}>{selected.name}</p>
+            <Mono size={11}>{selected.id.slice(0, 8).toUpperCase()}{selected.age != null ? ` · ${selected.age} anos` : ''}</Mono>
             <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {([
                 ['CPF',             selected.cpfMasked ?? '—'],
@@ -411,8 +409,8 @@ export default function PacientesPage() {
                     border: `1px solid ${T.glassBorder}`,
                   }}
                 >
-                  <Mono size={7}>{k.toUpperCase()}</Mono>
-                  <p style={{ fontSize: 12, color: T.textPrimary, marginTop: 2 }}>{v}</p>
+                  <Mono size={9}>{k.toUpperCase()}</Mono>
+                  <p style={{ fontSize: 14, color: T.textPrimary, marginTop: 2 }}>{v}</p>
                 </div>
               ))}
             </div>

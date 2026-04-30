@@ -181,8 +181,8 @@ services:
   # ─── API Backend (Fastify + tRPC) ──────────────────────────────────────────
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/api/Dockerfile
       target: runner
     container_name: dermaos-api
     restart: unless-stopped
@@ -231,8 +231,8 @@ services:
   # ─── Web Frontend (Next.js 15) ─────────────────────────────────────────────
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/web/Dockerfile
       target: runner
     container_name: dermaos-web
     restart: unless-stopped
@@ -252,8 +252,8 @@ services:
   # ─── Worker (BullMQ background jobs) ──────────────────────────────────────
   worker:
     build:
-      context: ./apps/worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/worker/Dockerfile
       target: runner
     container_name: dermaos-worker
     restart: unless-stopped
@@ -293,8 +293,8 @@ services:
   # GKE com NetworkPolicy bloqueando ingress externo).
   ai:
     build:
-      context: ./apps/ai
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/ai/Dockerfile
     container_name: dermaos-ai
     restart: unless-stopped
     depends_on:

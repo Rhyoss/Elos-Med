@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Glass, Ico, Mono, T } from '@dermaos/ui/ds';
+import { Glass, Ico, Mono, Badge, EmptyState, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { ImageViewer, type ImageMeta } from './image-viewer';
 
@@ -16,6 +16,15 @@ const CAPTURE_LABEL: Record<string, string> = {
   pre:         'Pré-procedimento',
   post:        'Pós-procedimento',
   'follow-up': 'Acompanhamento',
+};
+
+const CAPTURE_COLOR: Record<string, string> = {
+  clinical:    T.clinical.color,
+  dermoscopy:  T.aiMod.color,
+  trichoscopy: T.supply.color,
+  pre:         T.warning,
+  post:        T.success,
+  'follow-up': T.info,
 };
 
 function formatDate(d: Date | string | null): string {
@@ -33,58 +42,145 @@ export function TabImagens({ patientId }: TabImagensProps) {
 
   const items = listQ.data?.data ?? [];
   const [openImage, setOpenImage] = React.useState<ImageMeta | null>(null);
+  const [filterType, setFilterType] = React.useState<string | null>(null);
 
   if (listQ.isLoading) {
-    return <p style={{ fontSize: 12, color: T.textMuted }}>Carregando imagens…</p>;
+    return (
+      <Glass style={{ padding: 32, textAlign: 'center' }}>
+        <Mono size={11} color={T.textMuted}>CARREGANDO IMAGENS…</Mono>
+      </Glass>
+    );
   }
+
   if (items.length === 0) {
-    return <p style={{ fontSize: 12, color: T.textMuted }}>Nenhuma imagem clínica capturada.</p>;
+    return (
+      <Glass style={{ padding: 40 }}>
+        <EmptyState
+          icon="image"
+          title="Nenhuma imagem clínica"
+          description="Fotos clínicas, dermoscópicas e de acompanhamento capturadas durante consultas aparecerão aqui."
+          tone="primary"
+        />
+      </Glass>
+    );
   }
+
+  const captureTypes = [...new Set(items.map((i) => i.captureType).filter(Boolean))] as string[];
+  const filtered = filterType ? items.filter((i) => i.captureType === filterType) : items;
 
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        {items.map((img) => (
-          <Glass
-            key={img.id}
-            hover
-            style={{ padding: 0, overflow: 'hidden', cursor: 'pointer' }}
-            onClick={() => setOpenImage(img as ImageMeta)}
+      {/* Filters */}
+      {captureTypes.length > 1 && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setFilterType(null)}
+            style={{
+              padding: '5px 12px',
+              borderRadius: T.r.md,
+              background: filterType === null ? T.primaryBg : 'transparent',
+              border: `1px solid ${filterType === null ? T.primaryBorder : 'transparent'}`,
+              color: filterType === null ? T.primary : T.textMuted,
+              fontSize: 12,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
           >
-            <div
-              style={{
-                height: 140,
-                background: img.thumbnailUrl
-                  ? `center / cover url(${img.thumbnailUrl})`
-                  : `linear-gradient(145deg, ${T.clinical.bg}, ${T.glass})`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderBottom: `1px solid ${T.divider}`,
-              }}
+            TODAS ({items.length})
+          </button>
+          {captureTypes.map((ct) => {
+            const count = items.filter((i) => i.captureType === ct).length;
+            return (
+              <button
+                key={ct}
+                type="button"
+                onClick={() => setFilterType(ct)}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: T.r.md,
+                  background: filterType === ct ? T.primaryBg : 'transparent',
+                  border: `1px solid ${filterType === ct ? T.primaryBorder : 'transparent'}`,
+                  color: filterType === ct ? T.primary : T.textMuted,
+                  fontSize: 11,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {(CAPTURE_LABEL[ct] ?? ct).toUpperCase()} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+        {filtered.map((img) => {
+          const color = CAPTURE_COLOR[img.captureType ?? ''] ?? T.textMuted;
+          return (
+            <Glass
+              key={img.id}
+              hover
+              style={{ padding: 0, overflow: 'hidden', cursor: 'pointer' }}
+              onClick={() => setOpenImage(img as ImageMeta)}
             >
-              {!img.thumbnailUrl && (
-                <div style={{ textAlign: 'center' }}>
-                  <Ico name="image" size={32} color={T.clinical.color} />
-                  <p style={{ fontSize: 10, color: T.textMuted, marginTop: 4 }}>
-                    {img.captureType ? CAPTURE_LABEL[img.captureType] ?? img.captureType : 'Imagem'}
-                  </p>
-                </div>
-              )}
-            </div>
-            <div style={{ padding: '12px 14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Mono size={8} color={T.primary}>
-                  {img.captureType ? (CAPTURE_LABEL[img.captureType] ?? img.captureType).toUpperCase() : 'IMAGEM'}
-                </Mono>
-                <Mono size={8}>{formatDate(img.capturedAt)}</Mono>
+              <div
+                style={{
+                  height: 160,
+                  background: img.thumbnailUrl
+                    ? `center / cover url(${img.thumbnailUrl})`
+                    : `linear-gradient(145deg, ${T.clinical.bg}, ${T.glass})`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderBottom: `1px solid ${T.divider}`,
+                  position: 'relative',
+                }}
+              >
+                {!img.thumbnailUrl && (
+                  <div style={{ textAlign: 'center' }}>
+                    <Ico name="image" size={32} color={color} />
+                    <p style={{ fontSize: 12, color: T.textMuted, marginTop: 4 }}>
+                      {img.captureType ? CAPTURE_LABEL[img.captureType] ?? img.captureType : 'Imagem'}
+                    </p>
+                  </div>
+                )}
+                {img.captureType && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      left: 8,
+                      padding: '3px 8px',
+                      borderRadius: T.r.sm,
+                      background: T.glass,
+                      backdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
+                      WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
+                      border: `1px solid ${T.glassBorder}`,
+                    }}
+                  >
+                    <Mono size={9} color={color}>
+                      {(CAPTURE_LABEL[img.captureType] ?? img.captureType).toUpperCase()}
+                    </Mono>
+                  </div>
+                )}
               </div>
-              <p style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.5 }}>
-                {img.notes ?? img.altText ?? '—'}
-              </p>
-            </div>
-          </Glass>
-        ))}
+              <div style={{ padding: '12px 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Mono size={10}>{formatDate(img.capturedAt)}</Mono>
+                  <Ico name="eye" size={14} color={T.textMuted} />
+                </div>
+                <p style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5 }}>
+                  {img.notes ?? img.altText ?? '—'}
+                </p>
+              </div>
+            </Glass>
+          );
+        })}
       </div>
 
       <ImageViewer

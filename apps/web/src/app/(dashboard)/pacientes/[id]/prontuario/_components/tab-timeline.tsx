@@ -1,6 +1,6 @@
 'use client';
 
-import { Ico, Mono, T } from '@dermaos/ui/ds';
+import { Glass, Ico, Mono, EmptyState, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 
 interface TabTimelineProps {
@@ -22,11 +22,17 @@ const KIND_ICON: Record<TimelineKind, 'calendar' | 'file' | 'image'> = {
   imagem:     'image',
 };
 
-const KIND_COLOR = (T: typeof import('@dermaos/ui/ds').T) => ({
+const KIND_COLOR: Record<TimelineKind, string> = {
   consulta:   T.clinical.color,
   prescricao: T.primary,
   imagem:     T.supply.color,
-});
+};
+
+const KIND_BG: Record<TimelineKind, string> = {
+  consulta:   T.clinical.bg,
+  prescricao: T.primaryBg,
+  imagem:     T.supply.bg,
+};
 
 const TYPE_LABEL: Record<string, string> = {
   clinical:     'Consulta clínica',
@@ -52,6 +58,10 @@ function formatDayHeader(d: Date): string {
     month: 'short',
     year: 'numeric',
   }).toUpperCase();
+}
+
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 function dayKey(d: Date): string {
@@ -94,66 +104,100 @@ export function TabTimeline({ patientId }: TabTimelineProps) {
 
   events.sort((a, b) => b.date.getTime() - a.date.getTime());
 
-  const colors = KIND_COLOR(T);
-
   if (isLoading && events.length === 0) {
-    return <p style={{ fontSize: 12, color: T.textMuted }}>Carregando timeline…</p>;
+    return (
+      <Glass style={{ padding: 32, textAlign: 'center' }}>
+        <Mono size={11} color={T.textMuted}>CARREGANDO TIMELINE…</Mono>
+      </Glass>
+    );
   }
+
   if (events.length === 0) {
-    return <p style={{ fontSize: 12, color: T.textMuted }}>Nenhum evento clínico ainda.</p>;
+    return (
+      <Glass style={{ padding: 40 }}>
+        <EmptyState
+          icon="clock"
+          title="Timeline vazia"
+          description="Consultas, prescrições e imagens aparecerão aqui em ordem cronológica conforme forem registradas."
+          tone="primary"
+        />
+      </Glass>
+    );
   }
 
   let lastKey = '';
   return (
-    <div style={{ position: 'relative', paddingLeft: 24 }}>
+    <div style={{ position: 'relative', paddingLeft: 32 }}>
+      {/* Vertical line */}
       <div
+        aria-hidden
         style={{
           position: 'absolute',
-          left: 10,
-          top: 0,
-          bottom: 0,
-          width: 1,
-          background: T.divider,
+          left: 14,
+          top: 8,
+          bottom: 8,
+          width: 2,
+          borderRadius: 1,
+          background: `linear-gradient(to bottom, ${T.primary}40, ${T.divider})`,
         }}
       />
+
       {events.map((ev, i) => {
         const k = dayKey(ev.date);
         const showDate = k !== lastKey;
         lastKey = k;
+        const clr = KIND_COLOR[ev.kind];
+        const bg = KIND_BG[ev.kind];
         const ic = KIND_ICON[ev.kind];
-        const clr = colors[ev.kind];
+
         return (
           <div key={i}>
             {showDate && (
-              <div style={{ marginBottom: 8, marginLeft: -24 }}>
-                <Mono size={9} spacing="1px" color={T.textMuted}>
-                  {formatDayHeader(ev.date)}
-                </Mono>
+              <div style={{ marginBottom: 10, marginLeft: -32, paddingLeft: 4 }}>
+                <Glass
+                  style={{
+                    display: 'inline-flex',
+                    padding: '4px 12px',
+                    borderRadius: T.r.md,
+                  }}
+                >
+                  <Mono size={11} spacing="1px" color={T.primary}>
+                    {formatDayHeader(ev.date)}
+                  </Mono>
+                </Glass>
               </div>
             )}
-            <div style={{ display: 'flex', gap: 12, marginBottom: 14, position: 'relative' }}>
+
+            <div style={{ display: 'flex', gap: 14, marginBottom: 16, position: 'relative' }}>
+              {/* Node dot */}
               <div
                 style={{
-                  width: 20,
-                  height: 20,
+                  width: 24,
+                  height: 24,
                   borderRadius: '50%',
-                  background: T.bg,
-                  border: `1.5px solid ${clr}`,
+                  background: bg,
+                  border: `2px solid ${clr}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   position: 'absolute',
-                  left: -24,
+                  left: -32,
+                  top: 2,
                   flexShrink: 0,
                   zIndex: 1,
                 }}
               >
-                <Ico name={ic} size={10} color={clr} />
+                <Ico name={ic} size={13} color={clr} />
               </div>
-              <div style={{ marginLeft: 8 }}>
-                <p style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary }}>{ev.label}</p>
-                <p style={{ fontSize: 11, color: T.textMuted }}>{ev.detail}</p>
-              </div>
+
+              {/* Content card */}
+              <Glass hover style={{ padding: '12px 16px', flex: 1, borderLeft: `3px solid ${clr}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary }}>{ev.label}</p>
+                  <Mono size={10} color={T.textMuted}>{formatTime(ev.date)}</Mono>
+                </div>
+                <p style={{ fontSize: 13, color: T.textMuted, lineHeight: 1.5 }}>{ev.detail}</p>
+              </Glass>
             </div>
           </div>
         );

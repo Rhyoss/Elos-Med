@@ -2,10 +2,12 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import {
+  Badge, Glass, Btn, Ico, Mono, T,
+} from '@dermaos/ui/ds';
 import {
   AllergyBanner,
-  Badge,
   Button,
   Input,
   LoadingSkeleton,
@@ -13,7 +15,6 @@ import {
 } from '@dermaos/ui';
 import { trpc } from '@/lib/trpc-provider';
 import { useAuthStore } from '@/stores/auth-store';
-import { cn } from '@/lib/utils';
 import type {
   EncounterDiagnosisInput,
   NextAppointmentHint,
@@ -30,7 +31,7 @@ import { EncounterImages } from './_components/encounter-images';
 import { EncounterPrescriptions } from './_components/encounter-prescriptions';
 import { SaveStatusIndicator, type SaveStatus } from './_components/save-status';
 
-/* ── Form state ──────────────────────────────────────────────────────────── */
+/* ── Form state ──────────────────────────────────────────────────────── */
 
 interface FormState {
   chiefComplaint: string;
@@ -58,7 +59,7 @@ const EMPTY_FORM: FormState = {
 
 const AUTOSAVE_DEBOUNCE_MS = 15_000;
 
-/* ── Helpers ─────────────────────────────────────────────────────────────── */
+/* ── Helpers ─────────────────────────────────────────────────────────── */
 
 function stripHtml(html: string): string {
   if (typeof document === 'undefined') return html;
@@ -68,14 +69,13 @@ function stripHtml(html: string): string {
 }
 
 function buildSoapTextForAi(form: FormState): string {
-  const parts = [
+  return [
     form.chiefComplaint ? `Queixa principal: ${form.chiefComplaint}` : '',
     form.subjective  ? `Subjetivo: ${stripHtml(form.subjective)}`   : '',
     form.objective   ? `Objetivo: ${stripHtml(form.objective)}`     : '',
     form.assessment  ? `Avaliação: ${stripHtml(form.assessment)}`   : '',
     form.plan        ? `Plano: ${stripHtml(form.plan)}`             : '',
-  ];
-  return parts.filter(Boolean).join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 function formatElapsed(ms: number): string {
@@ -95,7 +95,29 @@ function shallowDiff(a: FormState, b: FormState): Partial<FormState> {
   return diff;
 }
 
-/* ── Page ────────────────────────────────────────────────────────────────── */
+/* ── Glass section wrapper ───────────────────────────────────────────── */
+
+function SoapSection({
+  label,
+  action,
+  children,
+}: {
+  label:    string;
+  action?:  React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <Mono size={11} spacing="1px" color={T.primary}>{label.toUpperCase()}</Mono>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* ── Page ────────────────────────────────────────────────────────────── */
 
 export default function ConsultaPage({
   params,
@@ -107,7 +129,7 @@ export default function ConsultaPage({
   const { toast } = useToast();
   const sessionUser = useAuthStore((s) => s.user);
 
-  /* ── Queries ───────────────────────────────────────────────────────── */
+  /* ── Queries ─────────────────────────────────────────────────────── */
   const encounterQuery = trpc.clinical.encounters.getById.useQuery(
     { id: encounterId },
     { staleTime: 0, refetchOnWindowFocus: false },
@@ -119,16 +141,15 @@ export default function ConsultaPage({
 
   const encounter = encounterQuery.data?.encounter;
   const patient   = patientQuery.data?.patient;
+  const isSigned  = encounter?.status === 'assinado';
 
-  const isSigned = encounter?.status === 'assinado';
-
-  /* ── Form state ────────────────────────────────────────────────────── */
+  /* ── Form state ──────────────────────────────────────────────────── */
   const [form, setForm]       = React.useState<FormState>(EMPTY_FORM);
   const lastSyncedRef         = React.useRef<FormState>(EMPTY_FORM);
   const [saveStatus, setSaveStatus] = React.useState<SaveStatus>({ kind: 'idle', lastSavedAt: null });
   const [signOpen, setSignOpen]   = React.useState(false);
+  const [showNotes, setShowNotes] = React.useState(false);
 
-  // Carrega form a partir do encounter quando disponível
   React.useEffect(() => {
     if (!encounter) return;
     const loaded: FormState = {
@@ -164,7 +185,7 @@ export default function ConsultaPage({
     setSaveStatus({ kind: 'idle', lastSavedAt: encounter.updatedAt });
   }, [encounter]);
 
-  /* ── Timer da consulta ─────────────────────────────────────────────── */
+  /* ── Timer ───────────────────────────────────────────────────────── */
   const [elapsedMs, setElapsedMs] = React.useState(0);
   const startedAtRef = React.useRef<Date | null>(null);
 
@@ -172,19 +193,17 @@ export default function ConsultaPage({
     if (!encounter) return;
     startedAtRef.current = encounter.createdAt;
     const interval = setInterval(() => {
-      const start = startedAtRef.current;
-      if (!start) return;
-      setElapsedMs(Date.now() - start.getTime());
+      if (startedAtRef.current) setElapsedMs(Date.now() - startedAtRef.current.getTime());
     }, 1000);
     return () => clearInterval(interval);
   }, [encounter]);
 
-  /* ── Mutations ─────────────────────────────────────────────────────── */
-  const autoSaveMut    = trpc.clinical.encounters.autoSave.useMutation();
-  const signMut        = trpc.clinical.encounters.sign.useMutation();
-  const aiSoapMut      = trpc.clinical.encounters.aiSuggestSoap.useMutation();
+  /* ── Mutations ───────────────────────────────────────────────────── */
+  const autoSaveMut = trpc.clinical.encounters.autoSave.useMutation();
+  const signMut     = trpc.clinical.encounters.sign.useMutation();
+  const aiSoapMut   = trpc.clinical.encounters.aiSuggestSoap.useMutation();
 
-  /* ── Auto-save ─────────────────────────────────────────────────────── */
+  /* ── Auto-save ───────────────────────────────────────────────────── */
   const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const persist = React.useCallback(async () => {
@@ -222,12 +241,9 @@ export default function ConsultaPage({
 
   const scheduleSave = React.useCallback(() => {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    debounceTimerRef.current = setTimeout(() => {
-      void persist();
-    }, AUTOSAVE_DEBOUNCE_MS);
+    debounceTimerRef.current = setTimeout(() => { void persist(); }, AUTOSAVE_DEBOUNCE_MS);
   }, [persist]);
 
-  // Agenda save sempre que o form muda (exceto sync inicial)
   const formSignatureRef = React.useRef<string>('');
   React.useEffect(() => {
     const signature = JSON.stringify(form);
@@ -240,8 +256,6 @@ export default function ConsultaPage({
     scheduleSave();
   }, [form, scheduleSave, isSigned]);
 
-  // Dispara save ao fechar a página (beforeunload) — não promete sucesso, mas
-  // tenta disparar o request. Reabertura usa o último rascunho persistido.
   React.useEffect(() => {
     function beforeUnload() {
       if (debounceTimerRef.current) {
@@ -253,7 +267,7 @@ export default function ConsultaPage({
     return () => window.removeEventListener('beforeunload', beforeUnload);
   }, [persist]);
 
-  /* ── Form handlers ─────────────────────────────────────────────────── */
+  /* ── Form handlers ─────────────────────────────────────────────── */
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -272,7 +286,6 @@ export default function ConsultaPage({
         ].filter(Boolean).join(' · '),
       });
       const { draft } = res;
-      // Wrap content em parágrafos simples para o Tiptap
       setForm((prev) => ({
         ...prev,
         subjective: draft.subjective ? `<p>${draft.subjective}</p>` : prev.subjective,
@@ -285,17 +298,15 @@ export default function ConsultaPage({
       });
     } catch (err) {
       toast.error('Assistente indisponível', {
-        description: err instanceof Error ? err.message : 'Tente novamente em instantes.',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
       });
     }
   }
 
   async function handleSign() {
     try {
-      // Garante que qualquer rascunho pendente vai antes
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       await persist();
-
       await signMut.mutateAsync({ id: encounterId });
       toast.success('Prontuário assinado');
       setSignOpen(false);
@@ -307,233 +318,370 @@ export default function ConsultaPage({
     }
   }
 
-  /* ── Loading / error states ───────────────────────────────────────── */
+  /* ── Loading / error ─────────────────────────────────────────────── */
   if (encounterQuery.isLoading) {
     return (
-      <div className="space-y-4 p-6">
-        <LoadingSkeleton className="h-8 w-1/2 rounded" />
-        <LoadingSkeleton className="h-64 w-full rounded" />
+      <div style={{ padding: 24 }}>
+        <Glass style={{ padding: 32, textAlign: 'center' }}>
+          <Mono size={11} color={T.textMuted}>CARREGANDO ATENDIMENTO…</Mono>
+        </Glass>
       </div>
     );
   }
 
   if (encounterQuery.isError || !encounter) {
     return (
-      <div className="p-6 text-sm text-danger-700">
-        Atendimento não encontrado.
+      <div style={{ padding: 24 }}>
+        <Glass style={{ padding: 32, textAlign: 'center' }}>
+          <Ico name="alert" size={24} color={T.danger} />
+          <p style={{ fontSize: 15, color: T.danger, marginTop: 8 }}>Atendimento não encontrado.</p>
+          <div style={{ marginTop: 12 }}>
+            <Link href={`/pacientes/${patientId}/prontuario`} style={{ textDecoration: 'none' }}>
+              <Btn variant="glass" small icon="arrowLeft">Voltar ao prontuário</Btn>
+            </Link>
+          </div>
+        </Glass>
       </div>
     );
   }
 
-  /* ── Render ───────────────────────────────────────────────────────── */
   const soapTextForAi = buildSoapTextForAi(form);
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Top bar (nome paciente, banner alergias, cronômetro) */}
-      <div className="border-b border-border bg-card px-6 py-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-base font-semibold text-foreground">
-              {patient?.name ?? 'Atendimento'}
-            </h1>
-            <Badge variant={isSigned ? 'success' : 'primary'} size="sm" dot>
-              {isSigned ? 'Assinado' : 'Em atendimento'}
-            </Badge>
-          </div>
-          <div
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1 font-mono text-sm tabular-nums text-foreground"
-            role="timer"
-            aria-label="Duração da consulta"
-          >
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-            {formatElapsed(elapsedMs)}
-          </div>
-        </div>
-        {patient && patient.allergies.length > 0 && (
-          <div className="mt-3">
-            <AllergyBanner allergies={patient.allergies} />
-          </div>
-        )}
-      </div>
-
-      {/* Corpo principal — split panel */}
-      <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
-        {/* ── Esquerda: campos SOAP ───────────────────────────────────── */}
-        <section
-          aria-labelledby="soap-heading"
-          className="flex-1 min-w-0 overflow-y-auto border-b border-border p-6 lg:w-[60%] lg:border-b-0 lg:border-r"
-        >
-          <div className="mx-auto max-w-3xl space-y-5">
-            <h2 id="soap-heading" className="sr-only">Campos SOAP</h2>
-
-            <FieldLabel text="Queixa Principal" htmlFor="chief-complaint">
-              <Input
-                id="chief-complaint"
-                value={form.chiefComplaint}
-                onChange={(e) => update('chiefComplaint', e.target.value)}
-                placeholder="Ex: Lesão na face em crescimento há 3 semanas"
-                disabled={isSigned}
-                maxLength={2000}
-                aria-label="Queixa principal"
-              />
-            </FieldLabel>
-
-            <FieldLabel
-              text="Subjetivo"
-              action={
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleSuggestSoap}
-                  disabled={isSigned || aiSoapMut.isPending}
-                >
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                  {aiSoapMut.isPending ? 'Gerando…' : 'IA: Sugerir'}
-                </Button>
-              }
-            >
-              <SoapEditor
-                label="Subjetivo"
-                value={form.subjective}
-                onChange={(v) => update('subjective', v)}
-                placeholder="História clínica, queixas, evolução…"
-                disabled={isSigned}
-                minHeight="7rem"
-              />
-            </FieldLabel>
-
-            <FieldLabel text="Objetivo">
-              <SoapEditor
-                label="Objetivo"
-                value={form.objective}
-                onChange={(v) => update('objective', v)}
-                placeholder="Exame físico, achados dermatológicos…"
-                disabled={isSigned}
-                minHeight="7rem"
-              />
-              <div className="mt-2">
-                <VitalSignsForm
-                  value={form.vitalSigns}
-                  onChange={(v) => update('vitalSigns', v)}
-                  disabled={isSigned}
-                />
-              </div>
-            </FieldLabel>
-
-            <FieldLabel text="Avaliação">
-              <SoapEditor
-                label="Avaliação"
-                value={form.assessment}
-                onChange={(v) => update('assessment', v)}
-                placeholder="Impressão clínica, hipóteses diagnósticas…"
-                disabled={isSigned}
-                minHeight="6rem"
-              />
-            </FieldLabel>
-
-            <FieldLabel text="Plano">
-              <SoapEditor
-                label="Plano"
-                value={form.plan}
-                onChange={(v) => update('plan', v)}
-                placeholder="Conduta, prescrição, exames solicitados, orientações…"
-                disabled={isSigned}
-                minHeight="6rem"
-              />
-            </FieldLabel>
-
-            <details className="rounded-md border border-border bg-muted/30">
-              <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-muted-foreground">
-                Notas internas (não impressas)
-              </summary>
-              <div className="border-t border-border p-3">
-                <SoapEditor
-                  label="Notas internas"
-                  value={form.internalNotes}
-                  onChange={(v) => update('internalNotes', v)}
-                  placeholder="Observações privadas do profissional…"
-                  disabled={isSigned}
-                  minHeight="5rem"
-                />
-              </div>
-            </details>
-          </div>
-        </section>
-
-        {/* ── Direita: contexto ───────────────────────────────────────── */}
-        <aside
-          aria-labelledby="context-heading"
-          className="flex-shrink-0 overflow-y-auto bg-muted/20 p-6 lg:w-[40%]"
-        >
-          <h2 id="context-heading" className="sr-only">Contexto clínico</h2>
-          <div className="space-y-6">
-            <CidAutocomplete
-              diagnoses={form.diagnoses}
-              onChange={(d) => update('diagnoses', d)}
-              soapText={soapTextForAi}
-              disabled={isSigned}
-            />
-
-            <EncounterImages
-              encounterId={encounterId}
-              patientId={patientId}
-              disabled={isSigned}
-            />
-
-            <EncounterPrescriptions
-              encounterId={encounterId}
-              patientId={patientId}
-              disabled={isSigned}
-            />
-
-            <NextAppointmentSection
-              value={form.nextAppointment}
-              onChange={(v) => update('nextAppointment', v)}
-              patientId={patientId}
-              disabled={isSigned}
-            />
-          </div>
-        </aside>
-      </div>
-
-      {/* Barra inferior sticky */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Top bar */}
       <div
-        className={cn(
-          'sticky bottom-0 z-10 border-t border-border bg-card px-6 py-3',
-          'flex flex-wrap items-center justify-between gap-3',
-        )}
+        style={{
+          padding: '12px 22px',
+          borderBottom: `1px solid ${T.divider}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexShrink: 0,
+          flexWrap: 'wrap',
+        }}
       >
-        <div className="flex items-center gap-4">
-          <div
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1 font-mono text-xs tabular-nums text-muted-foreground"
-            aria-label="Tempo de atendimento"
-          >
-            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-            {formatElapsed(elapsedMs)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Link href={`/pacientes/${patientId}/prontuario`} style={{ textDecoration: 'none' }}>
+            <Btn variant="ghost" small iconOnly icon="arrowLeft" aria-label="Voltar ao prontuário" />
+          </Link>
+          <div>
+            <p style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary }}>
+              {patient?.name ?? 'Atendimento'}
+            </p>
+            <Mono size={11}>{encounterId.slice(0, 8).toUpperCase()}</Mono>
           </div>
+          <Badge variant={isSigned ? 'success' : 'default'} dot>
+            {isSigned ? 'Assinado' : 'Em atendimento'}
+          </Badge>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Glass
+            metal
+            style={{
+              padding: '5px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              borderRadius: T.r.md,
+            }}
+          >
+            <Ico name="clock" size={15} color={T.textMuted} />
+            <span
+              style={{
+                fontSize: 15,
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontVariantNumeric: 'tabular-nums',
+                color: T.textPrimary,
+                fontWeight: 600,
+              }}
+            >
+              {formatElapsed(elapsedMs)}
+            </span>
+          </Glass>
           <SaveStatusIndicator
             status={saveStatus}
             onRetry={saveStatus.kind === 'error' ? () => void persist() : undefined}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
+      </div>
+
+      {/* Allergy banner */}
+      {patient && patient.allergies.length > 0 && (
+        <div style={{ padding: '0 22px', flexShrink: 0 }}>
+          <AllergyBanner allergies={patient.allergies} />
+        </div>
+      )}
+
+      {/* Main body — split panel */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        {/* Left: SOAP fields */}
+        <section
+          aria-labelledby="soap-heading"
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflowY: 'auto',
+            padding: '18px 22px',
+            borderRight: `1px solid ${T.divider}`,
+          }}
+        >
+          <h2 id="soap-heading" className="sr-only">Campos SOAP</h2>
+          <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {/* Chief complaint */}
+            <Glass style={{ padding: '16px 18px' }}>
+              <SoapSection label="Queixa Principal">
+                <input
+                  value={form.chiefComplaint}
+                  onChange={(e) => update('chiefComplaint', e.target.value)}
+                  placeholder="Ex: Lesão na face em crescimento há 3 semanas"
+                  disabled={isSigned}
+                  maxLength={2000}
+                  aria-label="Queixa principal"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: T.r.md,
+                    background: T.glass,
+                    backdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
+                    WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
+                    border: `1px solid ${T.glassBorder}`,
+                    fontSize: 15,
+                    color: T.textPrimary,
+                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontWeight: 500,
+                    outline: 'none',
+                    transition: 'border-color 0.15s',
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = T.primaryBorder; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = T.glassBorder; }}
+                />
+              </SoapSection>
+            </Glass>
+
+            {/* Subjective */}
+            <Glass style={{ padding: '16px 18px' }}>
+              <SoapSection
+                label="Subjetivo"
+                action={
+                  <Btn
+                    variant="glass"
+                    small
+                    icon="zap"
+                    onClick={handleSuggestSoap}
+                    disabled={isSigned || aiSoapMut.isPending}
+                  >
+                    {aiSoapMut.isPending ? 'Gerando…' : 'IA: Sugerir'}
+                  </Btn>
+                }
+              >
+                <SoapEditor
+                  label="Subjetivo"
+                  value={form.subjective}
+                  onChange={(v) => update('subjective', v)}
+                  placeholder="História clínica, queixas, evolução…"
+                  disabled={isSigned}
+                  minHeight="7rem"
+                />
+              </SoapSection>
+            </Glass>
+
+            {/* Objective */}
+            <Glass style={{ padding: '16px 18px' }}>
+              <SoapSection label="Objetivo">
+                <SoapEditor
+                  label="Objetivo"
+                  value={form.objective}
+                  onChange={(v) => update('objective', v)}
+                  placeholder="Exame físico, achados dermatológicos…"
+                  disabled={isSigned}
+                  minHeight="7rem"
+                />
+                <div style={{ marginTop: 12 }}>
+                  <VitalSignsForm
+                    value={form.vitalSigns}
+                    onChange={(v) => update('vitalSigns', v)}
+                    disabled={isSigned}
+                  />
+                </div>
+              </SoapSection>
+            </Glass>
+
+            {/* Assessment */}
+            <Glass style={{ padding: '16px 18px' }}>
+              <SoapSection label="Avaliação">
+                <SoapEditor
+                  label="Avaliação"
+                  value={form.assessment}
+                  onChange={(v) => update('assessment', v)}
+                  placeholder="Impressão clínica, hipóteses diagnósticas…"
+                  disabled={isSigned}
+                  minHeight="6rem"
+                />
+              </SoapSection>
+            </Glass>
+
+            {/* Plan */}
+            <Glass style={{ padding: '16px 18px' }}>
+              <SoapSection label="Plano">
+                <SoapEditor
+                  label="Plano"
+                  value={form.plan}
+                  onChange={(v) => update('plan', v)}
+                  placeholder="Conduta, prescrição, exames, orientações…"
+                  disabled={isSigned}
+                  minHeight="6rem"
+                />
+              </SoapSection>
+            </Glass>
+
+            {/* Internal notes (collapsible) */}
+            <Glass style={{ padding: 0, overflow: 'hidden' }}>
+              <button
+                type="button"
+                onClick={() => setShowNotes(!showNotes)}
+                style={{
+                  width: '100%',
+                  padding: '12px 18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <Mono size={11} color={T.textMuted}>NOTAS INTERNAS (NÃO IMPRESSAS)</Mono>
+                <span style={{ transform: showNotes ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.15s' }}>
+                  <Ico name="chevDown" size={14} color={T.textMuted} />
+                </span>
+              </button>
+              {showNotes && (
+                <div style={{ padding: '0 18px 16px', borderTop: `1px solid ${T.divider}` }}>
+                  <div style={{ paddingTop: 12 }}>
+                    <SoapEditor
+                      label="Notas internas"
+                      value={form.internalNotes}
+                      onChange={(v) => update('internalNotes', v)}
+                      placeholder="Observações privadas do profissional…"
+                      disabled={isSigned}
+                      minHeight="5rem"
+                    />
+                  </div>
+                </div>
+              )}
+            </Glass>
+          </div>
+        </section>
+
+        {/* Right: Context panel */}
+        <aside
+          aria-labelledby="context-heading"
+          style={{
+            width: '38%',
+            minWidth: 320,
+            maxWidth: 480,
+            overflowY: 'auto',
+            padding: '18px 20px',
+            background: 'rgba(242,242,242,0.5)',
+            flexShrink: 0,
+          }}
+        >
+          <h2 id="context-heading" className="sr-only">Contexto clínico</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Glass style={{ padding: '16px 18px' }}>
+              <CidAutocomplete
+                diagnoses={form.diagnoses}
+                onChange={(d) => update('diagnoses', d)}
+                soapText={soapTextForAi}
+                disabled={isSigned}
+              />
+            </Glass>
+
+            <Glass style={{ padding: '16px 18px' }}>
+              <EncounterImages
+                encounterId={encounterId}
+                patientId={patientId}
+                disabled={isSigned}
+              />
+            </Glass>
+
+            <Glass style={{ padding: '16px 18px' }}>
+              <EncounterPrescriptions
+                encounterId={encounterId}
+                patientId={patientId}
+                disabled={isSigned}
+              />
+            </Glass>
+
+            <Glass style={{ padding: '16px 18px' }}>
+              <NextAppointmentSection
+                value={form.nextAppointment}
+                onChange={(v) => update('nextAppointment', v)}
+                patientId={patientId}
+                disabled={isSigned}
+              />
+            </Glass>
+          </div>
+        </aside>
+      </div>
+
+      {/* Bottom action bar */}
+      <div
+        style={{
+          padding: '10px 22px',
+          borderTop: `1px solid ${T.divider}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexShrink: 0,
+          flexWrap: 'wrap',
+          background: T.glass,
+          backdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
+          WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Glass metal style={{ padding: '6px 12px', borderRadius: T.r.md, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Ico name="clock" size={14} color={T.textMuted} />
+            <span
+              style={{
+                fontSize: 14,
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontVariantNumeric: 'tabular-nums',
+                color: T.textSecondary,
+              }}
+            >
+              {formatElapsed(elapsedMs)}
+            </span>
+          </Glass>
+          <SaveStatusIndicator
+            status={saveStatus}
+            onRetry={saveStatus.kind === 'error' ? () => void persist() : undefined}
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Btn
+            variant="glass"
+            small
+            icon="download"
             onClick={() => void persist()}
             disabled={isSigned}
           >
             Salvar rascunho
-          </Button>
-          <Button
-            type="button"
-            variant="gold"
+          </Btn>
+          <Btn
+            variant="accent"
+            small
+            icon="shield"
             onClick={() => setSignOpen(true)}
             disabled={isSigned || signMut.isPending}
           >
             {isSigned ? 'Prontuário assinado' : 'Assinar e fechar'}
-          </Button>
+          </Btn>
         </div>
       </div>
 
@@ -545,35 +693,6 @@ export default function ConsultaPage({
         onConfirm={handleSign}
         isSubmitting={signMut.isPending}
       />
-    </div>
-  );
-}
-
-/* ── Local UI helpers ────────────────────────────────────────────────────── */
-
-function FieldLabel({
-  text,
-  children,
-  action,
-  htmlFor,
-}: {
-  text:     string;
-  children: React.ReactNode;
-  action?:  React.ReactNode;
-  htmlFor?: string;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <label
-          htmlFor={htmlFor}
-          className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-        >
-          {text}
-        </label>
-        {action}
-      </div>
-      {children}
     </div>
   );
 }

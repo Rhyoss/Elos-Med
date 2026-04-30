@@ -57,17 +57,17 @@ export function PageHero({
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        gap: 16,
-        marginBottom: 22,
+        gap: 20,
+        marginBottom: 28,
         ...style,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0, flex: 1 }}>
         {icon && (
           <div
             style={{
-              width: 40,
-              height: 40,
+              width: 48,
+              height: 48,
               borderRadius: T.r.lg,
               background: accentBg,
               border: `1px solid ${accent}18`,
@@ -77,22 +77,22 @@ export function PageHero({
               flexShrink: 0,
             }}
           >
-            <Ico name={icon} size={20} color={accent} />
+            <Ico name={icon} size={24} color={accent} />
           </div>
         )}
         <div style={{ minWidth: 0 }}>
           {eyebrow != null && (
-            <Mono size={9} spacing="1.3px" color={accent}>
+            <Mono size={11} spacing="1.3px" color={accent}>
               {eyebrow}
             </Mono>
           )}
           <h1
             style={{
-              fontSize: 20,
+              fontSize: 28,
               fontWeight: 700,
               color: T.textPrimary,
-              marginTop: eyebrow != null ? 3 : 0,
-              letterSpacing: '-0.01em',
+              marginTop: eyebrow != null ? 4 : 0,
+              letterSpacing: '-0.02em',
               lineHeight: 1.15,
             }}
           >
@@ -101,10 +101,10 @@ export function PageHero({
           {description != null && (
             <p
               style={{
-                fontSize: 12,
+                fontSize: 15,
                 color: T.textSecondary,
-                marginTop: 4,
-                lineHeight: 1.5,
+                marginTop: 6,
+                lineHeight: 1.55,
               }}
             >
               {description}

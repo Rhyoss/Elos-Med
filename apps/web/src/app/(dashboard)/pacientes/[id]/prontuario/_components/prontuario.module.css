@@ -1,17 +1,9 @@
 /* ── Layout principal ────────────────────────────────────────────── */
 .shell {
   display: flex;
+  flex-direction: column;
   height: 100%;
   overflow: hidden;
-}
-
-.sidebar {
-  width: 256px;
-  border-right: 1px solid rgba(200, 200, 200, 0.45);
-  overflow-y: auto;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
 }
 
 .main {
@@ -31,17 +23,9 @@
 /* ── Mobile (< 900px) ────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .shell {
-    flex-direction: column;
     height: auto;
     min-height: 100%;
     overflow: visible;
-  }
-
-  .sidebar {
-    width: 100%;
-    max-height: none;
-    border-right: none;
-    border-bottom: 1px solid rgba(200, 200, 200, 0.45);
   }
 
   .main {
@@ -60,15 +44,6 @@
     height: auto;
     overflow: visible;
     background: white;
-  }
-
-  .sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid #ccc;
-    page-break-after: avoid;
-    overflow: visible;
-    max-height: none;
   }
 
   .main {

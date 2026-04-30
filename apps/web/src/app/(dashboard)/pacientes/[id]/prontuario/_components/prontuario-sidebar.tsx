@@ -1,62 +1,64 @@
 'use client';
 
 import * as React from 'react';
-import { Badge, Ico, Mono, T } from '@dermaos/ui/ds';
+import { Btn, Ico, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 
-interface ProntuarioSidebarProps {
+interface ProntuarioHeaderProps {
   patientId: string;
+  onNovaPrescrição?: () => void;
+  onNovaConsulta?: () => void;
+  onVerImagens?: () => void;
+  onContinuarAtendimento?: () => void;
+  hasOpenDraft?: boolean;
+  isStarting?: boolean;
 }
 
 const GENDER_LABELS: Record<string, string> = {
-  female:            'Feminino',
-  male:              'Masculino',
-  non_binary:        'Não-binário',
-  prefer_not_to_say: 'Prefere não informar',
-  other:             'Outro',
+  female: 'Feminino', male: 'Masculino', non_binary: 'Não-binário',
+  prefer_not_to_say: 'Prefere não informar', other: 'Outro',
 };
 
 const PATIENT_STATUS_LABEL: Record<string, string> = {
-  active:   'Ativo',
-  inactive: 'Inativo',
-  archived: 'Arquivado',
-  blocked:  'Bloqueado',
+  active: 'Ativa', inactive: 'Inativa', archived: 'Arquivada', blocked: 'Bloqueada',
 };
 
-function formatDate(d: Date | string | null): string {
-  if (!d) return '—';
-  const date = typeof d === 'string' ? new Date(d) : d;
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
+const pillBase: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '2px 10px',
+  borderRadius: T.r.pill,
+  fontSize: 12,
+  fontWeight: 600,
+  fontFamily: "'IBM Plex Sans', sans-serif",
+  whiteSpace: 'nowrap',
+};
 
-function formatMonthYear(d: Date | string | null): string {
-  if (!d) return '—';
-  const date = typeof d === 'string' ? new Date(d) : d;
-  return date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace(/\./g, '');
-}
+const actionBtn: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 5,
+  padding: '5px 12px',
+  borderRadius: T.r.sm,
+  background: '#fff',
+  border: '1px solid #CED4DA',
+  color: T.textPrimary,
+  fontSize: 12,
+  fontWeight: 500,
+  fontFamily: "'IBM Plex Sans', sans-serif",
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
 
-function formatAddress(addr: NonNullable<{ street?: string; number?: string; city?: string; state?: string }> | null): string {
-  if (!addr) return 'Endereço não informado';
-  const parts: string[] = [];
-  if (addr.street) parts.push(addr.number ? `${addr.street}, ${addr.number}` : addr.street);
-  if (addr.city || addr.state) parts.push([addr.city, addr.state].filter(Boolean).join(' — '));
-  return parts.join(' · ') || 'Endereço não informado';
-}
-
-function maskCpf(cpf: string | null): string {
-  if (!cpf) return 'Não informado';
-  if (cpf.length !== 11) return cpf;
-  return `***.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-**`;
-}
-
-function maskPhone(phone: string | null): string {
-  if (!phone) return 'Não informado';
-  if (phone.length === 11) return `(${phone.slice(0, 2)}) ${phone.slice(2, 7)}-${phone.slice(7)}`;
-  if (phone.length === 10) return `(${phone.slice(0, 2)}) ${phone.slice(2, 6)}-${phone.slice(6)}`;
-  return phone;
-}
-
-export function ProntuarioSidebar({ patientId }: ProntuarioSidebarProps) {
+export function ProntuarioSidebar({
+  patientId,
+  onNovaPrescrição,
+  onNovaConsulta,
+  onVerImagens,
+  onContinuarAtendimento,
+  hasOpenDraft,
+  isStarting,
+}: ProntuarioHeaderProps) {
   const { data, isLoading } = trpc.patients.getById.useQuery(
     { id: patientId },
     { staleTime: 30_000, refetchOnWindowFocus: false },
@@ -65,183 +67,84 @@ export function ProntuarioSidebar({ patientId }: ProntuarioSidebarProps) {
   const p = data?.patient;
 
   const initials = (p?.name ?? '')
-    .trim()
-    .split(' ')
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+    .trim().split(' ').filter(Boolean)
+    .map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 
-  const cards: Array<[string, string]> = p
-    ? [
-        ['Data de nascimento', formatDate(p.birthDate)],
-        ['CPF',                maskCpf(p.cpf)],
-        ['Telefone',           maskPhone(p.phone)],
-        ['Email',              p.email ?? 'Não informado'],
-        ['Tipo sanguíneo',     p.bloodType ?? 'Não informado'],
-        ['Sexo',               p.gender ? GENDER_LABELS[p.gender] ?? p.gender : 'Não informado'],
-        ['Status',             p.status ? PATIENT_STATUS_LABEL[p.status] ?? p.status : '—'],
-        ['Visitas',            String(p.totalVisits ?? 0)],
-        ['Paciente desde',     p.firstVisitAt ? formatMonthYear(p.firstVisitAt) : formatMonthYear(p.createdAt)],
-      ]
-    : [];
+  const details = [
+    `ID: ${patientId.slice(0, 5).toUpperCase()}`,
+    p?.age != null ? `${p.age} years` : null,
+    p?.gender ? GENDER_LABELS[p.gender] ?? p.gender : null,
+  ].filter(Boolean).join(' · ');
 
   return (
-    <aside
-      style={{
-        width: 256,
-        borderRight: `1px solid ${T.divider}`,
-        overflowY: 'auto',
-        flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* Header */}
-      <div style={{ padding: '18px 16px', borderBottom: `1px solid ${T.divider}` }}>
-        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-          <div
-            aria-hidden
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: T.r.xl,
-              background: T.clinical.bg,
-              border: `1px solid ${T.clinical.color}18`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              color: T.clinical.color,
-              fontWeight: 700,
-              fontSize: 18,
-              fontFamily: "'IBM Plex Sans', sans-serif",
-            }}
-          >
-            {initials || <Ico name="user" size={28} color={T.clinical.color} />}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <p
-              title={p?.name ?? undefined}
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: T.textPrimary,
-                lineHeight: 1.2,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {isLoading ? 'Carregando…' : p?.name ?? '—'}
-            </p>
-            <Mono size={9}>
-              {patientId.slice(0, 8).toUpperCase()} {p?.age != null ? `· ${p.age} anos` : ''}
-            </Mono>
-            {p && (
-              <div style={{ marginTop: 4 }}>
-                <Badge variant={p.status === 'active' ? 'success' : 'default'}>
-                  {PATIENT_STATUS_LABEL[p.status] ?? p.status ?? '—'}
-                </Badge>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Info cards */}
-      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-        {cards.map(([k, v]) => (
-          <div
-            key={k}
-            style={{
-              padding: '7px 10px',
-              borderRadius: T.r.md,
-              background: T.glass,
-              border: `1px solid ${T.glassBorder}`,
-            }}
-          >
-            <Mono size={7} spacing="0.8px">
-              {k.toUpperCase()}
-            </Mono>
-            <p
-              style={{
-                fontSize: 12,
-                color: T.textPrimary,
-                marginTop: 2,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {v}
-            </p>
-          </div>
-        ))}
-
-        {/* Allergies */}
-        {p && p.allergies.length > 0 && (
-          <div
-            style={{
-              padding: '7px 10px',
-              borderRadius: T.r.md,
-              background: T.dangerBg,
-              border: `1px solid ${T.dangerBorder}`,
-            }}
-          >
-            <Mono size={7} spacing="0.8px" color={T.danger}>
-              ALERGIAS
-            </Mono>
-            <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
-              {p.allergies.map((a) => (
-                <Badge key={a} variant="danger" dot={false}>
-                  {a}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Chronic conditions */}
-        {p && p.chronicConditions.length > 0 && (
-          <div
-            style={{
-              padding: '7px 10px',
-              borderRadius: T.r.md,
-              background: T.warningBg,
-              border: `1px solid ${T.warningBorder}`,
-            }}
-          >
-            <Mono size={7} spacing="0.8px" color={T.warning}>
-              CONDIÇÕES CRÔNICAS
-            </Mono>
-            <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
-              {p.chronicConditions.map((c) => (
-                <Badge key={c} variant="warning" dot={false}>
-                  {c}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Address */}
+    <div style={{
+      background: '#F5F5F5',
+      borderBottom: `1px solid ${T.divider}`,
+      padding: '8px 20px',
+      display: 'grid',
+      gridTemplateColumns: '1fr auto 1fr',
+      alignItems: 'center',
+    }}>
+      {/* ── Group 1: Identity + Status pills ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, justifyContent: 'flex-start' }}>
         <div
+          aria-hidden
           style={{
-            marginTop: 'auto',
-            padding: '8px 10px',
-            borderRadius: T.r.md,
-            background: T.primaryBg,
-            border: `1px solid ${T.primaryBorder}`,
+            width: 42, height: 42, borderRadius: '50%',
+            background: T.clinical.bg, border: `2px solid ${T.divider}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, color: T.clinical.color, fontWeight: 700,
+            fontSize: 15, fontFamily: "'IBM Plex Sans', sans-serif",
           }}
         >
-          <Mono size={7} color={T.primary}>
-            ENDEREÇO
-          </Mono>
-          <p style={{ fontSize: 11, color: T.textSecondary, marginTop: 2 }}>{formatAddress(p?.address ?? null)}</p>
+          {initials || <Ico name="user" size={20} color={T.clinical.color} />}
         </div>
+        <div style={{ flexShrink: 0 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, lineHeight: 1.2, fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            {isLoading ? 'Carregando…' : p?.name ?? '—'}
+          </p>
+          <p style={{ fontSize: 11, color: T.textMuted, fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            {details}
+          </p>
+        </div>
+        {p && (
+          <span style={{ ...pillBase, background: '#D4EDDA', color: '#155724' }}>
+            + {PATIENT_STATUS_LABEL[p.status] ?? p.status}
+          </span>
+        )}
+        {p && p.allergies.map((a) => (
+          <span key={a} style={{ ...pillBase, background: '#F8D7DA', color: '#721C24' }}>
+            Alergia: {a.charAt(0).toUpperCase() + a.slice(1)}
+          </span>
+        ))}
       </div>
-    </aside>
+
+      {/* ── Group 2: Action buttons (centered) ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, justifyContent: 'center' }}>
+        <button type="button" onClick={onNovaPrescrição} style={actionBtn}>
+          <Ico name="file" size={14} color={T.textSecondary} />+ Nova Prescrição
+        </button>
+        <button type="button" onClick={onNovaConsulta} disabled={isStarting}
+          style={{ ...actionBtn, opacity: isStarting ? 0.5 : 1 }}>
+          <Ico name="calendar" size={14} color={T.textSecondary} />{isStarting ? 'Abrindo…' : '+ Nova Consulta'}
+        </button>
+        <button type="button" onClick={onVerImagens} style={actionBtn}>
+          <Ico name="image" size={14} color={T.textSecondary} />Ver Imagens
+        </button>
+      </div>
+
+      {/* ── Group 3: CTA ── */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', minWidth: 0 }}>
+        {hasOpenDraft ? (
+          <Btn small icon="edit" onClick={onContinuarAtendimento}>
+            Continuar Atendimento
+          </Btn>
+        ) : (
+          <Btn small icon="edit" onClick={onNovaConsulta} disabled={isStarting}>
+            {isStarting ? 'Abrindo…' : 'Nova Consulta'}
+          </Btn>
+        )}
+      </div>
+    </div>
   );
 }

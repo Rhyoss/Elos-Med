@@ -43,13 +43,13 @@ export function Badge({
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 5,
-        padding: '3px 9px',
+        gap: 6,
+        padding: '4px 11px',
         borderRadius: T.r.pill,
         background: bg,
         border: `1px solid ${border}`,
         color: fg,
-        fontSize: 10,
+        fontSize: 12,
         fontFamily: "'IBM Plex Mono', monospace",
         fontWeight: 500,
         whiteSpace: 'nowrap',
@@ -60,8 +60,8 @@ export function Badge({
         <span
           aria-hidden
           style={{
-            width: 4,
-            height: 4,
+            width: 5,
+            height: 5,
             borderRadius: '50%',
             background: fg,
             flexShrink: 0,

@@ -38,40 +38,42 @@ export function EmptyState({
     <Glass
       className={className}
       style={{
-        padding: 20,
+        padding: 32,
         ...(isDanger ? { border: `1px solid ${T.dangerBorder}` } : null),
         ...style,
       }}
     >
-      <Mono size={8} spacing="1.1px" color={labelColor}>
+      <Mono size={10} spacing="1.1px" color={labelColor}>
         {label}
       </Mono>
-      <div style={{ textAlign: 'center', padding: '16px 0 4px' }}>
+      <div style={{ textAlign: 'center', padding: '24px 0 8px' }}>
         <div
           style={{
-            width: 44,
-            height: 44,
+            width: 56,
+            height: 56,
             borderRadius: T.r.lg,
             background: tintBg,
             border: `1px solid ${tintBorder}`,
-            margin: '0 auto 12px',
+            margin: '0 auto 16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Ico name={icon} size={20} color={iconColor} />
+          <Ico name={icon} size={26} color={iconColor} />
         </div>
-        <p style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary, marginBottom: 4 }}>
+        <p style={{ fontSize: 18, fontWeight: 600, color: T.textPrimary, marginBottom: 6 }}>
           {title}
         </p>
         {description && (
           <p
             style={{
-              fontSize: 12,
+              fontSize: 14,
               color: T.textSecondary,
-              marginBottom: action ? 14 : 0,
-              lineHeight: 1.5,
+              marginBottom: action ? 18 : 0,
+              lineHeight: 1.55,
+              maxWidth: 420,
+              margin: action ? '0 auto 18px' : '0 auto',
             }}
           >
             {description}

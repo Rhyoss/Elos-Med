@@ -45,8 +45,8 @@ type JwtNamespaceAPI = {
 };
 
 function serverJwt(ctx: { req: { server: unknown } }, ns: JwtNamespace): JwtNamespaceAPI {
-  const server = ctx.req.server as Record<JwtNamespace, JwtNamespaceAPI>;
-  return server[ns];
+  const server = ctx.req.server as { jwt: Record<JwtNamespace, JwtNamespaceAPI> };
+  return server.jwt[ns];
 }
 
 // SEC-11: verifica um hash dummy de mesmo custo argon2 para uniformizar
@@ -104,7 +104,7 @@ export const authRouter = router({
         failed_login_attempts: number; locked_until: string | null;
         clinic_slug: string; clinic_active: boolean; clinic_name: string;
       }>(
-        `SELECT * FROM shared.find_user_for_login($1)`,
+        `SELECT * FROM shared.find_user_for_login($1::text)`,
         [email],
       );
 

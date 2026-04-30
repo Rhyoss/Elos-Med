@@ -32,6 +32,12 @@ function formatDate(d: Date | string | null): string {
 }
 
 export function TabResumo({ patientId, onOpenEncounter }: TabResumoProps) {
+  const patientQ = trpc.patients.getById.useQuery(
+    { id: patientId },
+    { staleTime: 30_000, refetchOnWindowFocus: false },
+  );
+  const patient = patientQ.data?.patient;
+
   const lastEncounterQ = trpc.clinical.encounters.getByPatient.useQuery({
     patientId,
     page:     1,
@@ -105,6 +111,44 @@ export function TabResumo({ patientId, onOpenEncounter }: TabResumoProps) {
           ))}
         </div>
       </section>
+
+      {/* Diagnósticos Ativos */}
+      {patient && (patient.chronicConditions.length > 0 || patient.activeMedications.length > 0) && (
+        <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          {patient.chronicConditions.length > 0 && (
+            <Glass style={{ padding: '14px 18px' }}>
+              <Mono size={9} spacing="1px" color={T.primary}>DIAGNÓSTICOS ATIVOS</Mono>
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {patient.chronicConditions.map((c, i) => (
+                  <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>
+                      {c.charAt(0).toUpperCase() + c.slice(1)}
+                    </span>
+                    {i === 0 && patient.chronicConditions.length > 1 && (
+                      <Badge variant="default" dot={false}>principal</Badge>
+                    )}
+                    {i > 0 && (
+                      <Badge variant="default" dot={false}>secundária</Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Glass>
+          )}
+          {patient.activeMedications.length > 0 && (
+            <Glass style={{ padding: '14px 18px' }}>
+              <Mono size={9} spacing="1px" color={T.primary}>MEDICAMENTOS ATIVOS</Mono>
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {patient.activeMedications.map((m) => (
+                  <p key={m} style={{ fontSize: 13, fontWeight: 500, color: T.textPrimary }}>
+                    {m}
+                  </p>
+                ))}
+              </div>
+            </Glass>
+          )}
+        </section>
+      )}
 
       {/* Last encounter + Active prescription */}
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>

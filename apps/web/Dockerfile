@@ -20,7 +20,7 @@ COPY apps/web/src ./apps/web/src
 COPY apps/web/next.config.ts ./apps/web/
 COPY apps/web/tailwind.config.ts ./apps/web/
 COPY apps/web/tsconfig.json ./apps/web/
-COPY apps/web/public ./apps/web/public 2>/dev/null || true
+COPY apps/web/public ./apps/web/public
 
 WORKDIR /app/apps/web
 

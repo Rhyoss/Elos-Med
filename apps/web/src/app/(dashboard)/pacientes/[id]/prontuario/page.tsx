@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Btn, T } from '@dermaos/ui/ds';
+import { T } from '@dermaos/ui/ds';
 import { ProntuarioSidebar } from './_components/prontuario-sidebar';
 import { ProntuarioTabs, type ProntuarioTabId } from './_components/prontuario-tabs';
 import { TabResumo }      from './_components/tab-resumo';
@@ -23,11 +23,6 @@ export default function ProntuarioPage({
   const { startEncounter, isStarting, hasOpenDraft, openDraftId } =
     useNovaConsulta(patientId);
 
-  function handlePrint() {
-    // Pequeno delay para garantir que tabs renderizem antes do snapshot.
-    requestAnimationFrame(() => window.print());
-  }
-
   function openExistingDraft() {
     if (openDraftId) {
       location.assign(`/pacientes/${patientId}/prontuario/consulta/${openDraftId}`);
@@ -36,30 +31,17 @@ export default function ProntuarioPage({
 
   return (
     <div className={css.shell} style={{ background: T.bg }}>
-      <ProntuarioSidebar patientId={patientId} />
-
       <div className={css.main}>
+        <ProntuarioSidebar
+          patientId={patientId}
+          onNovaConsulta={hasOpenDraft ? openExistingDraft : startEncounter}
+          onContinuarAtendimento={openExistingDraft}
+          onVerImagens={() => setTab('imagens')}
+          hasOpenDraft={hasOpenDraft}
+          isStarting={isStarting}
+        />
         <div className="print-hide">
-          <ProntuarioTabs
-            value={tab}
-            onChange={setTab}
-            trailing={
-              <>
-                <Btn variant="glass" small icon="printer" onClick={handlePrint}>
-                  Imprimir
-                </Btn>
-                {hasOpenDraft ? (
-                  <Btn small icon="edit" onClick={openExistingDraft}>
-                    Continuar Atendimento
-                  </Btn>
-                ) : (
-                  <Btn small icon="edit" onClick={startEncounter} disabled={isStarting}>
-                    {isStarting ? 'Abrindo…' : 'Nova Consulta'}
-                  </Btn>
-                )}
-              </>
-            }
-          />
+          <ProntuarioTabs value={tab} onChange={setTab} />
         </div>
 
         <div className={css.content}>

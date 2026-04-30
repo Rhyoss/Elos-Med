@@ -29,20 +29,20 @@ const TABS: TabDef[] = [
 interface ProntuarioTabsProps {
   value: ProntuarioTabId;
   onChange: (tab: ProntuarioTabId) => void;
-  trailing?: React.ReactNode;
 }
 
-export function ProntuarioTabs({ value, onChange, trailing }: ProntuarioTabsProps) {
+export function ProntuarioTabs({ value, onChange }: ProntuarioTabsProps) {
   return (
     <nav
       aria-label="Seções do prontuário"
       style={{
-        padding: '0 20px',
+        padding: '0 24px',
         borderBottom: `1px solid ${T.divider}`,
         display: 'flex',
         gap: 0,
         flexShrink: 0,
         overflowX: 'auto',
+        background: '#F5F5F5',
       }}
     >
       {TABS.map((t) => {
@@ -54,17 +54,17 @@ export function ProntuarioTabs({ value, onChange, trailing }: ProntuarioTabsProp
             onClick={() => onChange(t.id)}
             aria-current={active ? 'page' : undefined}
             style={{
-              padding: '12px 16px',
+              padding: '12px 18px',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
+              gap: 7,
               borderTop: 'none',
               borderRight: 'none',
               borderLeft: 'none',
-              borderBottom: `2px solid ${active ? T.primary : 'transparent'}`,
+              borderBottom: `2px solid ${active ? '#004D40' : 'transparent'}`,
               background: 'transparent',
-              color: active ? T.primary : T.textMuted,
-              fontSize: 12,
+              color: active ? '#004D40' : '#6C757D',
+              fontSize: 13,
               fontFamily: "'IBM Plex Sans', sans-serif",
               fontWeight: active ? 600 : 400,
               cursor: 'pointer',
@@ -72,15 +72,11 @@ export function ProntuarioTabs({ value, onChange, trailing }: ProntuarioTabsProp
               whiteSpace: 'nowrap',
             }}
           >
-            <Ico name={t.icon} size={14} color={active ? T.primary : T.textMuted} />
+            <Ico name={t.icon} size={15} color={active ? '#004D40' : '#6C757D'} />
             {t.label}
           </button>
         );
       })}
-      <div style={{ flex: 1 }} />
-      {trailing && (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '8px 0' }}>{trailing}</div>
-      )}
     </nav>
   );
 }

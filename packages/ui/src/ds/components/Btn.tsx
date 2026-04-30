@@ -78,8 +78,8 @@ export const Btn = React.forwardRef<HTMLButtonElement, BtnProps>(function Btn(
   const [pressed, setPressed] = React.useState(false);
   const v = VARIANTS[variant];
   const isDisabled = disabled || loading;
-  const iconSize = small ? 13 : 15;
-  const squareSize = small ? 28 : 34;
+  const iconSize = small ? 15 : 17;
+  const squareSize = small ? 32 : 40;
   return (
     <button
       ref={ref}
@@ -102,16 +102,16 @@ export const Btn = React.forwardRef<HTMLButtonElement, BtnProps>(function Btn(
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: iconOnly ? 0 : 6,
+        gap: iconOnly ? 0 : 7,
         ...(iconOnly
           ? { width: squareSize, height: squareSize, padding: 0 }
-          : { padding: small ? '5px 12px' : '9px 18px' }),
-        borderRadius: small ? T.r.md : T.r.md + 1,
+          : { padding: small ? '7px 14px' : '10px 22px' }),
+        borderRadius: small ? T.r.md : T.r.md + 2,
         background: v.bg,
         color: v.color,
         border: v.border,
         boxShadow: v.shadow,
-        fontSize: small ? 11 : 13,
+        fontSize: small ? 13 : 15,
         fontFamily: "'IBM Plex Sans', sans-serif",
         fontWeight: 600,
         cursor: isDisabled ? 'not-allowed' : 'pointer',

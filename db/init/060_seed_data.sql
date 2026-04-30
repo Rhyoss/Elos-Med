@@ -378,7 +378,7 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
 
   -- ════════════════════════════════════════════════════════════════════════════
-  -- 10. AGENDAMENTOS DE HOJE (2026-04-23)
+  -- 10. AGENDAMENTOS DE HOJE (dinâmico via CURRENT_DATE)
   -- ════════════════════════════════════════════════════════════════════════════
 
   INSERT INTO shared.appointments (
@@ -388,28 +388,74 @@ BEGIN
   ) VALUES
   (
     v_appt_1, v_clinic_id, v_patient_1, v_user_doctor_id, v_svc_retorno_id,
-    'followup', '2026-04-23 08:00:00-03', 20, 'confirmed', 'whatsapp',
+    'followup', CURRENT_DATE + TIME '08:00', 20, 'confirmed', 'whatsapp',
     'pending', 150.00, NOW(), v_user_recep_id
   ),
   (
     v_appt_2, v_clinic_id, v_patient_2, v_user_doctor_id, v_svc_botox_id,
-    'aesthetic', '2026-04-23 09:00:00-03', 45, 'confirmed', 'phone',
+    'aesthetic', CURRENT_DATE + TIME '09:00', 45, 'confirmed', 'phone',
     'pending', 800.00, NOW(), v_user_recep_id
   ),
   (
     v_appt_3, v_clinic_id, v_patient_3, v_user_doctor_id, v_svc_peeling_id,
-    'aesthetic', '2026-04-23 10:30:00-03', 45, 'scheduled', 'online_booking',
+    'aesthetic', CURRENT_DATE + TIME '10:30', 45, 'scheduled', 'online_booking',
     'pending', 350.00, NOW(), v_user_recep_id
   ),
   (
     v_appt_4, v_clinic_id, v_patient_4, v_user_doctor_id, v_svc_consulta_id,
-    'clinical', '2026-04-23 14:00:00-03', 30, 'scheduled', 'phone',
+    'clinical', CURRENT_DATE + TIME '14:00', 30, 'scheduled', 'phone',
     'pending', 250.00, NOW(), v_user_recep_id
   ),
   (
     v_appt_5, v_clinic_id, v_patient_5, v_user_doctor_id, v_svc_avaliacao_id,
-    'aesthetic', '2026-04-23 15:30:00-03', 30, 'scheduled', 'referral',
+    'aesthetic', CURRENT_DATE + TIME '15:30', 30, 'scheduled', 'referral',
     'pending', 180.00, NOW(), v_user_recep_id
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  -- ════════════════════════════════════════════════════════════════════════════
+  -- 10b. AGENDAMENTOS NA SEMANA (para popular a visão semanal)
+  -- ════════════════════════════════════════════════════════════════════════════
+
+  INSERT INTO shared.appointments (
+    id, clinic_id, patient_id, provider_id, service_id,
+    type, scheduled_at, duration_min, status, source,
+    payment_status, price, created_at, created_by
+  ) VALUES
+  (
+    'a0000000-0000-0000-0000-000000000090', v_clinic_id, v_patient_2, v_user_doctor_id, v_svc_consulta_id,
+    'clinical', CURRENT_DATE + INTERVAL '1 day' + TIME '09:00', 30, 'confirmed', 'whatsapp',
+    'pending', 250.00, NOW(), v_user_recep_id
+  ),
+  (
+    'a0000000-0000-0000-0000-000000000091', v_clinic_id, v_patient_3, v_user_doctor_id, v_svc_botox_id,
+    'aesthetic', CURRENT_DATE + INTERVAL '1 day' + TIME '11:00', 45, 'scheduled', 'phone',
+    'pending', 800.00, NOW(), v_user_recep_id
+  ),
+  (
+    'a0000000-0000-0000-0000-000000000092', v_clinic_id, v_patient_1, v_user_doctor_id, v_svc_peeling_id,
+    'aesthetic', CURRENT_DATE + INTERVAL '2 days' + TIME '08:30', 45, 'confirmed', 'online_booking',
+    'pending', 350.00, NOW(), v_user_recep_id
+  ),
+  (
+    'a0000000-0000-0000-0000-000000000093', v_clinic_id, v_patient_4, v_user_doctor_id, v_svc_retorno_id,
+    'followup', CURRENT_DATE + INTERVAL '2 days' + TIME '14:00', 20, 'scheduled', 'referral',
+    'pending', 150.00, NOW(), v_user_recep_id
+  ),
+  (
+    'a0000000-0000-0000-0000-000000000094', v_clinic_id, v_patient_5, v_user_doctor_id, v_svc_avaliacao_id,
+    'aesthetic', CURRENT_DATE + INTERVAL '3 days' + TIME '10:00', 30, 'confirmed', 'manual',
+    'pending', 180.00, NOW(), v_user_recep_id
+  ),
+  (
+    'a0000000-0000-0000-0000-000000000095', v_clinic_id, v_patient_1, v_user_doctor_id, v_svc_consulta_id,
+    'clinical', CURRENT_DATE + INTERVAL '4 days' + TIME '09:00', 30, 'scheduled', 'whatsapp',
+    'pending', 250.00, NOW(), v_user_recep_id
+  ),
+  (
+    'a0000000-0000-0000-0000-000000000096', v_clinic_id, v_patient_3, v_user_doctor_id, v_svc_retorno_id,
+    'followup', CURRENT_DATE + INTERVAL '4 days' + TIME '15:00', 20, 'confirmed', 'phone',
+    'pending', 150.00, NOW(), v_user_recep_id
   )
   ON CONFLICT (id) DO NOTHING;
 

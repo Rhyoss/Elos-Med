@@ -54,10 +54,10 @@ export function TabBar({ tabs, activeId, onChange, trailing, module }: TabBarPro
             disabled={t.disabled}
             onClick={() => !t.disabled && onChange(t.id)}
             style={{
-              padding: '12px 16px',
+              padding: '14px 18px',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
+              gap: 7,
               borderTop: 'none',
               borderRight: 'none',
               borderLeft: 'none',
@@ -66,7 +66,7 @@ export function TabBar({ tabs, activeId, onChange, trailing, module }: TabBarPro
                 : '2px solid transparent',
               background: 'transparent',
               color: isActive ? accent : T.textMuted,
-              fontSize: 12,
+              fontSize: 14,
               fontFamily: "'IBM Plex Sans', sans-serif",
               fontWeight: isActive ? 600 : 400,
               cursor: t.disabled ? 'not-allowed' : 'pointer',
@@ -76,7 +76,7 @@ export function TabBar({ tabs, activeId, onChange, trailing, module }: TabBarPro
             }}
           >
             {t.icon && (
-              <Ico name={t.icon} size={14} color={isActive ? accent : T.textMuted} />
+              <Ico name={t.icon} size={16} color={isActive ? accent : T.textMuted} />
             )}
             {t.label}
             {t.badge !== undefined && (
@@ -87,7 +87,7 @@ export function TabBar({ tabs, activeId, onChange, trailing, module }: TabBarPro
                   borderRadius: 999,
                   background: isActive ? accent : T.divider,
                   color: isActive ? '#fff' : T.textMuted,
-                  fontSize: 9,
+                  fontSize: 11,
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontWeight: 600,
                 }}
