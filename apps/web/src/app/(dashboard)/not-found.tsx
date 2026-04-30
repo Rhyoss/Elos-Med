@@ -1,14 +1,7 @@
-'use client';
-
 import { T, Ico } from '@dermaos/ui/ds';
+import Link from 'next/link';
 
-export default function DashboardError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function DashboardNotFound() {
   return (
     <div
       style={{
@@ -27,13 +20,13 @@ export default function DashboardError({
           width: 56,
           height: 56,
           borderRadius: '50%',
-          background: 'rgba(154,32,32,0.08)',
+          background: T.primaryBg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Ico name="alert" size={26} color={T.danger} />
+        <Ico name="search" size={24} color={T.primary} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <h2
@@ -44,7 +37,7 @@ export default function DashboardError({
             margin: 0,
           }}
         >
-          Algo deu errado
+          Página não encontrada
         </h2>
         <p
           style={{
@@ -55,28 +48,25 @@ export default function DashboardError({
             lineHeight: 1.5,
           }}
         >
-          {error.message || 'Ocorreu um erro inesperado. Tente novamente.'}
+          O conteúdo que você procura não existe ou foi movido.
         </p>
       </div>
-      <button
-        type="button"
-        onClick={reset}
+      <Link
+        href="/"
         style={{
           marginTop: 4,
           padding: '8px 20px',
-          borderRadius: T.r.md,
-          background: T.glass,
-          border: `1px solid ${T.glassBorder}`,
+          borderRadius: 8,
+          background: T.primary,
+          color: '#fff',
           fontSize: 13,
           fontWeight: 600,
-          color: T.textPrimary,
-          cursor: 'pointer',
+          textDecoration: 'none',
           fontFamily: "'IBM Plex Sans', sans-serif",
-          transition: 'background 0.15s',
         }}
       >
-        Tentar novamente
-      </button>
+        Voltar ao Dashboard
+      </Link>
     </div>
   );
 }

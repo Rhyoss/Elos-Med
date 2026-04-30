@@ -52,6 +52,26 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  async redirects() {
+    return [
+      {
+        source: '/dashboard',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/estoque',
+        destination: '/suprimentos',
+        permanent: false,
+      },
+      {
+        source: '/estoque/:path*',
+        destination: '/suprimentos/:path*',
+        permanent: false,
+      },
+    ];
+  },
+
   experimental: {},
 };
 

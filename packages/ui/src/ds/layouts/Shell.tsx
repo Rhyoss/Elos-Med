@@ -1,40 +1,53 @@
 'use client';
 import * as React from 'react';
 import { T } from '../../tokens';
-import { Sidebar, type SidebarProps } from './Sidebar';
+import {
+  Sidebar,
+  SIDEBAR_COLLAPSED_W,
+  SIDEBAR_EXPANDED_W,
+  type SidebarProps,
+} from './Sidebar';
+import { TopBar, type TopBarProps } from './TopBar';
 
-export interface ShellProps extends Omit<SidebarProps, 'className'> {
+export interface ShellProps extends Omit<SidebarProps, 'className' | 'collapsed' | 'onCollapsedChange'> {
   children: React.ReactNode;
-  /** Render ambient background orbs (radial gradients) behind the content. */
   ambient?: boolean;
-  /** Class applied to the main content area. */
   contentClassName?: string;
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
+  topBar?:
+    | false
+    | (Omit<TopBarProps, 'navItems' | 'currentPath' | 'user' | 'brandName' | 'onNavigate'> & {
+        title?: string;
+        notificationCount?: number;
+      });
 }
 
-/**
- * App Shell — 120px DS Sidebar + content area.
- *
- * The shell owns the page background (`bgGrad`) and the ambient orbs;
- * each page should render its own header section per the DS reference
- * (date, title, action buttons) inside the content area.
- */
 export function Shell({
   children,
   ambient = true,
   contentClassName,
+  topBar,
+  collapsed = true,
+  onCollapsedChange,
   ...sidebarProps
 }: ShellProps) {
+  const showTopBar = topBar !== false;
+  const topBarProps = topBar === false ? null : topBar ?? null;
+  const sidebarW = collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_EXPANDED_W;
+
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '120px 1fr',
+        gridTemplateColumns: `${sidebarW}px 1fr`,
         height: '100vh',
         overflow: 'hidden',
         background: T.bgGrad,
         position: 'relative',
         fontFamily: "'IBM Plex Sans', sans-serif",
         color: T.textPrimary,
+        transition: 'grid-template-columns 0.2s ease',
       }}
     >
       {ambient && (
@@ -70,23 +83,50 @@ export function Shell({
         </>
       )}
 
-      <Sidebar {...sidebarProps} />
+      <Sidebar
+        {...sidebarProps}
+        collapsed={collapsed}
+        onCollapsedChange={onCollapsedChange}
+      />
 
-      <main
-        id="main-content"
-        className={contentClassName}
-        tabIndex={-1}
+      <div
         style={{
-          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
+          minWidth: 0,
+          overflow: 'hidden',
           position: 'relative',
           zIndex: 1,
-          minWidth: 0,
         }}
       >
-        {children}
-      </main>
+        {showTopBar && (
+          <TopBar
+            brandName={sidebarProps.brandName}
+            navItems={sidebarProps.navItems}
+            currentPath={sidebarProps.currentPath}
+            user={sidebarProps.user}
+            onSearchClick={sidebarProps.onSearchClick}
+            onUserClick={sidebarProps.onUserClick}
+            onNavigate={sidebarProps.onNavigate}
+            {...(topBarProps ?? {})}
+          />
+        )}
+
+        <main
+          id="main-content"
+          className={contentClassName}
+          tabIndex={-1}
+          style={{
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: 0,
+            flex: 1,
+          }}
+        >
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
