@@ -198,6 +198,9 @@ export default function ConsultaPage({
     return () => clearInterval(interval);
   }, [encounter]);
 
+  /* ── Cache utils ─────────────────────────────────────────────────── */
+  const utils = trpc.useUtils();
+
   /* ── Mutations ───────────────────────────────────────────────────── */
   const autoSaveMut = trpc.clinical.encounters.autoSave.useMutation();
   const signMut     = trpc.clinical.encounters.sign.useMutation();
@@ -308,6 +311,18 @@ export default function ConsultaPage({
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       await persist();
       await signMut.mutateAsync({ id: encounterId });
+
+      /* ── Invalidar caches após assinatura ─────────────────────────
+       * encounter.getById  → status muda para "assinado"
+       * encounters.getByPatient → lista do prontuário
+       * patients.getById   → lastVisitAt e totalVisits mudam
+       * scheduling.agendaDay → status do appointment
+       */
+      void utils.clinical.encounters.getById.invalidate({ id: encounterId });
+      void utils.clinical.encounters.getByPatient.invalidate({ patientId });
+      void utils.patients.getById.invalidate({ id: patientId });
+      void utils.scheduling.agendaDay.invalidate();
+
       toast.success('Prontuário assinado');
       setSignOpen(false);
       router.push(`/pacientes/${patientId}/prontuario`);

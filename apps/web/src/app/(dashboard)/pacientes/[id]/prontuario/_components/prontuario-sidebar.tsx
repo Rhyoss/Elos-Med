@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Btn, Ico, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
+import { buildDisplayId, GENDER_LABELS as GENDER_LABELS_MAP } from '@/lib/adapters/patient-adapter';
 
 interface ProntuarioHeaderProps {
   patientId: string;
@@ -14,13 +15,15 @@ interface ProntuarioHeaderProps {
   isStarting?: boolean;
 }
 
-const GENDER_LABELS: Record<string, string> = {
-  female: 'Feminino', male: 'Masculino', non_binary: 'Não-binário',
-  prefer_not_to_say: 'Prefere não informar', other: 'Outro',
-};
+const GENDER_LABELS = GENDER_LABELS_MAP;
 
 const PATIENT_STATUS_LABEL: Record<string, string> = {
-  active: 'Ativa', inactive: 'Inativa', archived: 'Arquivada', blocked: 'Bloqueada',
+  active:      'Ativa',
+  inactive:    'Inativa',
+  archived:    'Arquivada',
+  blocked:     'Bloqueada',
+  deceased:    'Falecida',
+  transferred: 'Transferida',
 };
 
 const pillBase: React.CSSProperties = {
@@ -71,8 +74,8 @@ export function ProntuarioSidebar({
     .map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 
   const details = [
-    `ID: ${patientId.slice(0, 5).toUpperCase()}`,
-    p?.age != null ? `${p.age} years` : null,
+    `ID: ${buildDisplayId(patientId)}`,
+    p?.age != null ? `${p.age} anos` : null,
     p?.gender ? GENDER_LABELS[p.gender] ?? p.gender : null,
   ].filter(Boolean).join(' · ');
 

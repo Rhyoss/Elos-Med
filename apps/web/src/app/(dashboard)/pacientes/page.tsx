@@ -9,6 +9,12 @@ import {
 } from '@dermaos/ui/ds';
 import { keepPreviousData } from '@tanstack/react-query';
 import { trpc } from '@/lib/trpc-provider';
+import {
+  adaptPatientSummary,
+  STATUS_LABELS,
+  STATUS_BADGE_VARIANT,
+  type PatientView,
+} from '@/lib/adapters/patient-adapter';
 
 /**
  * Pacientes & Leads — DS table inline + side detail panel.
@@ -17,36 +23,16 @@ import { trpc } from '@/lib/trpc-provider';
  * search/filtros DS, painel lateral DS quando uma linha é selecionada.
  * Mantém `trpc.patients.list` com todos os filtros (search debounced,
  * status, source, paginação server-side).
+ *
+ * NOTA CLÍNICA: A coluna de "Alergias" exibe apenas alergias (campo correto
+ * do PatientSummary). Diagnósticos/condições crônicas só estão disponíveis
+ * no full patient (getById) — nunca use allergies como stand-in para diagnóstico.
  */
 
-interface PatientRow {
-  id:          string;
-  name:        string;
-  cpfMasked:   string | null;
-  age:         number | null;
-  phone:       string | null;
-  status:      string;
-  lastVisitAt: Date | null;
-  /** Stand-in for "Diagnóstico" column — usa primeira alergia até Phase 5
-   *  ligar `encounters.latestDiagnosis`. */
-  allergies:   string[];
-}
+// PatientView (do adapter) substitui o PatientRow local — tipos separados garantidos
+type PatientRow = PatientView;
 
-const STATUS_LABELS: Record<string, string> = {
-  active:      'Ativo',
-  inactive:    'Inativo',
-  blocked:     'Bloqueado',
-  deceased:    'Falecido',
-  transferred: 'Transferido',
-};
-
-const STATUS_BADGE: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
-  active:      'success',
-  inactive:    'default',
-  blocked:     'danger',
-  deceased:    'warning',
-  transferred: 'default',
-};
+// STATUS_LABELS e STATUS_BADGE_VARIANT importados do adapter
 
 const SOURCE_OPTIONS = [
   { value: 'whatsapp',  label: 'WhatsApp'   },
@@ -102,22 +88,15 @@ export default function PacientesPage() {
   );
 
   const patients: PatientRow[] = React.useMemo(
-    () => (data?.data ?? []).map((p) => ({
-      id:          p.id,
-      name:        p.name,
-      cpfMasked:   p.cpfMasked,
-      age:         p.age,
-      phone:       p.phone,
-      status:      p.status,
-      lastVisitAt: p.lastVisitAt ? new Date(p.lastVisitAt) : null,
-      allergies:   p.allergies ?? [],
-    })),
+    () => (data?.data ?? []).map(adaptPatientSummary),
     [data],
   );
 
-  /** Diagnóstico stand-in — primeira alergia, fallback "—". */
-  function diagOf(p: PatientRow): string {
-    return p.allergies.length > 0 ? p.allergies[0]! : '—';
+  /** Exibe contagem de alergias ou "—". Nunca usa allergies como diagnóstico. */
+  function allergyLabel(p: PatientRow): string {
+    if (p.allergies.length === 0) return '—';
+    if (p.allergies.length === 1) return p.allergies[0]!;
+    return `${p.allergies[0]!} +${p.allergies.length - 1}`;
   }
 
   const total      = data?.total      ?? 0;
@@ -199,7 +178,7 @@ export default function PacientesPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  {['Prontuário', 'Paciente', 'Idade', 'Diagnóstico', 'Última', 'Status', ''].map((h) => (
+                  {['Prontuário', 'Paciente', 'Idade', 'Alergias', 'Última', 'Status', ''].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -250,7 +229,7 @@ export default function PacientesPage() {
                         }}
                       >
                         <td style={{ padding: '11px 16px' }}>
-                          <Mono size={11}>{p.id.slice(0, 8).toUpperCase()}</Mono>
+                          <Mono size={11}>{p.displayId}</Mono>
                         </td>
                         <td style={{ padding: '11px 16px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -277,13 +256,13 @@ export default function PacientesPage() {
                           {p.age != null ? `${p.age} anos` : '—'}
                         </td>
                         <td style={{ padding: '12px 16px', fontSize: 13, color: T.textSecondary }}>
-                          {diagOf(p)}
+                          {allergyLabel(p)}
                         </td>
                         <td style={{ padding: '11px 16px' }}>
                           <Mono size={11}>{formatDate(p.lastVisitAt)}</Mono>
                         </td>
                         <td style={{ padding: '11px 16px' }}>
-                          <Badge variant={STATUS_BADGE[p.status] ?? 'default'}>
+                          <Badge variant={STATUS_BADGE_VARIANT[p.status] ?? 'default'}>
                             {STATUS_LABELS[p.status] ?? p.status}
                           </Badge>
                         </td>
@@ -391,12 +370,12 @@ export default function PacientesPage() {
               <Ico name="user" size={22} color={T.clinical.color} />
             </div>
             <p style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary, marginBottom: 3 }}>{selected.name}</p>
-            <Mono size={11}>{selected.id.slice(0, 8).toUpperCase()}{selected.age != null ? ` · ${selected.age} anos` : ''}</Mono>
+            <Mono size={11}>{selected.displayId}{selected.age != null ? ` · ${selected.age} anos` : ''}</Mono>
             <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {([
                 ['CPF',             selected.cpfMasked ?? '—'],
-                ['Diagnóstico',     diagOf(selected)],
-                ['Telefone',        selected.phone ?? '—'],
+                ['Alergias',        allergyLabel(selected)],
+                ['Telefone',        selected.phoneMasked ?? '—'],
                 ['Status',          STATUS_LABELS[selected.status] ?? selected.status],
                 ['Última consulta', formatDate(selected.lastVisitAt)],
               ] as const).map(([k, v]) => (
