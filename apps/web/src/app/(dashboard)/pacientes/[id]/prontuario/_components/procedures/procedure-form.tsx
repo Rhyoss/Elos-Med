@@ -21,6 +21,13 @@ export const PROCEDURE_TYPES = [
 
 export type ProcedureTypeId = (typeof PROCEDURE_TYPES)[number]['id'];
 
+export interface ProcedurePhoto {
+  id: string;
+  url?: string;
+  name: string;
+  phase: 'before' | 'after';
+}
+
 export interface ProcedureFormData {
   type: ProcedureTypeId;
   customName?: string;
@@ -28,11 +35,14 @@ export interface ProcedureFormData {
   products: SelectedProduct[];
   consentAttached: boolean;
   consentNotes?: string;
+  photosBefore: ProcedurePhoto[];
+  photosAfter: ProcedurePhoto[];
   orientations: string;
   returnDays?: number;
   returnNotes?: string;
   observations: string;
   durationMin?: number;
+  scheduleReturn?: boolean;
 }
 
 interface ProcedureFormProps {
@@ -50,6 +60,7 @@ const STEPS = [
   { id: 'type', label: 'Tipo' },
   { id: 'region', label: 'Região' },
   { id: 'products', label: 'Produtos' },
+  { id: 'photos', label: 'Fotos' },
   { id: 'details', label: 'Detalhes' },
   { id: 'review', label: 'Revisão' },
 ] as const;
@@ -67,27 +78,24 @@ export function ProcedureForm({
   isSubmitting,
 }: ProcedureFormProps) {
   const [step, setStep] = React.useState<StepId>('type');
-  const [data, setData] = React.useState<ProcedureFormData>({
+  const defaultData: ProcedureFormData = {
     type: 'botox',
     regions: [],
     products: [],
     consentAttached: false,
+    photosBefore: [],
+    photosAfter: [],
     orientations: '',
     observations: '',
-  });
+  };
+  const [data, setData] = React.useState<ProcedureFormData>(defaultData);
 
   React.useEffect(() => {
     if (open) {
       setStep('type');
-      setData({
-        type: 'botox',
-        regions: [],
-        products: [],
-        consentAttached: false,
-        orientations: '',
-        observations: '',
-      });
+      setData({ ...defaultData });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!open) return null;
@@ -102,6 +110,7 @@ export function ProcedureForm({
       case 'type': return true;
       case 'region': return data.regions.length > 0;
       case 'products': return !hasExpiredLot;
+      case 'photos': return true;
       case 'details': return true;
       case 'review': return !hasExpiredLot;
       default: return false;
@@ -198,6 +207,13 @@ export function ProcedureForm({
           )}
           {step === 'products' && (
             <StepProducts value={data.products} onChange={(products) => patch({ products })} />
+          )}
+          {step === 'photos' && (
+            <StepPhotos
+              photosBefore={data.photosBefore}
+              photosAfter={data.photosAfter}
+              onChange={patch}
+            />
           )}
           {step === 'details' && (
             <StepDetails data={data} onChange={patch} />
@@ -457,6 +473,41 @@ function StepDetails({
         </div>
       </div>
 
+      {data.returnDays && data.returnDays > 0 && (
+        <Glass style={{ padding: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Ico name="calendar" size={16} color={T.primary} />
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 500, color: T.textPrimary }}>
+                  Agendar retorno automaticamente
+                </p>
+                <p style={{ fontSize: 12, color: T.textMuted }}>
+                  Cria agendamento para {data.returnDays} dias ({new Date(Date.now() + data.returnDays * 86400000).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })})
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onChange({ scheduleReturn: !data.scheduleReturn })}
+              style={{
+                width: 40, height: 22, borderRadius: 11,
+                background: data.scheduleReturn ? T.primary : T.glassBorder,
+                border: 'none', cursor: 'pointer', position: 'relative',
+                transition: 'background 0.2s',
+              }}
+            >
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%',
+                background: '#fff', position: 'absolute', top: 2,
+                left: data.scheduleReturn ? 20 : 2,
+                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+              }} />
+            </button>
+          </div>
+        </Glass>
+      )}
+
       {/* Duration */}
       <LabeledInput
         label="Duração do procedimento (min)"
@@ -544,12 +595,136 @@ function StepReview({
         </div>
       )}
 
+      <ReviewRow label="Fotos (antes)" value={data.photosBefore.length > 0 ? `${data.photosBefore.length} foto(s)` : 'Nenhuma'} />
+      <ReviewRow label="Fotos (depois)" value={data.photosAfter.length > 0 ? `${data.photosAfter.length} foto(s)` : 'Nenhuma'} />
       <ReviewRow label="Consentimento" value={data.consentAttached ? 'Anexado' : 'Não anexado'} />
       <ReviewRow label="Orientações" value={data.orientations || '—'} />
-      <ReviewRow label="Retorno" value={data.returnDays ? `${data.returnDays} dias` : 'Não definido'} />
+      <ReviewRow label="Retorno" value={data.returnDays ? `${data.returnDays} dias${data.scheduleReturn ? ' (agendar)' : ''}` : 'Não definido'} />
       {data.durationMin && <ReviewRow label="Duração" value={`${data.durationMin} min`} />}
       {data.observations && <ReviewRow label="Observações" value={data.observations} />}
     </div>
+  );
+}
+
+/* ── Step: Photos ─────────────────────────────────────────────────────── */
+
+function StepPhotos({
+  photosBefore,
+  photosAfter,
+  onChange,
+}: {
+  photosBefore: ProcedurePhoto[];
+  photosAfter: ProcedurePhoto[];
+  onChange: (p: Partial<ProcedureFormData>) => void;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <p style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary, marginBottom: 0 }}>
+        Fotos clínicas
+      </p>
+      <p style={{ fontSize: 13, color: T.textMuted }}>
+        Registre fotos antes e depois do procedimento para acompanhamento clínico.
+      </p>
+
+      <PhotoSection
+        label="ANTES DO PROCEDIMENTO"
+        icon="image"
+        photos={photosBefore}
+        onAdd={() => {
+          const photo: ProcedurePhoto = {
+            id: crypto.randomUUID(),
+            name: `Foto antes ${photosBefore.length + 1}`,
+            phase: 'before',
+          };
+          onChange({ photosBefore: [...photosBefore, photo] });
+        }}
+        onRemove={(id) => onChange({ photosBefore: photosBefore.filter((p) => p.id !== id) })}
+      />
+
+      <PhotoSection
+        label="DEPOIS DO PROCEDIMENTO"
+        icon="image"
+        photos={photosAfter}
+        onAdd={() => {
+          const photo: ProcedurePhoto = {
+            id: crypto.randomUUID(),
+            name: `Foto depois ${photosAfter.length + 1}`,
+            phase: 'after',
+          };
+          onChange({ photosAfter: [...photosAfter, photo] });
+        }}
+        onRemove={(id) => onChange({ photosAfter: photosAfter.filter((p) => p.id !== id) })}
+      />
+
+      {/* TODO: integrar upload real de fotos quando endpoint de imagens clínicas estiver disponível */}
+      <div style={{
+        padding: '10px 14px', borderRadius: T.r.md,
+        background: T.infoBg, border: `1px solid ${T.infoBorder}`,
+        display: 'flex', gap: 8, alignItems: 'center',
+      }}>
+        <Ico name="info" size={14} color={T.info} />
+        <p style={{ fontSize: 12, color: T.info }}>
+          O upload de fotos registra referências. Imagens completas podem ser adicionadas pela aba Imagens do prontuário.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PhotoSection({
+  label,
+  icon,
+  photos,
+  onAdd,
+  onRemove,
+}: {
+  label: string;
+  icon: string;
+  photos: ProcedurePhoto[];
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <Glass style={{ padding: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: photos.length > 0 ? 10 : 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Ico name={icon as 'image'} size={16} color={T.clinical.color} />
+          <Mono size={10} spacing="1px" color={T.textMuted}>{label}</Mono>
+        </div>
+        <Btn variant="ghost" small icon="plus" onClick={onAdd} disabled={photos.length >= 10}>
+          Adicionar
+        </Btn>
+      </div>
+      {photos.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {photos.map((photo) => (
+            <div
+              key={photo.id}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 10px', borderRadius: T.r.md,
+                background: T.clinical.bg, border: `1px solid ${T.clinical.border}`,
+              }}
+            >
+              <Ico name="image" size={12} color={T.clinical.color} />
+              <span style={{ fontSize: 12, color: T.clinical.color }}>{photo.name}</span>
+              <button
+                type="button"
+                onClick={() => onRemove(photo.id)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
+              >
+                <Ico name="x" size={12} color={T.textMuted} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {photos.length === 0 && (
+        <p style={{ fontSize: 12, color: T.textMuted, textAlign: 'center', padding: '8px 0' }}>
+          Nenhuma foto adicionada
+        </p>
+      )}
+    </Glass>
   );
 }
 

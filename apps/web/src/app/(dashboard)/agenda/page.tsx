@@ -181,8 +181,7 @@ export default function AgendaPage() {
   function handleCardClick(a: AppointmentCardData, ev?: React.MouseEvent) {
     setPopoverAppt(a);
     if (ev) {
-      const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
-      setPopoverPos({ x: rect.right, y: rect.top });
+      setPopoverPos({ x: ev.clientX, y: ev.clientY });
     } else {
       setPopoverPos({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
     }

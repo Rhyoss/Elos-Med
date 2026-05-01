@@ -3,7 +3,9 @@
 import * as React from 'react';
 import { Badge, Bar, Btn, Glass, Ico, Mono, Skeleton, T } from '@dermaos/ui/ds';
 import { PROTOCOL_TYPE_LABELS, PROTOCOL_STATUS_LABELS, type ProtocolStatus } from '@dermaos/shared';
+import { trpc } from '@/lib/trpc-provider';
 import { useProtocol, useProtocolSessions, useSuggestNextSession, usePauseProtocol, useResumeProtocol, useCancelProtocol } from '@/lib/hooks/use-procedures';
+import { useCreateAppointment, useProviders } from '@/lib/hooks/use-scheduling';
 import { RegisterSessionDialog } from './register-session-dialog';
 
 interface ProtocolDetailProps {
@@ -37,10 +39,15 @@ export function ProtocolDetail({ protocolId, patientId, onBack, onScheduleSessio
   const resumeMut = useResumeProtocol(patientId);
   const cancelMut = useCancelProtocol(patientId);
 
+  const createAppointmentMut = useCreateAppointment(patientId);
+  const providersQ = useProviders();
+
   const [showRegister, setShowRegister] = React.useState(false);
   const [actionReason, setActionReason] = React.useState('');
   const [showPause, setShowPause] = React.useState(false);
   const [showCancel, setShowCancel] = React.useState(false);
+  const [schedulingNext, setSchedulingNext] = React.useState(false);
+  const [scheduleSuccess, setScheduleSuccess] = React.useState(false);
 
   if (isLoading) {
     return (
@@ -145,9 +152,37 @@ export function ProtocolDetail({ protocolId, patientId, onBack, onScheduleSessio
               <Btn small icon="check" onClick={() => setShowRegister(true)}>
                 Registrar Sessão
               </Btn>
-              {suggestion?.suggestedAt && onScheduleSession && (
-                <Btn variant="glass" small icon="calendar" onClick={() => onScheduleSession(suggestion.suggestedAt!)}>
-                  Agendar Próxima ({formatDate(suggestion.suggestedAt)})
+              {suggestion?.suggestedAt && (
+                <Btn
+                  variant="glass" small icon="calendar"
+                  disabled={schedulingNext || createAppointmentMut.isPending}
+                  onClick={async () => {
+                    setSchedulingNext(true);
+                    try {
+                      const providers = providersQ.data?.providers ?? [];
+                      const providerId = providers[0]?.id;
+                      if (!providerId) {
+                        onScheduleSession?.(suggestion.suggestedAt!);
+                        return;
+                      }
+                      await createAppointmentMut.mutateAsync({
+                        patientId,
+                        providerId,
+                        type: 'aesthetic',
+                        scheduledAt: suggestion.suggestedAt!,
+                        durationMin: 30,
+                        internalNotes: `Sessão ${protocol.sessionsDone + 1}/${protocol.totalSessions} — ${protocol.name}`,
+                      });
+                      setScheduleSuccess(true);
+                      setTimeout(() => setScheduleSuccess(false), 3000);
+                    } catch {
+                      onScheduleSession?.(suggestion.suggestedAt!);
+                    } finally {
+                      setSchedulingNext(false);
+                    }
+                  }}
+                >
+                  {schedulingNext ? 'Agendando…' : `Agendar Próxima (${formatDate(suggestion.suggestedAt)})`}
                 </Btn>
               )}
               <Btn variant="ghost" small icon="clock" onClick={() => setShowPause(true)}>
@@ -165,6 +200,20 @@ export function ProtocolDetail({ protocolId, patientId, onBack, onScheduleSessio
           )}
         </div>
       </Glass>
+
+      {/* Schedule success */}
+      {scheduleSuccess && (
+        <div style={{
+          padding: '10px 14px', borderRadius: T.r.md,
+          background: T.successBg, border: `1px solid ${T.successBorder}`,
+          display: 'flex', gap: 8, alignItems: 'center',
+        }}>
+          <Ico name="check" size={16} color={T.success} />
+          <p style={{ fontSize: 13, color: T.success, fontWeight: 500 }}>
+            Próxima sessão agendada com sucesso
+          </p>
+        </div>
+      )}
 
       {/* Next session suggestion */}
       {isActive && suggestion?.suggestedAt && (
@@ -247,18 +296,39 @@ export function ProtocolDetail({ protocolId, patientId, onBack, onScheduleSessio
               {s.productsConsumed && s.productsConsumed.length > 0 && (
                 <div style={{ marginTop: 8 }}>
                   <Mono size={9} color={T.textMuted}>PRODUTOS CONSUMIDOS</Mono>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
                     {s.productsConsumed.map((pc, pcIdx) => (
-                      <span key={pcIdx} style={{
-                        padding: '3px 8px', borderRadius: T.r.sm,
-                        background: T.supply.bg, border: `1px solid ${T.supply.border}`,
-                        fontSize: 11, color: T.supply.color,
-                      }}>
-                        {pc.productId.slice(0, 8)} × {pc.quantity}
-                        {pc.lotId && ` (lote ${pc.lotId.slice(0, 6)})`}
-                      </span>
+                      <ProductConsumedBadge key={pcIdx} product={pc} />
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Photo indicators */}
+              {((s.preImageIds && s.preImageIds.length > 0) || (s.postImageIds && s.postImageIds.length > 0)) && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  {s.preImageIds && s.preImageIds.length > 0 && (
+                    <span style={{
+                      padding: '3px 8px', borderRadius: T.r.sm,
+                      background: T.clinical.bg, border: `1px solid ${T.clinical.border}`,
+                      fontSize: 11, color: T.clinical.color,
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}>
+                      <Ico name="image" size={10} color={T.clinical.color} />
+                      {s.preImageIds.length} foto(s) antes
+                    </span>
+                  )}
+                  {s.postImageIds && s.postImageIds.length > 0 && (
+                    <span style={{
+                      padding: '3px 8px', borderRadius: T.r.sm,
+                      background: T.successBg, border: `1px solid ${T.successBorder}`,
+                      fontSize: 11, color: T.success,
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}>
+                      <Ico name="image" size={10} color={T.success} />
+                      {s.postImageIds.length} foto(s) depois
+                    </span>
+                  )}
                 </div>
               )}
             </Glass>
@@ -309,6 +379,38 @@ export function ProtocolDetail({ protocolId, patientId, onBack, onScheduleSessio
           void sessionsQ.refetch();
         }}
       />
+    </div>
+  );
+}
+
+/* ── Product consumed badge with name resolution ─────────────────────── */
+
+function ProductConsumedBadge({
+  product,
+}: {
+  product: { productId: string; quantity: number; lotId?: string | null; notes?: string | null };
+}) {
+  const productQ = trpc.supply.products.getById.useQuery(
+    { id: product.productId },
+    { enabled: !!product.productId, staleTime: 300_000 },
+  );
+  const name = productQ.data?.product?.name ?? product.productId.slice(0, 8);
+  const unit = productQ.data?.product?.unit ?? '';
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '5px 10px', borderRadius: T.r.md,
+      background: T.supply.bg, border: `1px solid ${T.supply.border}`,
+    }}>
+      <Ico name="box" size={12} color={T.supply.color} />
+      <span style={{ fontSize: 12, color: T.textPrimary, flex: 1 }}>
+        {name}
+      </span>
+      <Mono size={10} color={T.supply.color}>
+        ×{product.quantity} {unit}
+        {product.lotId && ` · lote ${product.lotId.slice(0, 6)}`}
+      </Mono>
     </div>
   );
 }

@@ -4,7 +4,8 @@ import * as React from 'react';
 import { Badge, Btn, Glass, Ico, Mono, T } from '@dermaos/ui/ds';
 import { LabeledInput } from './labeled-input';
 import { ADVERSE_SEVERITY_LABELS, type AdverseSeverity } from '@dermaos/shared';
-import { useRegisterSession } from '@/lib/hooks/use-procedures';
+import { useRegisterSession, useSuggestNextSession } from '@/lib/hooks/use-procedures';
+import { useCreateAppointment, useProviders } from '@/lib/hooks/use-scheduling';
 import { ProductLotPicker, type SelectedProduct } from './product-lot-picker';
 
 interface RegisterSessionDialogProps {
@@ -35,6 +36,9 @@ export function RegisterSessionDialog({
   onRegistered,
 }: RegisterSessionDialogProps) {
   const registerMut = useRegisterSession(patientId, protocolId);
+  const suggestQ = useSuggestNextSession(protocolId);
+  const createAppointmentMut = useCreateAppointment(patientId);
+  const providersQ = useProviders();
 
   const [durationMin, setDurationMin] = React.useState<number | undefined>(undefined);
   const [patientResponse, setPatientResponse] = React.useState('');
@@ -45,6 +49,7 @@ export function RegisterSessionDialog({
   const [observations, setObservations] = React.useState('');
   const [showProducts, setShowProducts] = React.useState(false);
   const [showAdverse, setShowAdverse] = React.useState(false);
+  const [scheduleNext, setScheduleNext] = React.useState(false);
 
   React.useEffect(() => {
     if (open) {
@@ -57,6 +62,7 @@ export function RegisterSessionDialog({
       setObservations('');
       setShowProducts(false);
       setShowAdverse(false);
+      setScheduleNext(false);
     }
   }, [open]);
 
