@@ -2,368 +2,656 @@
 
 import * as React from 'react';
 import {
-  Glass, Btn, Ico, Mono, T,
-} from '@dermaos/ui/ds';
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { cn, useToast } from '@dermaos/ui';
+import { Glass, Btn, Ico, Mono, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { useRealtime } from '@/hooks/use-realtime';
-import { startOfDay } from '@/lib/agenda-utils';
-import { MiniCalendar }      from './_components/mini-calendar';
-import { AgendaTimeline }    from './_components/agenda-timeline';
-import { AgendaWeekGrid }    from './_components/agenda-week-grid';
-import { AgendaQueue, type QueueEntry } from './_components/agenda-queue';
-import { DaySummary }        from './_components/day-summary';
+import {
+  startOfDay,
+  startOfWeek,
+  findNextFreeSlot,
+  dateFromYOffset,
+  viewConfigFor,
+  type Density,
+} from '@/lib/agenda-utils';
+
+import { AgendaSidebar, type AgendaFilters } from './_components/agenda-sidebar';
+import { AgendaDayTimeline } from './_components/agenda-day-timeline';
+import { AgendaWeekGrid } from './_components/agenda-week-grid';
+import { AgendaMonthGrid } from './_components/agenda-month-grid';
+import { AgendaRightPanel, type QueueEntry } from './_components/agenda-right-panel';
+import { AppointmentCard } from './_components/appointment-card';
+import { AppointmentPopover } from './_components/appointment-popover';
 import {
   AppointmentDetailSheet,
   type AppointmentCardData,
 } from './_components/appointment-detail-sheet';
 import { NewAppointmentDialog } from './_components/new-appointment-dialog';
+import { BlockSlotDialog } from './_components/block-slot-dialog';
 
-type View = 'dia' | 'semana';
+/* ── Types ───────────────────────────────────────────────────────────────── */
+
+type View = 'dia' | 'semana' | 'mes';
+
+const VIEW_LABELS: Record<View, string> = { dia: 'DIA', semana: 'SEMANA', mes: 'MÊS' };
+
+const DENSITY_LABELS: Record<Density, string> = {
+  compact: 'Compacta',
+  default: 'Padrão',
+  comfortable: 'Confortável',
+};
+
+const MONTH_FULL = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
 
 const WDAY_FULL = [
-  'Domingo', 'Segunda', 'Terça', 'Quarta',
-  'Quinta', 'Sexta', 'Sábado',
+  'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
+  'Quinta-feira', 'Sexta-feira', 'Sábado',
 ];
-const MONTH_SHORT = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 
-function startOfWeek(d: Date): Date {
-  const day = d.getDay();
-  // Monday-as-first-day
-  const diff = (day + 6) % 7;
-  const monday = new Date(d);
-  monday.setDate(d.getDate() - diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
-}
-
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear()
-      && a.getMonth() === b.getMonth()
-      && a.getDate() === b.getDate();
-}
-
-function findNextFreeSlot(
-  appointments: AppointmentCardData[],
-  date: Date,
-): { time: string; durationMin: number } | null {
-  const now = new Date();
-  const sameDay = isSameDay(now, date);
-  const startHour = sameDay ? Math.max(7, now.getHours() + 1) : 8;
-  for (let h = startHour; h <= 18; h++) {
-    const slot = new Date(date);
-    slot.setHours(h, 0, 0, 0);
-    const conflict = appointments.find((a) => {
-      const s = new Date(a.scheduledAt);
-      const e = new Date(s.getTime() + (a.durationMin ?? 30) * 60_000);
-      return slot >= s && slot < e;
-    });
-    if (!conflict) {
-      return { time: `${h.toString().padStart(2, '0')}:00`, durationMin: 60 };
-    }
-  }
-  return null;
-}
+/* ── Page ────────────────────────────────────────────────────────────────── */
 
 export default function AgendaPage() {
-  const [view, setView]                   = React.useState<View>('dia');
-  const [selDate, setSelDate]             = React.useState<Date>(startOfDay(new Date()));
-  const [calMonth, setCalMonth]           = React.useState<Date>(() => {
+  /* ── State ──────────────────────────────────────────────────────────── */
+  const [view, setView] = React.useState<View>('dia');
+  const [density, setDensity] = React.useState<Density>('default');
+  const [selDate, setSelDate] = React.useState<Date>(startOfDay(new Date()));
+  const [calMonth, setCalMonth] = React.useState<Date>(() => {
     const d = new Date();
     d.setDate(1);
     d.setHours(0, 0, 0, 0);
     return d;
   });
-  const [providerFilter, setProviderFilter] = React.useState<string>('all');
-  const [selected, setSelected]             = React.useState<AppointmentCardData | null>(null);
-  const [sheetOpen, setSheetOpen]           = React.useState(false);
-  const [newOpen, setNewOpen]               = React.useState(false);
-  const [newSlotStart, setNewSlotStart]     = React.useState<Date | undefined>();
-  const [newSlotProvider, setNewSlotProvider] = React.useState<string | undefined>();
-
-  const providersQuery = trpc.scheduling.listProviders.useQuery();
-  const dayQuery = trpc.scheduling.agendaDay.useQuery({
-    date:       selDate,
-    providerId: providerFilter === 'all' ? undefined : providerFilter,
+  const [filters, setFilters] = React.useState<AgendaFilters>({
+    providerId: 'all',
+    status: 'all',
+    type: 'all',
   });
+
+  const [popoverAppt, setPopoverAppt] = React.useState<AppointmentCardData | null>(null);
+  const [popoverOpen, setPopoverOpen] = React.useState(false);
+  const [popoverPos, setPopoverPos] = React.useState<{ x: number; y: number } | null>(null);
+  const [sheetAppt, setSheetAppt] = React.useState<AppointmentCardData | null>(null);
+  const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [newOpen, setNewOpen] = React.useState(false);
+  const [newSlotStart, setNewSlotStart] = React.useState<Date | undefined>();
+  const [newSlotProvider, setNewSlotProvider] = React.useState<string | undefined>();
+  const [blockOpen, setBlockOpen] = React.useState(false);
+  const [blockDate, setBlockDate] = React.useState<Date | undefined>();
+  const [dragAppt, setDragAppt] = React.useState<AppointmentCardData | null>(null);
+
+  const { toast } = useToast();
+
+  /* ── Data fetching ──────────────────────────────────────────────────── */
+  const providerId = filters.providerId === 'all' ? undefined : filters.providerId;
+  const providersQuery = trpc.scheduling.listProviders.useQuery();
+
+  const dayQuery = trpc.scheduling.agendaDay.useQuery({
+    date: selDate,
+    providerId,
+  });
+
   const weekQuery = trpc.scheduling.agendaWeek.useQuery(
-    {
-      startDate: startOfWeek(selDate),
-      providerId: providerFilter === 'all' ? undefined : providerFilter,
-    },
-    { enabled: view === 'semana' },
+    { startDate: startOfWeek(selDate), providerId },
+    { enabled: view === 'semana' || view === 'mes' },
   );
+
   const queueQuery = trpc.scheduling.waitQueue.useQuery(undefined, {
     refetchInterval: 60_000,
   });
 
-  useRealtime(['appointment.created', 'appointment.updated', 'appointment.checked_in'], () => {
-    void dayQuery.refetch();
-    void queueQuery.refetch();
-    if (view === 'semana') void weekQuery.refetch();
-  });
+  const rescheduleMut = trpc.scheduling.reschedule.useMutation();
 
-  const dayAppointments  = (dayQuery.data?.appointments ?? []) as AppointmentCardData[];
-  const weekAppointments = (weekQuery.data?.appointments ?? []) as AppointmentCardData[];
+  useRealtime(
+    ['appointment.created', 'appointment.updated', 'appointment.checked_in'],
+    () => {
+      void dayQuery.refetch();
+      void queueQuery.refetch();
+      if (view === 'semana' || view === 'mes') void weekQuery.refetch();
+    },
+  );
 
-  const queueEntries: QueueEntry[] = (queueQuery.data?.queue ?? []).map((q) => ({
-    appointmentId:   q.appointmentId,
-    patientName:     q.patientName,
-    waitingSinceMin: q.waitingMinutes,
-    status:          q.status,
-  }));
+  /* ── Derived data ───────────────────────────────────────────────────── */
+  const rawDayAppts = (dayQuery.data?.appointments ?? []) as AppointmentCardData[];
+  const rawWeekAppts = (weekQuery.data?.appointments ?? []) as AppointmentCardData[];
 
-  /* ── Day-of-month → has-appt set para o MiniCalendar ─────────────────── */
+  const filterAppts = React.useCallback(
+    (appts: AppointmentCardData[]) =>
+      appts.filter((a) => {
+        if (filters.status !== 'all' && a.status !== filters.status) return false;
+        if (filters.type !== 'all') {
+          const tag = (a.service?.name ?? a.type ?? '').toLowerCase();
+          if (!tag.includes(filters.type)) return false;
+        }
+        return true;
+      }),
+    [filters],
+  );
+
+  const dayAppointments = React.useMemo(() => filterAppts(rawDayAppts), [rawDayAppts, filterAppts]);
+  const weekAppointments = React.useMemo(() => filterAppts(rawWeekAppts), [rawWeekAppts, filterAppts]);
+
+  const queueEntries: QueueEntry[] = React.useMemo(
+    () =>
+      (queueQuery.data?.queue ?? []).map((q) => ({
+        appointmentId: q.appointmentId,
+        patientName: q.patientName,
+        waitingSinceMin: q.waitingMinutes,
+        status: q.status,
+      })),
+    [queueQuery.data],
+  );
+
   const apptDays = React.useMemo(() => {
     const set = new Set<number>();
     if (
       calMonth.getFullYear() === selDate.getFullYear() &&
-      calMonth.getMonth() === selDate.getMonth() &&
-      dayQuery.data?.appointments?.length
+      calMonth.getMonth() === selDate.getMonth()
     ) {
-      // Conhecemos só o dia atual (pegamos via agendaDay). Marca esse dia.
-      set.add(selDate.getDate());
+      for (const a of rawDayAppts) {
+        const d = new Date(a.scheduledAt);
+        set.add(d.getDate());
+      }
     }
     return set;
-  }, [calMonth, selDate, dayQuery.data]);
+  }, [calMonth, selDate, rawDayAppts]);
 
-  const weekStart = startOfWeek(selDate);
-  const weekCounts: Record<number, number> = React.useMemo(() => {
-    const m: Record<number, number> = {};
-    for (const a of weekAppointments) {
-      const d = new Date(a.scheduledAt);
-      const start = startOfWeek(d);
-      const idx = Math.floor((d.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
-      m[idx] = (m[idx] ?? 0) + 1;
-    }
-    return m;
-  }, [weekAppointments]);
+  const nextFree = React.useMemo(
+    () => findNextFreeSlot(dayAppointments, selDate),
+    [dayAppointments, selDate],
+  );
 
-  const dayDow = WDAY_FULL[selDate.getDay()];
-  const dateLabel = `${dayDow?.toUpperCase()} · ${selDate.getDate()} ${MONTH_SHORT[selDate.getMonth()]} ${selDate.getFullYear()}`;
-
-  /* ── KPIs ───────────────────────────────────────────────────────────── */
-  const total       = dayAppointments.length;
-  const confirmados = dayAppointments.filter((a) =>
-    a.status === 'confirmed' || a.status === 'checked_in' || a.status === 'in_progress',
-  ).length;
-  const filaCount   = queueEntries.length;
-
+  /* ── Handlers ───────────────────────────────────────────────────────── */
   function handleMonthChange(delta: number) {
     const next = new Date(calMonth);
     next.setMonth(next.getMonth() + delta);
     setCalMonth(next);
   }
 
-  function handleCardClick(a: AppointmentCardData) {
-    setSelected(a);
+  function handleCardClick(a: AppointmentCardData, ev?: React.MouseEvent) {
+    setPopoverAppt(a);
+    if (ev) {
+      const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+      setPopoverPos({ x: rect.right, y: rect.top });
+    } else {
+      setPopoverPos({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    }
+    setPopoverOpen(true);
+  }
+
+  function handleOpenSheet() {
+    setSheetAppt(popoverAppt);
+    setPopoverOpen(false);
     setSheetOpen(true);
   }
 
   function handleEmptyClick(start: Date) {
-    setNewSlotProvider(providerFilter !== 'all' ? providerFilter : undefined);
+    setNewSlotProvider(providerId);
     setNewSlotStart(start);
     setNewOpen(true);
   }
 
-  const nextFree = findNextFreeSlot(dayAppointments, selDate);
+  function openNewAppointment() {
+    setNewSlotStart(undefined);
+    setNewSlotProvider(providerId);
+    setNewOpen(true);
+  }
 
+  function handleMutated() {
+    void dayQuery.refetch();
+    void queueQuery.refetch();
+    if (view === 'semana' || view === 'mes') void weekQuery.refetch();
+  }
+
+  /* ── DnD ────────────────────────────────────────────────────────────── */
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
+  function handleDragStart(e: { active: { data: { current?: { appointment?: AppointmentCardData } } } }) {
+    const ap = e.active.data.current?.appointment;
+    if (ap) setDragAppt(ap);
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setDragAppt(null);
+    const { active, over } = event;
+    if (!over || !active.data.current?.appointment) return;
+
+    const ap = active.data.current.appointment as AppointmentCardData;
+    const dropId = String(over.id);
+
+    let newDate: Date | null = null;
+
+    if (dropId.startsWith('slot-')) {
+      const hhmm = dropId.replace('slot-', '');
+      const [hh, mm] = hhmm.split(':').map(Number);
+      newDate = new Date(selDate);
+      newDate.setHours(hh ?? 0, mm ?? 0, 0, 0);
+    } else if (dropId.startsWith('week-')) {
+      const parts = dropId.replace('week-', '').split('-');
+      const dayIdx = Number(parts[0]);
+      const hhmm = parts.slice(1).join(':');
+      const [hh, mm] = hhmm.split(':').map(Number);
+      const ws = startOfWeek(selDate);
+      newDate = new Date(ws);
+      newDate.setDate(ws.getDate() + dayIdx);
+      newDate.setHours(hh ?? 0, mm ?? 0, 0, 0);
+    }
+
+    if (!newDate) return;
+    if (newDate.getTime() === new Date(ap.scheduledAt).getTime()) return;
+
+    try {
+      await rescheduleMut.mutateAsync({
+        id: ap.id,
+        newScheduledAt: newDate,
+      });
+      toast.success('Reagendado', {
+        description: `${ap.patient?.name} → ${newDate.getHours().toString().padStart(2, '0')}:${newDate.getMinutes().toString().padStart(2, '0')}`,
+      });
+      handleMutated();
+    } catch (err) {
+      toast.error('Conflito ao reagendar', {
+        description: err instanceof Error ? err.message : 'Não foi possível reagendar.',
+      });
+    }
+  }
+
+  /* ── Keyboard shortcuts ─────────────────────────────────────────────── */
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      switch (e.key.toLowerCase()) {
+        case 'n':
+          e.preventDefault();
+          openNewAppointment();
+          break;
+        case 't':
+          e.preventDefault();
+          setSelDate(startOfDay(new Date()));
+          break;
+        case 'd':
+          e.preventDefault();
+          setView('dia');
+          break;
+        case 's':
+          e.preventDefault();
+          setView('semana');
+          break;
+        case 'm':
+          e.preventDefault();
+          setView('mes');
+          break;
+        case 'escape':
+          setPopoverOpen(false);
+          setSheetOpen(false);
+          setNewOpen(false);
+          setBlockOpen(false);
+          break;
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  /* ── Date label ─────────────────────────────────────────────────────── */
+  const dateLabel = React.useMemo(() => {
+    if (view === 'mes') {
+      return `${MONTH_FULL[calMonth.getMonth()]} ${calMonth.getFullYear()}`;
+    }
+    const dow = WDAY_FULL[selDate.getDay()] ?? '';
+    return `${dow}, ${selDate.getDate()} de ${MONTH_FULL[selDate.getMonth()]} ${selDate.getFullYear()}`;
+  }, [view, selDate, calMonth]);
+
+  /* ── Navigation ─────────────────────────────────────────────────────── */
+  function navigatePrev() {
+    if (view === 'dia') {
+      const d = new Date(selDate);
+      d.setDate(d.getDate() - 1);
+      setSelDate(startOfDay(d));
+    } else if (view === 'semana') {
+      const d = new Date(selDate);
+      d.setDate(d.getDate() - 7);
+      setSelDate(startOfDay(d));
+    } else {
+      handleMonthChange(-1);
+    }
+  }
+
+  function navigateNext() {
+    if (view === 'dia') {
+      const d = new Date(selDate);
+      d.setDate(d.getDate() + 1);
+      setSelDate(startOfDay(d));
+    } else if (view === 'semana') {
+      const d = new Date(selDate);
+      d.setDate(d.getDate() + 7);
+      setSelDate(startOfDay(d));
+    } else {
+      handleMonthChange(1);
+    }
+  }
+
+  /* ── Render ─────────────────────────────────────────────────────────── */
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Top bar */}
-      <div
-        style={{
-          padding: '14px 22px 10px',
-          borderBottom: `1px solid ${T.divider}`,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexShrink: 0,
-        }}
-      >
-        <div>
-          <Mono size={9} spacing="1.2px">{dateLabel}</Mono>
-          <p style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary, marginTop: 2 }}>
-            Agenda Clínica
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {[
-            { l: 'Hoje',     v: total },
-            { l: 'Confirm.', v: confirmados },
-            { l: 'Fila',     v: filaCount },
-          ].map((k) => (
-            <Glass key={k.l} style={{ padding: '5px 10px', textAlign: 'center', borderRadius: T.r.md }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, lineHeight: 1 }}>
-                {k.v}
-              </p>
-              <Mono size={7}>{k.l.toUpperCase()}</Mono>
-            </Glass>
-          ))}
-
-          <Glass metal style={{ display: 'flex', borderRadius: T.r.md, overflow: 'hidden', padding: 0 }}>
-            {(['dia', 'semana'] as View[]).map((v, i) => (
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex flex-col h-full overflow-hidden">
+        {/* ── Top bar ──────────────────────────────────────────────────── */}
+        <header
+          className="flex items-center justify-between shrink-0 px-5 py-3"
+          style={{ borderBottom: `1px solid ${T.divider}` }}
+        >
+          {/* Left: date + nav */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
               <button
-                key={v}
                 type="button"
-                onClick={() => setView(v)}
+                onClick={navigatePrev}
+                aria-label="Anterior"
+                className="w-7 h-7 rounded-md flex items-center justify-center transition-colors hover:bg-black/[0.04]"
+              >
+                <Ico name="arrowLeft" size={16} color={T.textSecondary} />
+              </button>
+              <button
+                type="button"
+                onClick={navigateNext}
+                aria-label="Próximo"
+                className="w-7 h-7 rounded-md flex items-center justify-center transition-colors hover:bg-black/[0.04]"
+              >
+                <Ico name="arrowRight" size={16} color={T.textSecondary} />
+              </button>
+            </div>
+            <div>
+              <p className="text-lg font-bold" style={{ color: T.textPrimary }}>
+                {dateLabel}
+              </p>
+            </div>
+          </div>
+
+          {/* Right: view toggle + density + new */}
+          <div className="flex items-center gap-2">
+            {/* Quick KPIs */}
+            {view !== 'mes' && (
+              <div className="flex items-center gap-1.5 mr-2">
+                {[
+                  { l: 'HOJE', v: dayAppointments.length },
+                  { l: 'FILA', v: queueEntries.length },
+                ].map((k) => (
+                  <Glass key={k.l} style={{ padding: '4px 8px', textAlign: 'center', borderRadius: T.r.md }}>
+                    <p className="text-sm font-bold leading-none" style={{ color: T.textPrimary }}>
+                      {k.v}
+                    </p>
+                    <Mono size={7}>{k.l}</Mono>
+                  </Glass>
+                ))}
+              </div>
+            )}
+
+            {/* View toggle */}
+            <Glass metal style={{ display: 'flex', borderRadius: T.r.md, overflow: 'hidden', padding: 0 }}>
+              {(['dia', 'semana', 'mes'] as View[]).map((v, i, arr) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setView(v)}
+                  className="transition-colors"
+                  style={{
+                    padding: '5px 12px',
+                    background: view === v ? T.primaryBg : 'transparent',
+                    borderTop: 'none',
+                    borderBottom: 'none',
+                    borderLeft: 'none',
+                    borderRight: i < arr.length - 1 ? `1px solid ${T.divider}` : 'none',
+                    color: view === v ? T.primary : T.textMuted,
+                    fontSize: 10,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontWeight: 500,
+                    letterSpacing: '0.6px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {VIEW_LABELS[v]}
+                </button>
+              ))}
+            </Glass>
+
+            {/* Density */}
+            {view !== 'mes' && (
+              <select
+                value={density}
+                onChange={(e) => setDensity(e.target.value as Density)}
+                aria-label="Densidade"
+                className="text-xs cursor-pointer outline-none"
                 style={{
-                  padding: '6px 13px',
-                  background: view === v ? T.primaryBg : 'transparent',
-                  borderTop: 'none',
-                  borderBottom: 'none',
-                  borderLeft: 'none',
-                  borderRight: i === 0 ? `1px solid ${T.divider}` : 'none',
-                  color: view === v ? T.primary : T.textMuted,
-                  fontSize: 10,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontWeight: 500,
-                  letterSpacing: '0.6px',
-                  cursor: 'pointer',
+                  padding: '5px 8px',
+                  borderRadius: T.r.md,
+                  background: T.glass,
+                  border: `1px solid ${T.glassBorder}`,
+                  color: T.textSecondary,
+                  fontFamily: "'IBM Plex Sans', sans-serif",
                 }}
               >
-                {v.toUpperCase()}
-              </button>
-            ))}
-          </Glass>
+                {(['compact', 'default', 'comfortable'] as Density[]).map((d) => (
+                  <option key={d} value={d}>{DENSITY_LABELS[d]}</option>
+                ))}
+              </select>
+            )}
 
-          <select
-            value={providerFilter}
-            onChange={(e) => setProviderFilter(e.target.value)}
-            aria-label="Filtrar por profissional"
-            style={{
-              padding: '6px 10px',
-              borderRadius: T.r.md,
-              background: T.inputBg,
-              border: `1px solid ${T.inputBorder}`,
-              fontSize: 12,
-              fontFamily: "'IBM Plex Sans', sans-serif",
-              color: T.textPrimary,
-              outline: 'none',
-              cursor: 'pointer',
-              minWidth: 160,
-            }}
-          >
-            <option value="all">Todos profissionais</option>
-            {providersQuery.data?.providers?.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+            {/* New appointment */}
+            <Btn small icon="plus" onClick={openNewAppointment}>
+              Agendar
+            </Btn>
+          </div>
+        </header>
 
-          <Btn
-            small
-            icon="plus"
-            onClick={() => {
-              setNewSlotStart(undefined);
-              setNewSlotProvider(undefined);
-              setNewOpen(true);
-            }}
-          >
-            Agendar
-          </Btn>
-        </div>
-      </div>
-
-      {/* Body: Calendar + Timeline + Queue */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {/* Mini calendar sidebar */}
-        <div
-          style={{
-            width: 192,
-            borderRight: `1px solid ${T.divider}`,
-            padding: '14px 12px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            flexShrink: 0,
-            overflowY: 'auto',
-          }}
-        >
-          <MiniCalendar
-            date={calMonth}
-            selected={selDate}
+        {/* ── Body ─────────────────────────────────────────────────────── */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* Left sidebar */}
+          <AgendaSidebar
+            selectedDate={selDate}
+            calMonth={calMonth}
             apptDays={apptDays}
-            onDayClick={(d) => setSelDate(startOfDay(d))}
-            onMonthChange={handleMonthChange}
-          />
-
-          <button
-            type="button"
-            onClick={() => {
-              const today = startOfDay(new Date());
-              setSelDate(today);
-              const m = new Date(today);
+            appointments={dayAppointments}
+            providers={providersQuery.data?.providers ?? []}
+            filters={filters}
+            onDateChange={(d) => {
+              setSelDate(d);
+              const m = new Date(d);
               m.setDate(1);
               setCalMonth(m);
             }}
-            style={{
-              width: '100%',
-              padding: '7px 10px',
-              borderRadius: T.r.md,
-              background: T.primaryBg,
-              border: `1px solid ${T.primaryBorder}`,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 5,
-            }}
-          >
-            <Ico name="clock" size={12} color={T.primary} />
-            <Mono size={9} color={T.primary}>HOJE</Mono>
-          </button>
+            onMonthChange={handleMonthChange}
+            onFiltersChange={(partial) =>
+              setFilters((f) => ({ ...f, ...partial }))
+            }
+            onNewAppointment={openNewAppointment}
+            onBlockSlot={() => setBlockOpen(true)}
+          />
 
-          <DaySummary appointments={dayAppointments} selected={selDate} />
-        </div>
+          {/* Center: views */}
+          <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            {/* Loading */}
+            {(dayQuery.isLoading || (view === 'semana' && weekQuery.isLoading)) && (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                  <Mono size={10} color={T.textMuted}>CARREGANDO AGENDA…</Mono>
+                </div>
+              </div>
+            )}
 
-        {/* Main timeline / week grid */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {view === 'semana' ? (
-            <AgendaWeekGrid
-              weekStart={weekStart}
-              appointments={weekAppointments}
-              selectedDate={selDate}
-              onDaySelect={(d) => setSelDate(startOfDay(d))}
-              onCardClick={handleCardClick}
-              onEmptyClick={handleEmptyClick}
-            />
-          ) : (
-            <div style={{ flex: 1, overflowY: 'auto', padding: '10px 18px' }}>
-              <AgendaTimeline
+            {/* Error */}
+            {dayQuery.isError && !dayQuery.isLoading && (
+              <div className="flex-1 flex items-center justify-center">
+                <div
+                  className="flex items-center gap-3 px-5 py-3 rounded-lg"
+                  style={{
+                    background: 'rgba(154,32,32,0.06)',
+                    border: '1px solid rgba(154,32,32,0.18)',
+                  }}
+                >
+                  <Ico name="alert" size={18} color="#9a2020" />
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: '#9a2020' }}>
+                      Erro ao carregar agenda
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>
+                      {dayQuery.error?.message ?? 'Verifique sua conexão.'}
+                    </p>
+                  </div>
+                  <Btn variant="ghost" small onClick={() => void dayQuery.refetch()}>
+                    Tentar novamente
+                  </Btn>
+                </div>
+              </div>
+            )}
+
+            {/* Day view */}
+            {!dayQuery.isLoading && !dayQuery.isError && view === 'dia' && (
+              <AgendaDayTimeline
                 appointments={dayAppointments}
                 date={selDate}
+                density={density}
                 onCardClick={handleCardClick}
                 onEmptyClick={handleEmptyClick}
               />
-            </div>
+            )}
+
+            {/* Week view */}
+            {!weekQuery.isLoading && view === 'semana' && (
+              <AgendaWeekGrid
+                weekStart={startOfWeek(selDate)}
+                appointments={weekAppointments}
+                selectedDate={selDate}
+                density={density}
+                onDaySelect={(d) => setSelDate(startOfDay(d))}
+                onCardClick={handleCardClick}
+                onEmptyClick={handleEmptyClick}
+              />
+            )}
+
+            {/* Month view */}
+            {view === 'mes' && (
+              <AgendaMonthGrid
+                year={calMonth.getFullYear()}
+                month={calMonth.getMonth()}
+                appointments={weekAppointments}
+                selectedDate={selDate}
+                onDaySelect={(d) => {
+                  setSelDate(startOfDay(d));
+                  setView('dia');
+                }}
+                onCardClick={handleCardClick}
+              />
+            )}
+          </main>
+
+          {/* Right panel */}
+          {view !== 'mes' && (
+            <AgendaRightPanel
+              queueEntries={queueEntries}
+              appointments={dayAppointments}
+              nextFree={nextFree}
+              onEntryClick={(id) => {
+                const ap = dayAppointments.find((a) => a.id === id);
+                if (ap) handleCardClick(ap);
+              }}
+              onNewAppointment={() => {
+                if (nextFree) {
+                  setNewSlotStart(nextFree.date);
+                  setNewSlotProvider(providerId);
+                  setNewOpen(true);
+                } else {
+                  openNewAppointment();
+                }
+              }}
+            />
           )}
         </div>
-
-        {/* Queue */}
-        <AgendaQueue
-          entries={queueEntries}
-          nextFree={nextFree}
-          onEntryClick={(id) => {
-            const ap = dayAppointments.find((a) => a.id === id);
-            if (ap) handleCardClick(ap);
-          }}
-        />
       </div>
 
+      {/* ── Drag overlay ───────────────────────────────────────────────── */}
+      <DragOverlay>
+        {dragAppt && (
+          <div className="w-64 opacity-90">
+            <AppointmentCard appointment={dragAppt} variant="compact" isDragging />
+          </div>
+        )}
+      </DragOverlay>
+
+      {/* ── Popover (anchor positioned at click coordinates) ───────────── */}
+      {popoverAppt && (
+        <AppointmentPopover
+          appointment={popoverAppt}
+          open={popoverOpen}
+          onOpenChange={setPopoverOpen}
+          onMutated={handleMutated}
+          onOpenSheet={handleOpenSheet}
+          onReschedule={() => {
+            setSheetAppt(popoverAppt);
+            setSheetOpen(true);
+          }}
+          onCancel={() => {
+            setSheetAppt(popoverAppt);
+            setSheetOpen(true);
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              position: 'fixed',
+              left: popoverPos?.x ?? 0,
+              top: popoverPos?.y ?? 0,
+              width: 0,
+              height: 0,
+              pointerEvents: 'none',
+            }}
+          />
+        </AppointmentPopover>
+      )}
+
+      {/* ── Detail sheet ───────────────────────────────────────────────── */}
       <AppointmentDetailSheet
-        appointment={selected}
+        appointment={sheetAppt}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        onMutated={() => { void dayQuery.refetch(); void queueQuery.refetch(); }}
+        onMutated={handleMutated}
       />
 
+      {/* ── New appointment wizard ─────────────────────────────────────── */}
       <NewAppointmentDialog
         open={newOpen}
         onOpenChange={setNewOpen}
         initialDate={selDate}
-        initialProviderId={newSlotProvider ?? (providerFilter !== 'all' ? providerFilter : undefined)}
+        initialProviderId={newSlotProvider ?? (providerId ?? undefined)}
         initialSlotStart={newSlotStart}
-        onCreated={() => { void dayQuery.refetch(); void queueQuery.refetch(); }}
+        onCreated={handleMutated}
       />
-    </div>
+
+      {/* ── Block slot dialog ──────────────────────────────────────────── */}
+      <BlockSlotDialog
+        open={blockOpen}
+        onOpenChange={setBlockOpen}
+        initialDate={blockDate ?? selDate}
+      />
+    </DndContext>
   );
 }

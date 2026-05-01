@@ -376,9 +376,25 @@ export function PrescriptionDrawer({
             Cancelar
           </Button>
           <Button
-            onClick={handleSubmit}
+            variant="outline"
+            onClick={() => {
+              const params = new URLSearchParams({ patientId, encounterId, type });
+              window.location.assign(`/prescricoes/nova?${params.toString()}`);
+            }}
+          >
+            Editor completo
+          </Button>
+          <Button
+            onClick={() => {
+              if (
+                allergyWarnings.length > 0 &&
+                !window.confirm('Há possíveis conflitos com alergias. Deseja continuar?')
+              ) {
+                return;
+              }
+              handleSubmit();
+            }}
             isLoading={createMut.isPending}
-            disabled={allergyWarnings.length > 0 && !confirm('Há possíveis conflitos com alergias. Deseja continuar?')}
           >
             Criar prescrição
           </Button>

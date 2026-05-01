@@ -448,7 +448,7 @@ export function AppointmentDetailSheet({ appointment, open, onOpenChange, onMuta
                     gap: 8,
                   }}
                 >
-                  <Ico name="alert-triangle" size={14} color={T.danger} />
+                  <Ico name="alert" size={14} color={T.danger} />
                   <span style={{ fontSize: 12, fontWeight: 600, color: T.danger }}>
                     ALERGIAS: {appointment.patient.allergiesSummary}
                   </span>
@@ -605,13 +605,13 @@ export function AppointmentDetailSheet({ appointment, open, onOpenChange, onMuta
                   <Btn variant="danger" small onClick={() => setCancelOpen(true)}>
                     Cancelar
                   </Btn>
-                  <Btn small onClick={handleCheckIn} loading={checkInMut.isPending} icon="user-check">
+                  <Btn small onClick={handleCheckIn} loading={checkInMut.isPending} icon="user">
                     Check-in
                   </Btn>
                 </>
               )}
               {(status === 'waiting' || status === 'checked_in') && (
-                <Btn small onClick={handleStart} loading={startMut.isPending} icon="play">
+                <Btn small onClick={handleStart} loading={startMut.isPending} icon="zap">
                   Iniciar Atendimento
                 </Btn>
               )}
@@ -621,7 +621,7 @@ export function AppointmentDetailSheet({ appointment, open, onOpenChange, onMuta
                 </Btn>
               )}
               {status === 'completed' && (
-                <Btn small onClick={() => router.push(`/pacientes/${appointment.patient.id}/prontuario`)} icon="file-text">
+                <Btn small onClick={() => router.push(`/pacientes/${appointment.patient.id}/prontuario`)} icon="file">
                   Ver Prontuário
                 </Btn>
               )}

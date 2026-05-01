@@ -35,6 +35,10 @@ interface Selected {
   type:        string;
   durationMin: number;
   scheduledAt: Date | null;
+  room:        string;
+  internalNotes: string;
+  sendConfirmation: boolean;
+  confirmationChannel: 'whatsapp' | 'email' | 'sms';
 }
 
 const STEP_LABELS = ['Paciente', 'Profissional', 'Horário', 'Confirmação'];
@@ -76,6 +80,10 @@ export function NewAppointmentDialog({
     type:         'consultation',
     durationMin:  30,
     scheduledAt:  initialSlotStart ?? null,
+    room:         '',
+    internalNotes: '',
+    sendConfirmation: true,
+    confirmationChannel: 'whatsapp',
   });
 
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate ?? initialSlotStart ?? new Date());
@@ -114,6 +122,8 @@ export function NewAppointmentDialog({
       serviceId: null, serviceName: null,
       type: 'consultation', durationMin: 30,
       scheduledAt: initialSlotStart ?? null,
+      room: '', internalNotes: '',
+      sendConfirmation: true, confirmationChannel: 'whatsapp',
     });
   }
 
@@ -132,6 +142,8 @@ export function NewAppointmentDialog({
         type:        selected.type,
         scheduledAt: selected.scheduledAt,
         durationMin: selected.durationMin,
+        room:        selected.room || undefined,
+        internalNotes: selected.internalNotes || undefined,
         source:      'manual',
       });
       toast.success('Agendamento criado', {
@@ -452,10 +464,23 @@ export function NewAppointmentDialog({
                   <p style={{ fontSize: 14, color: T.warning, marginTop: 8 }}>Sem horários disponíveis neste dia.</p>
                 )}
               </div>
+
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, display: 'block', marginBottom: 8 }}>
+                  Sala (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={selected.room}
+                  onChange={(e) => setSelected((s) => ({ ...s, room: e.target.value }))}
+                  placeholder="Ex: Sala 1, Consultório 2…"
+                  style={glassInputStyle}
+                />
+              </div>
             </div>
           )}
 
-          {/* Step 4: Summary */}
+          {/* Step 4: Summary + Notes + Confirmation */}
           {step === 4 && selected.scheduledAt && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
@@ -464,6 +489,7 @@ export function NewAppointmentDialog({
                 { label: 'TIPO', value: selected.serviceName ?? selected.type, icon: 'layers' as const },
                 { label: 'DATA E HORA', value: `${format(selected.scheduledAt, "dd/MM/yyyy", { locale: ptBR })} • ${formatSlotRange(selected.scheduledAt, new Date(selected.scheduledAt.getTime() + selected.durationMin * 60_000))}`, icon: 'calendar' as const },
                 { label: 'DURAÇÃO', value: `${selected.durationMin} min`, icon: 'clock' as const },
+                ...(selected.room ? [{ label: 'SALA', value: selected.room, icon: 'home' as const }] : []),
               ].map((item) => (
                 <div
                   key={item.label}
@@ -501,6 +527,69 @@ export function NewAppointmentDialog({
                   </div>
                 </div>
               ))}
+
+              {/* Internal notes */}
+              <div style={{ marginTop: 4 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, display: 'block', marginBottom: 6 }}>
+                  Observações internas (opcional)
+                </label>
+                <textarea
+                  value={selected.internalNotes}
+                  onChange={(e) => setSelected((s) => ({ ...s, internalNotes: e.target.value }))}
+                  placeholder="Notas visíveis apenas para a equipe…"
+                  rows={2}
+                  style={{
+                    ...glassInputStyle,
+                    fontSize: 13,
+                    resize: 'vertical' as const,
+                  }}
+                />
+              </div>
+
+              {/* Send confirmation */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  borderRadius: T.r.md,
+                  background: T.glass,
+                  border: `1px solid ${T.glassBorder}`,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Ico name="mail" size={14} color={T.primary} />
+                  <span style={{ fontSize: 13, fontWeight: 500, color: T.textPrimary }}>
+                    Enviar confirmação ao paciente
+                  </span>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={selected.sendConfirmation}
+                    onChange={(e) => setSelected((s) => ({ ...s, sendConfirmation: e.target.checked }))}
+                    style={{ accentColor: T.primary }}
+                  />
+                </label>
+              </div>
+
+              {selected.sendConfirmation && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, display: 'block', marginBottom: 6 }}>
+                    Canal
+                  </label>
+                  <select
+                    value={selected.confirmationChannel}
+                    onChange={(e) => setSelected((s) => ({ ...s, confirmationChannel: e.target.value as 'whatsapp' | 'email' | 'sms' }))}
+                    style={{ ...glassInputStyle, fontSize: 13 }}
+                  >
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="email">E-mail</option>
+                    <option value="sms">SMS</option>
+                  </select>
+                </div>
+              )}
             </div>
           )}
         </div>

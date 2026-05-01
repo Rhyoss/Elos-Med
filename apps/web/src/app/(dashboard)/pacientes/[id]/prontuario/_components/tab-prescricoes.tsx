@@ -1,23 +1,19 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { Badge, Btn, Glass, Ico, Mono, EmptyState, Skeleton, T } from '@dermaos/ui/ds';
 import { PRESCRIPTION_STATUS_LABELS, PRESCRIPTION_TYPE_LABELS } from '@dermaos/shared';
-import { trpc } from '@/lib/trpc-provider';
+import {
+  PRESCRIPTION_STATUS_VARIANT,
+  useDuplicatePrescription,
+  usePrescriptionsByPatient,
+} from '@/lib/hooks/use-prescriptions';
+import { useToast } from '@dermaos/ui';
 
 interface TabPrescricoesProps {
   patientId: string;
   onNovaPrescrição?: () => void;
 }
-
-const STATUS_VARIANT: Record<string, 'default' | 'success' | 'warning' | 'danger'> = {
-  rascunho:        'warning',
-  emitida:         'success',
-  assinada:        'success',
-  enviada_digital: 'success',
-  impressa:        'success',
-  expirada:        'default',
-  cancelada:       'danger',
-};
 
 const DELIVERY_LABEL: Record<string, string> = {
   pending:   'Pendente',
@@ -40,11 +36,31 @@ function formatDate(d: Date | string | null): string {
 }
 
 export function TabPrescricoes({ patientId, onNovaPrescrição }: TabPrescricoesProps) {
-  const listQ = trpc.clinical.prescriptions.listByPatient.useQuery({
-    patientId,
-    page:     1,
-    pageSize: 50,
-  });
+  const router = useRouter();
+  const { toast } = useToast();
+  const listQ = usePrescriptionsByPatient(patientId, { pageSize: 50 });
+  const duplicateMut = useDuplicatePrescription();
+
+  function goToNew() {
+    if (onNovaPrescrição) onNovaPrescrição();
+    else router.push(`/prescricoes/nova?patientId=${patientId}`);
+  }
+
+  function goToDetail(id: string) {
+    router.push(`/prescricoes/${id}`);
+  }
+
+  async function handleDuplicate(sourceId: string) {
+    try {
+      const res = await duplicateMut.mutateAsync({ id: sourceId });
+      toast.success('Rascunho duplicado');
+      router.push(`/prescricoes/${res.prescription.id}`);
+    } catch (err) {
+      toast.error('Falha ao duplicar', {
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+      });
+    }
+  }
 
   if (listQ.isLoading) {
     return (
@@ -64,13 +80,11 @@ export function TabPrescricoes({ patientId, onNovaPrescrição }: TabPrescricoes
         label="PRESCRIÇÕES"
         icon="file"
         title="Nenhuma prescrição"
-        description="As prescrições serão criadas durante os atendimentos e aparecerão aqui automaticamente."
+        description="Crie a primeira prescrição deste paciente. Itens podem ser tópicos, sistêmicos, manipulados ou cosmecêuticos, com geração de PDF assinado pelo backend."
         action={
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-            {onNovaPrescrição && (
-              <Btn small icon="file" onClick={onNovaPrescrição}>Nova prescrição</Btn>
-            )}
-          </div>
+          <Btn variant="primary" small icon="plus" onClick={goToNew}>
+            Nova prescrição
+          </Btn>
         }
       />
     );
@@ -82,13 +96,26 @@ export function TabPrescricoes({ patientId, onNovaPrescrição }: TabPrescricoes
         <Mono size={11} spacing="1.2px" color={T.primary}>
           {items.length} {items.length === 1 ? 'PRESCRIÇÃO' : 'PRESCRIÇÕES'}
         </Mono>
-        {onNovaPrescrição && (
-          <Btn variant="ghost" small icon="file" onClick={onNovaPrescrição}>Nova prescrição</Btn>
-        )}
+        <Btn variant="primary" small icon="plus" onClick={goToNew}>
+          Nova prescrição
+        </Btn>
       </div>
 
       {items.map((rx) => (
-        <Glass key={rx.id} hover style={{ padding: '16px 18px' }}>
+        <Glass
+          key={rx.id}
+          hover
+          style={{ padding: '16px 18px', cursor: 'pointer' }}
+          onClick={() => goToDetail(rx.id)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              goToDetail(rx.id);
+            }
+          }}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
@@ -107,9 +134,23 @@ export function TabPrescricoes({ patientId, onNovaPrescrição }: TabPrescricoes
                 </Mono>
               </div>
             </div>
-            <Badge variant={STATUS_VARIANT[rx.status] ?? 'default'} dot={false}>
-              {PRESCRIPTION_STATUS_LABELS[rx.status] ?? rx.status}
-            </Badge>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Badge variant={PRESCRIPTION_STATUS_VARIANT[rx.status] ?? 'default'} dot={false}>
+                {PRESCRIPTION_STATUS_LABELS[rx.status] ?? rx.status}
+              </Badge>
+              <Btn
+                variant="ghost"
+                small
+                iconOnly
+                icon="copy"
+                aria-label="Duplicar prescrição"
+                disabled={duplicateMut.isPending}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleDuplicate(rx.id);
+                }}
+              />
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>

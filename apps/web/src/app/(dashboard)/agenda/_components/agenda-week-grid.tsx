@@ -1,66 +1,62 @@
 'use client';
 
 import * as React from 'react';
-import { Badge, Mono, T } from '@dermaos/ui/ds';
+import { isSameDay } from 'date-fns';
+import { useDroppable } from '@dnd-kit/core';
+import { cn } from '@dermaos/ui';
+import { Mono, T } from '@dermaos/ui/ds';
+import {
+  type Density,
+  DENSITY,
+  viewConfigFor,
+  weekDays,
+  positionFor,
+  heightFor,
+  totalSlots,
+  slotLabels,
+} from '@/lib/agenda-utils';
+import { AppointmentCard } from './appointment-card';
 import type { AppointmentCardData } from './appointment-detail-sheet';
-
-const HOURS = [
-  '08:00', '09:00', '10:00', '11:00', '12:00',
-  '13:00', '14:00', '15:00', '16:00', '17:00',
-];
 
 const WDAY_LABELS = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
 
-const STATUS_VARIANT: Record<string, 'default' | 'success' | 'warning' | 'danger'> = {
-  scheduled:   'default',
-  confirmed:   'success',
-  waiting:     'warning',
-  checked_in:  'success',
-  in_progress: 'success',
-  completed:   'default',
-  cancelled:   'danger',
-  no_show:     'warning',
-};
+/* ── Droppable day column cell ───────────────────────────────────────────── */
 
-const STATUS_LABEL: Record<string, string> = {
-  scheduled:   'Agendado',
-  confirmed:   'Confirmado',
-  waiting:     'Aguardando',
-  checked_in:  'Check-in',
-  in_progress: 'Em sala',
-  completed:   'Finalizado',
-  cancelled:   'Cancelado',
-  no_show:     'Falta',
-};
-
-function moduleFor(type: string): keyof Pick<typeof T, 'clinical' | 'aiMod' | 'supply' | 'financial' | 'accentMod'> {
-  if (type.includes('botox') || type.includes('procedimento') || type.includes('aplicac')) return 'supply';
-  if (type.includes('ia') || type.includes('aurora') || type.includes('analise')) return 'aiMod';
-  return 'clinical';
+function DroppableCell({
+  id,
+  height,
+  isHour,
+  isSel,
+}: {
+  id: string;
+  height: number;
+  isHour: boolean;
+  isSel: boolean;
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'border-l border-t',
+        isHour ? 'border-gray-200/80' : 'border-gray-100/50',
+        isSel && 'bg-primary-50/30',
+        isOver && 'bg-primary-100/40',
+      )}
+      style={{ height }}
+    />
+  );
 }
 
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear()
-    && a.getMonth() === b.getMonth()
-    && a.getDate() === b.getDate();
-}
-
-function formatTime(d: Date | string): string {
-  const date = typeof d === 'string' ? new Date(d) : d;
-  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-}
-
-function bucketHour(d: Date | string): string {
-  const date = typeof d === 'string' ? new Date(d) : d;
-  return `${date.getHours().toString().padStart(2, '0')}:00`;
-}
+/* ── Week Grid ───────────────────────────────────────────────────────────── */
 
 interface AgendaWeekGridProps {
   weekStart: Date;
   appointments: AppointmentCardData[];
   selectedDate: Date;
+  density: Density;
   onDaySelect: (d: Date) => void;
-  onCardClick: (a: AppointmentCardData) => void;
+  onCardClick: (a: AppointmentCardData, ev?: React.MouseEvent) => void;
   onEmptyClick?: (start: Date) => void;
 }
 
@@ -68,19 +64,17 @@ export function AgendaWeekGrid({
   weekStart,
   appointments,
   selectedDate,
+  density,
   onDaySelect,
   onCardClick,
   onEmptyClick,
 }: AgendaWeekGridProps) {
-  const days: Date[] = React.useMemo(() => {
-    const arr: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(weekStart);
-      d.setDate(weekStart.getDate() + i);
-      arr.push(d);
-    }
-    return arr;
-  }, [weekStart]);
+  const cfg = viewConfigFor(density);
+  const days = React.useMemo(() => weekDays(weekStart), [weekStart]);
+  const labels = slotLabels(cfg);
+  const total = totalSlots(cfg);
+  const gridHeight = total * cfg.pxPerSlot;
+  const today = new Date();
 
   const byDay = React.useMemo(() => {
     const map = new Map<number, AppointmentCardData[]>();
@@ -97,44 +91,43 @@ export function AgendaWeekGrid({
     return map;
   }, [appointments, days]);
 
-  const today = new Date();
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!scrollRef.current) return;
+    const now = new Date();
+    const top = positionFor(now, days[0]!, cfg);
+    scrollRef.current.scrollTop = Math.max(0, top - 200);
+  }, [days, cfg]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Day headers */}
       <div
+        className="grid shrink-0"
         style={{
-          display: 'grid',
-          gridTemplateColumns: '42px repeat(7, 1fr)',
+          gridTemplateColumns: '48px repeat(7, 1fr)',
           borderBottom: `1px solid ${T.divider}`,
-          flexShrink: 0,
         }}
       >
         <div />
         {days.map((d, i) => {
           const isSel = isSameDay(d, selectedDate);
-          const isToday = isSameDay(d, today);
+          const isTod = isSameDay(d, today);
           const count = byDay.get(i)?.length ?? 0;
           return (
             <button
               key={i}
               type="button"
               onClick={() => onDaySelect(d)}
-              style={{
-                padding: '7px 4px',
-                textAlign: 'center',
-                background: isSel ? T.primaryBg : 'transparent',
-                borderTop: isSel ? `1px solid ${T.primaryBorder}` : '1px solid transparent',
-                borderRight: isSel ? `1px solid ${T.primaryBorder}` : '1px solid transparent',
-                borderBottom: isSel ? `1px solid ${T.primaryBorder}` : '1px solid transparent',
-                borderLeft: `1px solid ${T.divider}`,
-                borderRadius: 0,
-                cursor: 'pointer',
-              }}
+              className={cn(
+                'py-2 text-center transition-colors border-l',
+                isSel ? 'bg-primary-50' : 'hover:bg-gray-50/50',
+              )}
+              style={{ borderColor: T.divider }}
             >
               <p
+                className="text-[9px] font-medium tracking-wider"
                 style={{
-                  fontSize: 9,
                   fontFamily: "'IBM Plex Mono', monospace",
                   color: isSel ? T.primary : T.textMuted,
                 }}
@@ -142,121 +135,90 @@ export function AgendaWeekGrid({
                 {WDAY_LABELS[i]}
               </p>
               <p
-                style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: isToday ? T.primary : T.textPrimary,
-                  lineHeight: 1.3,
-                }}
+                className={cn('text-base font-bold leading-tight', isTod && 'text-primary-700')}
+                style={{ color: isTod ? T.primary : T.textPrimary }}
               >
                 {d.getDate()}
               </p>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 3, minHeight: 3 }}>
-                {[...Array(Math.min(count, 5))].map((_, j) => (
-                  <div
-                    key={j}
-                    style={{
-                      width: 3,
-                      height: 3,
-                      borderRadius: '50%',
-                      background: isSel ? T.primary : T.divider,
-                    }}
-                  />
-                ))}
-              </div>
+              {count > 0 && (
+                <div className="flex justify-center gap-0.5 mt-1">
+                  {[...Array(Math.min(count, 4))].map((_, j) => (
+                    <div
+                      key={j}
+                      className="w-1 h-1 rounded-full"
+                      style={{ background: isSel ? T.primary : T.divider }}
+                    />
+                  ))}
+                  {count > 4 && (
+                    <span className="text-[7px]" style={{ color: T.textMuted }}>+{count - 4}</span>
+                  )}
+                </div>
+              )}
             </button>
           );
         })}
       </div>
 
       {/* Time grid */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '42px repeat(7, 1fr)' }}>
-          {HOURS.map((h) => (
-            <React.Fragment key={h}>
-              {/* Hour label */}
-              <div style={{ paddingTop: 3, paddingRight: 6, textAlign: 'right', borderTop: `1px solid ${T.divider}` }}>
-                <Mono size={9}>{h}</Mono>
-              </div>
-
-              {/* Day cells */}
-              {days.map((d, dayIdx) => {
-                const dayAppts = byDay.get(dayIdx) ?? [];
-                const hourAppts = dayAppts.filter((a) => bucketHour(a.scheduledAt) === h);
-                const isSel = isSameDay(d, selectedDate);
-
-                return (
-                  <div
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="relative" style={{ minHeight: gridHeight }}>
+          {/* Grid background (labels + cells) */}
+          <div
+            className="grid"
+            style={{ gridTemplateColumns: '48px repeat(7, 1fr)' }}
+          >
+            {labels.map((slot, slotIdx) => (
+              <React.Fragment key={slot.hhmm}>
+                {/* Time label */}
+                <div
+                  className="text-right pr-2 -mt-1.5"
+                  style={{ height: cfg.pxPerSlot }}
+                >
+                  {slot.isHour && <Mono size={9} color={T.textMuted}>{slot.hhmm}</Mono>}
+                </div>
+                {/* Day columns */}
+                {days.map((d, dayIdx) => (
+                  <DroppableCell
                     key={dayIdx}
-                    style={{
-                      borderLeft: `1px solid ${T.divider}`,
-                      borderTop: `1px solid ${T.divider}`,
-                      padding: '2px 2px',
-                      background: isSel ? `${T.primaryBg}` : 'transparent',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 2,
-                      minWidth: 0,
-                      minHeight: 46,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {hourAppts.length > 0
-                      ? hourAppts.map((ap) => {
-                          const m = T[moduleFor(ap.type ?? ap.service?.name ?? '')];
-                          const variant = STATUS_VARIANT[ap.status] ?? 'default';
-                          const label = STATUS_LABEL[ap.status] ?? ap.status;
-                          return (
-                            <button
-                              key={ap.id}
-                              type="button"
-                              onClick={() => onCardClick(ap)}
-                              style={{
-                                borderRadius: T.r.sm,
-                                padding: '4px 5px',
-                                background: m.bg,
-                                borderTop: `1px solid ${m.color}18`,
-                                borderRight: `1px solid ${m.color}18`,
-                                borderBottom: `1px solid ${m.color}18`,
-                                borderLeft: `3px solid ${m.color}`,
-                                cursor: 'pointer',
-                                textAlign: 'left',
-                                width: '100%',
-                                overflow: 'hidden',
-                              }}
-                            >
-                              <p
-                                style={{
-                                  fontSize: 10,
-                                  fontWeight: 600,
-                                  color: T.textPrimary,
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}
-                              >
-                                {ap.patient?.name ?? '—'}
-                              </p>
-                              <p
-                                style={{
-                                  fontSize: 8,
-                                  color: T.textTertiary,
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}
-                              >
-                                {formatTime(ap.scheduledAt)} · {ap.service?.name ?? ap.type}
-                              </p>
-                            </button>
-                          );
-                        })
-                      : null}
-                  </div>
-                );
-              })}
-            </React.Fragment>
-          ))}
+                    id={`week-${dayIdx}-${slot.hhmm}`}
+                    height={cfg.pxPerSlot}
+                    isHour={slot.isHour}
+                    isSel={isSameDay(d, selectedDate)}
+                  />
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* Appointment cards overlaid */}
+          {days.map((day, dayIdx) => {
+            const dayAppts = byDay.get(dayIdx) ?? [];
+            const colLeft = `calc(48px + ${dayIdx} * ((100% - 48px) / 7) + 2px)`;
+            const colWidth = `calc((100% - 48px) / 7 - 4px)`;
+            return dayAppts.map((ap) => {
+              const apDate = new Date(ap.scheduledAt);
+              const top = positionFor(apDate, day, cfg);
+              const h = heightFor(ap.durationMin, cfg);
+              return (
+                <div
+                  key={ap.id}
+                  className="absolute z-[1]"
+                  style={{
+                    top,
+                    left: colLeft,
+                    width: colWidth,
+                    height: Math.max(h, 20),
+                  }}
+                >
+                  <AppointmentCard
+                    appointment={ap}
+                    onClick={onCardClick}
+                    variant={h < 30 ? 'mini' : 'compact'}
+                  />
+                </div>
+              );
+            });
+          })}
         </div>
       </div>
     </div>
