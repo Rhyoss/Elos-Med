@@ -8,7 +8,7 @@ interface TabTimelineProps {
   patientId: string;
 }
 
-type TimelineKind = 'consulta' | 'prescricao' | 'imagem' | 'protocolo' | 'procedimento';
+type TimelineKind = 'consulta' | 'prescricao' | 'imagem' | 'protocolo' | 'procedimento' | 'sessao';
 
 interface TimelineEvent {
   id:     string;
@@ -24,6 +24,7 @@ const KIND_CONFIG: Record<TimelineKind, { icon: IcoName; color: string; bg: stri
   imagem:        { icon: 'image',    color: T.supply.color,   bg: T.supply.bg,   label: 'Imagens' },
   protocolo:     { icon: 'layers',   color: T.aiMod.color,    bg: T.aiMod.bg,    label: 'Protocolos' },
   procedimento:  { icon: 'zap',      color: T.accentMod.color, bg: T.accentMod.bg, label: 'Procedimentos' },
+  sessao:        { icon: 'check',    color: T.clinical.color,  bg: T.clinical.bg,  label: 'Sessões' },
 };
 
 const TYPE_LABEL: Record<string, string> = {

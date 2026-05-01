@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { T } from '@dermaos/ui/ds';
+import { trpc } from '@/lib/trpc-provider';
 import { PatientHeader }        from './_components/patient-header';
 import { PatientContextSidebar } from './_components/patient-context-sidebar';
 import { ProntuarioTabs, type ProntuarioTabId } from './_components/prontuario-tabs';
@@ -26,6 +27,12 @@ export default function ProntuarioPage({
   const { startEncounter, isStarting, hasOpenDraft, openDraftId } =
     useNovaConsulta(patientId);
 
+  const patientQ = trpc.patients.getById.useQuery(
+    { id: patientId },
+    { staleTime: 60_000 },
+  );
+  const patientName = patientQ.data?.patient?.name ?? 'Paciente';
+
   function openExistingDraft() {
     if (openDraftId) {
       location.assign(`/pacientes/${patientId}/prontuario/consulta/${openDraftId}`);
@@ -44,14 +51,24 @@ export default function ProntuarioPage({
     location.assign(`/pacientes/${patientId}/prontuario/consulta/${encounterId}`);
   }
 
-  // TODO: integrar com upload real quando disponível
   function handleUploadFotos() {
     setTab('imagens');
   }
 
-  // TODO: integrar com criação de documento quando disponível
   function handleNovoDocumento() {
     setTab('documentos');
+  }
+
+  function handleNovaPrescricao() {
+    location.assign(`/prescricoes/nova?patientId=${patientId}`);
+  }
+
+  function handleNovoProcedimento() {
+    setTab('procedimentos');
+  }
+
+  function handleNovoProtocolo() {
+    setTab('protocolos');
   }
 
   return (
@@ -85,9 +102,9 @@ export default function ProntuarioPage({
           <div className={css.content}>
             {tab === 'resumo'        && <TabResumo        patientId={patientId} onOpenEncounter={handleOpenEncounter} onNovaConsulta={handleNovaConsulta} />}
             {tab === 'consultas'     && <TabConsultas     patientId={patientId} onNovaConsulta={handleNovaConsulta} />}
-            {tab === 'prescricoes'   && <TabPrescricoes   patientId={patientId} />}
-            {tab === 'procedimentos' && <TabProcedimentos patientId={patientId} />}
-            {tab === 'protocolos'    && <TabProtocolos    patientId={patientId} />}
+            {tab === 'prescricoes'   && <TabPrescricoes   patientId={patientId} onNovaPrescrição={handleNovaPrescricao} />}
+            {tab === 'procedimentos' && <TabProcedimentos patientId={patientId} patientName={patientName} />}
+            {tab === 'protocolos'    && <TabProtocolos    patientId={patientId} patientName={patientName} />}
             {tab === 'imagens'       && <TabImagens       patientId={patientId} onUploadFotos={handleUploadFotos} />}
             {tab === 'documentos'    && <TabDocumentos    patientId={patientId} onNovoDocumento={handleNovoDocumento} />}
             {tab === 'timeline'      && <TabTimeline      patientId={patientId} />}

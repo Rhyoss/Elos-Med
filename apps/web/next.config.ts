@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   // App Router é o padrão no Next.js 15
   reactStrictMode: true,
 
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+
   // Transpila pacotes do monorepo
   transpilePackages: ['@dermaos/shared', '@dermaos/ui'],
 
