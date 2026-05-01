@@ -2,8 +2,11 @@
 
 import * as React from 'react';
 import { Btn, Mono, Ico, T } from '@dermaos/ui/ds';
+import { TemplatePicker, type PickedTemplate } from './template-picker';
 
 const MAX_LENGTH = 4096;
+
+type ConvChannel = 'whatsapp' | 'instagram' | 'email' | 'sms' | 'webchat' | 'phone';
 
 export interface ComposerProps {
   onSend:     (content: string, isInternalNote: boolean) => void;
@@ -11,6 +14,11 @@ export interface ComposerProps {
   disabled?:  boolean;
   isSending?: boolean;
   placeholder?: string;
+  /** Canal da conversa — passa para o TemplatePicker filtrar templates compatíveis. */
+  conversationChannel?: ConvChannel | null;
+  /** Sugestão da Aurora — quando definida, exibe banner de supervisão (humano deve aprovar). */
+  aiSuggestion?: { content: string; agentName: string } | null;
+  onAiSuggestionDismiss?: () => void;
 }
 
 export function Composer({
@@ -19,10 +27,15 @@ export function Composer({
   disabled,
   isSending,
   placeholder = 'Escreva uma mensagem…',
+  conversationChannel,
+  aiSuggestion,
+  onAiSuggestionDismiss,
 }: ComposerProps) {
   const [value, setValue]   = React.useState('');
   const [isNote, setIsNote] = React.useState(false);
   const [focused, setFocused] = React.useState(false);
+  const [pickedTemplate, setPickedTemplate] =
+    React.useState<{ id: string; name: string } | null>(null);
   const textareaRef         = React.useRef<HTMLTextAreaElement | null>(null);
   const typingTimeoutRef    = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -42,6 +55,7 @@ export function Composer({
     onSend(value, isNote);
     setValue('');
     setIsNote(false);
+    setPickedTemplate(null);
   }, [canSend, onSend, value, isNote]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -53,11 +67,28 @@ export function Composer({
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setValue(e.target.value);
+    if (pickedTemplate) setPickedTemplate(null);
     if (!onTyping) return;
     if (!typingTimeoutRef.current) {
       onTyping();
       typingTimeoutRef.current = setTimeout(() => { typingTimeoutRef.current = null; }, 1_000);
     }
+  }
+
+  function handlePickTemplate(tpl: PickedTemplate) {
+    // Preserva o que já estava digitado, anexando o template ao final.
+    const join = value.trim().length > 0 ? `${value.trimEnd()}\n\n` : '';
+    const next = `${join}${tpl.body}`;
+    setValue(next);
+    setPickedTemplate({ id: tpl.id, name: tpl.name });
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
+  function handleAcceptAi() {
+    if (!aiSuggestion) return;
+    setValue(aiSuggestion.content);
+    onAiSuggestionDismiss?.();
+    requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   const count = value.length;
@@ -78,8 +109,66 @@ export function Composer({
         flexShrink: 0,
       }}
     >
-      {/* Toggle nota interna */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* Banner de sugestão Aurora — supervisão humana obrigatória */}
+      {aiSuggestion && (
+        <div
+          role="status"
+          style={{
+            padding: '8px 10px',
+            borderRadius: T.r.md,
+            background: T.aiBg,
+            border: `1px solid ${T.aiBorder}`,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 8,
+          }}
+        >
+          <Ico name="zap" size={14} color={T.ai} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <Mono size={8} color={T.ai} spacing="0.8px">
+                AURORA · {aiSuggestion.agentName.toUpperCase()}
+              </Mono>
+              <Mono size={7} color={T.textMuted}>SUGESTÃO — REVISE ANTES DE ENVIAR</Mono>
+            </div>
+            <p
+              style={{
+                fontSize: 11,
+                color: T.textPrimary,
+                lineHeight: 1.4,
+                margin: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+              }}
+            >
+              {aiSuggestion.content}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+            <Btn small variant="glass" icon="check" onClick={handleAcceptAi}>Usar</Btn>
+            <button
+              type="button"
+              onClick={onAiSuggestionDismiss}
+              aria-label="Descartar sugestão"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 4,
+                color: T.textMuted,
+              }}
+            >
+              <Ico name="x" size={12} color={T.textMuted} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <button
           type="button"
           onClick={() => setIsNote((v) => !v)}
@@ -104,6 +193,67 @@ export function Composer({
           <Ico name="edit" size={10} color={isNote ? T.warning : T.textSecondary} />
           {isNote ? 'NOTA INTERNA' : 'RESPOSTA'}
         </button>
+
+        <TemplatePicker
+          conversationChannel={conversationChannel ?? null}
+          onPick={handlePickTemplate}
+          disabled={disabled || isNote}
+          trigger={
+            <button
+              type="button"
+              disabled={disabled || isNote}
+              aria-label="Inserir template"
+              title={isNote ? 'Templates não se aplicam a notas internas' : 'Inserir template'}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '3px 10px',
+                borderRadius: T.r.pill,
+                background: pickedTemplate ? T.primaryBg : T.glass,
+                border: `1px solid ${pickedTemplate ? T.primaryBorder : T.glassBorder}`,
+                color: pickedTemplate ? T.primary : T.textSecondary,
+                fontSize: 10,
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontWeight: 500,
+                letterSpacing: '0.6px',
+                cursor: disabled || isNote ? 'not-allowed' : 'pointer',
+                opacity: disabled || isNote ? 0.45 : 1,
+              }}
+            >
+              <Ico name="copy" size={10} color={pickedTemplate ? T.primary : T.textSecondary} />
+              {pickedTemplate ? truncate(pickedTemplate.name, 22) : 'TEMPLATE'}
+            </button>
+          }
+        />
+
+        {/* Agendar envio — backend ainda sem suporte (TODO) */}
+        <button
+          type="button"
+          disabled
+          aria-label="Agendar envio (em breve)"
+          title="Agendamento de envio chega em breve"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '3px 10px',
+            borderRadius: T.r.pill,
+            background: T.glass,
+            border: `1px dashed ${T.glassBorder}`,
+            color: T.textMuted,
+            fontSize: 10,
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontWeight: 500,
+            letterSpacing: '0.6px',
+            cursor: 'not-allowed',
+            opacity: 0.6,
+          }}
+        >
+          <Ico name="clock" size={10} color={T.textMuted} />
+          AGENDAR · EM BREVE
+        </button>
+
         <Mono size={8} color={overLimit ? T.danger : T.textMuted}>
           {count}/{MAX_LENGTH}
         </Mono>
@@ -156,4 +306,8 @@ export function Composer({
       </div>
     </div>
   );
+}
+
+function truncate(s: string, n: number): string {
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
 }

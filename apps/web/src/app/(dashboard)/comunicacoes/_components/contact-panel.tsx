@@ -35,7 +35,12 @@ export interface ContactPanelProps {
   context:          ContactContext;
   onUpdateTags:     (tags: string[]) => void;
   onLinkToPatient:  () => void;
+  onOpenChart?:     (patientId: string) => void;
+  onOpenAgenda?:    (patientId: string) => void;
+  onConfirmAppointment?: (appointmentId: string) => void;
+  onSendTemplate?:  () => void;
   isUpdatingTags?:  boolean;
+  isConfirming?:    boolean;
 }
 
 const SECTION: React.CSSProperties = {
@@ -51,7 +56,12 @@ export function ContactPanel({
   context,
   onUpdateTags,
   onLinkToPatient,
+  onOpenChart,
+  onOpenAgenda,
+  onConfirmAppointment,
+  onSendTemplate,
   isUpdatingTags,
+  isConfirming,
 }: ContactPanelProps) {
   const [newTag, setNewTag] = React.useState('');
   const [localTags, setLocalTags] = React.useState(context.tags);
@@ -153,6 +163,40 @@ export function ContactPanel({
             </div>
           )}
         </dl>
+
+        {/* Ações principais — sempre disponíveis */}
+        <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
+          {context.patient && onOpenChart && (
+            <Btn
+              variant="glass"
+              small
+              icon="file"
+              onClick={() => onOpenChart(context.patient!.id)}
+            >
+              Prontuário
+            </Btn>
+          )}
+          {context.patient && onOpenAgenda && (
+            <Btn
+              variant="glass"
+              small
+              icon="calendar"
+              onClick={() => onOpenAgenda(context.patient!.id)}
+            >
+              Agenda
+            </Btn>
+          )}
+          {onSendTemplate && (
+            <Btn
+              variant="glass"
+              small
+              icon="copy"
+              onClick={onSendTemplate}
+            >
+              Template
+            </Btn>
+          )}
+        </div>
       </header>
 
       {/* Tags */}
@@ -270,9 +314,20 @@ export function ContactPanel({
                   minute: '2-digit',
                 }).format(context.patient.nextAppointment.scheduledAt)}
               </p>
-              <p style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+              <p style={{ fontSize: 11, color: T.textMuted, marginTop: 2, marginBottom: 10 }}>
                 {context.patient.nextAppointment.type}
               </p>
+              {onConfirmAppointment && (
+                <Btn
+                  small
+                  icon="check"
+                  loading={isConfirming}
+                  onClick={() => onConfirmAppointment(context.patient!.nextAppointment!.id)}
+                  style={{ width: '100%' }}
+                >
+                  Confirmar consulta
+                </Btn>
+              )}
             </section>
           )}
 

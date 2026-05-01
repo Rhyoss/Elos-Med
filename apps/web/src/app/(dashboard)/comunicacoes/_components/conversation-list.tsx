@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Mono, Skeleton, T } from '@dermaos/ui/ds';
+import { Btn, Mono, Ico, Skeleton, T } from '@dermaos/ui/ds';
 import { ChannelIcon } from './channel-icon';
 import { formatRelativeTime } from '../_lib/relative-time';
 
@@ -20,13 +20,18 @@ export interface ConversationListItem {
 }
 
 export interface ConversationListProps {
-  items:           ConversationListItem[];
-  selectedId?:     string | null;
-  onSelect:        (id: string) => void;
-  onLoadMore?:     () => void;
-  hasMore?:        boolean;
-  isLoading?:      boolean;
-  isFetchingMore?: boolean;
+  items:            ConversationListItem[];
+  selectedId?:      string | null;
+  onSelect:         (id: string) => void;
+  onLoadMore?:      () => void;
+  hasMore?:         boolean;
+  isLoading?:       boolean;
+  isFetchingMore?:  boolean;
+  isError?:         boolean;
+  errorMessage?:    string | null;
+  onRetry?:         () => void;
+  hasActiveFilters?: boolean;
+  onClearFilters?:  () => void;
 }
 
 export function ConversationList({
@@ -37,6 +42,11 @@ export function ConversationList({
   hasMore,
   isLoading,
   isFetchingMore,
+  isError,
+  errorMessage,
+  onRetry,
+  hasActiveFilters,
+  onClearFilters,
 }: ConversationListProps) {
   const sentinelRef = React.useRef<HTMLLIElement | null>(null);
 
@@ -53,6 +63,61 @@ export function ConversationList({
     obs.observe(el);
     return () => obs.disconnect();
   }, [hasMore, onLoadMore, isFetchingMore]);
+
+  if (isError && items.length === 0) {
+    return (
+      <div
+        role="alert"
+        style={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 32,
+          textAlign: 'center',
+          gap: 12,
+        }}
+      >
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            background: T.dangerBg,
+            border: `1px solid ${T.dangerBorder ?? T.danger}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ico name="x" size={20} color={T.danger} />
+        </div>
+        <Mono size={9} color={T.danger}>FALHA AO CARREGAR INBOX</Mono>
+        {errorMessage && (
+          <details style={{ fontSize: 10, color: T.textMuted, maxWidth: 240 }}>
+            <summary style={{ cursor: 'pointer' }}>Detalhes técnicos</summary>
+            <pre
+              style={{
+                marginTop: 6,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                fontFamily: "'IBM Plex Mono', monospace",
+                textAlign: 'left',
+              }}
+            >
+              {errorMessage}
+            </pre>
+          </details>
+        )}
+        {onRetry && (
+          <Btn small variant="glass" icon="arrowRight" onClick={onRetry}>
+            Tentar novamente
+          </Btn>
+        )}
+      </div>
+    );
+  }
 
   if (isLoading && items.length === 0) {
     return (
@@ -82,13 +147,29 @@ export function ConversationList({
         style={{
           height: '100%',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           padding: 32,
           textAlign: 'center',
+          gap: 10,
         }}
       >
-        <Mono size={9}>NENHUMA CONVERSA ENCONTRADA</Mono>
+        <Mono size={9}>
+          {hasActiveFilters
+            ? 'NENHUMA CONVERSA COM ESSES FILTROS'
+            : 'NENHUMA CONVERSA AINDA'}
+        </Mono>
+        <p style={{ fontSize: 11, color: T.textMuted, lineHeight: 1.5, maxWidth: 220 }}>
+          {hasActiveFilters
+            ? 'Tente limpar os filtros ou ampliar a busca.'
+            : 'Conversas chegam aqui assim que pacientes ou leads enviam mensagens nos canais conectados.'}
+        </p>
+        {hasActiveFilters && onClearFilters && (
+          <Btn small variant="glass" icon="x" onClick={onClearFilters}>
+            Limpar filtros
+          </Btn>
+        )}
       </div>
     );
   }

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, Badge } from '@dermaos/ui';
+import { Badge, useToast } from '@dermaos/ui';
 import { Btn as DSBtn, Mono, Ico, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { useRealtime } from '@/hooks/use-realtime';
@@ -14,19 +14,25 @@ import { Thread, type ThreadMessage } from './_components/thread';
 import { Composer } from './_components/composer';
 import { ContactPanel, type ContactContext } from './_components/contact-panel';
 import { ChannelIcon } from './_components/channel-icon';
-import { UserPlus, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { LinkPatientDialog } from './_components/link-patient-dialog';
 
 export default function ComunicacoesPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const utils        = trpc.useUtils();
   const { user }     = useAuth();
+  const { toast }    = useToast();
 
   /* Filtros persistidos na URL — permite refresh sem perder contexto */
   const assignment:  AssignmentFilter  = (searchParams.get('assignment')  as AssignmentFilter)  ?? 'all';
   const channelType: ChannelTypeFilter = (searchParams.get('channelType') as ChannelTypeFilter) ?? 'all';
   const search       = searchParams.get('q') ?? '';
   const selectedId   = searchParams.get('c') ?? null;
+
+  const hasActiveFilters =
+    assignment !== 'all' ||
+    channelType !== 'all' ||
+    search.trim().length >= 3;
 
   function updateParams(patch: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -35,6 +41,10 @@ export default function ComunicacoesPage() {
       else                         params.set(k, v);
     }
     router.replace(`/comunicacoes?${params.toString()}`);
+  }
+
+  function clearFilters() {
+    updateParams({ assignment: null, channelType: null, q: null });
   }
 
   /* ── Listagem de conversas (cursor-based, infinite scroll) ────────────── */
@@ -55,7 +65,7 @@ export default function ComunicacoesPage() {
       cursor:      cursor ?? undefined,
       limit:       30,
     },
-    { placeholderData: keepPreviousData, staleTime: 10_000 },
+    { placeholderData: keepPreviousData, staleTime: 10_000, retry: 1 },
   );
 
   React.useEffect(() => {
@@ -74,7 +84,7 @@ export default function ComunicacoesPage() {
   /* ── Conversa selecionada ─────────────────────────────────────────────── */
   const conversationQuery = trpc.omni.getConversation.useQuery(
     { id: selectedId ?? '' },
-    { enabled: !!selectedId },
+    { enabled: !!selectedId, retry: 1 },
   );
   const conversation = conversationQuery.data?.conversation;
 
@@ -96,7 +106,7 @@ export default function ComunicacoesPage() {
 
   const messagesQuery = trpc.omni.listMessages.useQuery(
     { conversationId: selectedId ?? '', cursor: olderCursor ?? undefined, limit: 50 },
-    { enabled: !!selectedId },
+    { enabled: !!selectedId, retry: 1 },
   );
 
   React.useEffect(() => {
@@ -126,13 +136,19 @@ export default function ComunicacoesPage() {
   }, [selectedId]);
 
   /* ── Mutations ────────────────────────────────────────────────────────── */
-  const sendMutation    = trpc.omni.sendMessage.useMutation();
-  const retryMutation   = trpc.omni.retryMessage.useMutation();
-  const resolveMutation = trpc.omni.resolveConversation.useMutation();
-  const assignMutation  = trpc.omni.assignConversation.useMutation();
-  const typingMutation  = trpc.omni.typing.useMutation();
-  const updateTagsMutation = trpc.omni.updateContactTags.useMutation();
+  const sendMutation        = trpc.omni.sendMessage.useMutation();
+  const retryMutation       = trpc.omni.retryMessage.useMutation();
+  const resolveMutation     = trpc.omni.resolveConversation.useMutation();
+  const assignMutation      = trpc.omni.assignConversation.useMutation();
+  const typingMutation      = trpc.omni.typing.useMutation();
+  const updateTagsMutation  = trpc.omni.updateContactTags.useMutation();
   const linkPatientMutation = trpc.omni.linkContactToPatient.useMutation();
+  const confirmApptMutation = trpc.scheduling.confirm.useMutation();
+
+  function describeError(err: unknown): string {
+    if (err instanceof Error && err.message) return err.message;
+    return 'Erro inesperado. Verifique a conexão e tente novamente.';
+  }
 
   async function handleSend(content: string, isInternalNote: boolean) {
     if (!selectedId) return;
@@ -143,11 +159,15 @@ export default function ComunicacoesPage() {
         content,
         isInternalNote,
       });
-      // Realtime/list refresh
       void utils.omni.listMessages.invalidate({ conversationId: selectedId });
     } catch (err) {
-      // Feedback rápido — TODO: toast quando disponível
-      console.error('send failed', err);
+      toast.error('Falha ao enviar mensagem', {
+        description: describeError(err),
+        action: {
+          label: 'Tentar novamente',
+          onClick: () => void handleSend(content, isInternalNote),
+        },
+      });
     }
   }
 
@@ -160,23 +180,46 @@ export default function ComunicacoesPage() {
     try {
       await retryMutation.mutateAsync({ messageId });
       if (selectedId) void utils.omni.listMessages.invalidate({ conversationId: selectedId });
+      toast.success('Reenvio enfileirado');
     } catch (err) {
-      console.error('retry failed', err);
+      toast.error('Falha ao reenviar', { description: describeError(err) });
     }
   }
 
   async function handleResolve() {
     if (!selectedId) return;
     if (!confirm('Resolver esta conversa?')) return;
-    await resolveMutation.mutateAsync({ conversationId: selectedId });
-    void utils.omni.getConversation.invalidate({ id: selectedId });
-    setAccumulated((prev) => prev.filter((c) => c.id !== selectedId));
+    try {
+      await resolveMutation.mutateAsync({ conversationId: selectedId });
+      void utils.omni.getConversation.invalidate({ id: selectedId });
+      setAccumulated((prev) => prev.filter((c) => c.id !== selectedId));
+      toast.success('Conversa resolvida');
+    } catch (err) {
+      toast.error('Falha ao resolver', { description: describeError(err) });
+    }
   }
 
   async function handleAssumeSelf() {
     if (!selectedId || !user?.id) return;
-    await assignMutation.mutateAsync({ conversationId: selectedId, assigneeId: user.id });
-    void utils.omni.getConversation.invalidate({ id: selectedId });
+    try {
+      await assignMutation.mutateAsync({ conversationId: selectedId, assigneeId: user.id });
+      void utils.omni.getConversation.invalidate({ id: selectedId });
+      toast.success('Conversa atribuída a você');
+    } catch (err) {
+      toast.error('Falha ao assumir', { description: describeError(err) });
+    }
+  }
+
+  async function handleConfirmAppointment(appointmentId: string) {
+    try {
+      await confirmApptMutation.mutateAsync({ id: appointmentId, via: 'manual' });
+      if (conversation?.contactId) {
+        void utils.omni.getContactContext.invalidate({ contactId: conversation.contactId });
+      }
+      toast.success('Consulta confirmada');
+    } catch (err) {
+      toast.error('Falha ao confirmar consulta', { description: describeError(err) });
+    }
   }
 
   /* ── Realtime: novas mensagens, updates, typing ───────────────────────── */
@@ -192,11 +235,9 @@ export default function ComunicacoesPage() {
       timestamp:      string;
       contactName?:   string;
     };
-    // Atualiza a lista
     setAccumulated((prev) => {
       const idx = prev.findIndex((c) => c.id === p.conversationId);
       if (idx === -1) {
-        // Conversa nova — força refetch da primeira página
         void utils.omni.listConversations.invalidate();
         return prev;
       }
@@ -213,7 +254,6 @@ export default function ComunicacoesPage() {
       return [updated, ...rest];
     });
 
-    // Se é a conversa aberta, refetch mensagens
     if (p.conversationId === selectedId) {
       void utils.omni.listMessages.invalidate({ conversationId: selectedId });
     }
@@ -244,6 +284,9 @@ export default function ComunicacoesPage() {
     typingClearRef.current = setTimeout(() => setTypingUser(null), 3_000);
   });
 
+  /* ── Link-patient dialog (substitui prompt nativo) ────────────────────── */
+  const [linkOpen, setLinkOpen] = React.useState(false);
+
   /* ── Render ───────────────────────────────────────────────────────────── */
   const contact: ContactContext | null = contactQuery.data?.context
     ? {
@@ -271,8 +314,7 @@ export default function ComunicacoesPage() {
       }
     : null;
 
-  /* ── Channels strip (reference 68px) — counts derivados das conversas
-        carregadas; click filtra `channelType`. Aurora ao fundo abre /agentes. */
+  /* Channels strip */
   const CH_KEYS: Array<{ id: string; type: 'whatsapp' | 'instagram' | 'email' | 'sms'; label: string }> = [
     { id: 'WA', type: 'whatsapp',  label: 'WhatsApp'  },
     { id: 'IG', type: 'instagram', label: 'Instagram' },
@@ -289,15 +331,10 @@ export default function ComunicacoesPage() {
   }, [accumulated]);
 
   return (
-    /* Phase-4 reskin: outer chrome no padrão DS (canais 68px + lista 320px +
-       chat 1fr + contexto 280px no xl). Sub-componentes Tailwind dentro de
-       cada coluna ficam para Phase 5 (FiltersBar, ConversationList, Thread,
-       Composer, ContactPanel). */
     <div
       className="h-full overflow-hidden"
       style={{
         display: 'grid',
-        // 4 colunas DS Quite Clear: canais 68 · lista 320 · thread 1fr · contexto 280
         gridTemplateColumns: '68px 320px 1fr 280px',
       }}
     >
@@ -419,6 +456,15 @@ export default function ComunicacoesPage() {
             hasMore={!!listQuery.data?.nextCursor}
             isLoading={listQuery.isLoading}
             isFetchingMore={listQuery.isFetching}
+            isError={listQuery.isError}
+            errorMessage={listQuery.error?.message ?? null}
+            onRetry={() => {
+              setCursor(null);
+              setAccumulated([]);
+              void listQuery.refetch();
+            }}
+            hasActiveFilters={hasActiveFilters}
+            onClearFilters={clearFilters}
           />
         </div>
       </section>
@@ -429,12 +475,18 @@ export default function ComunicacoesPage() {
         aria-label="Conversa aberta"
       >
         {!selectedId ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Selecione uma conversa para começar
-          </div>
+          <EmptyConversationState
+            hasItems={accumulated.length > 0}
+            isLoading={listQuery.isLoading}
+          />
+        ) : conversationQuery.isError ? (
+          <ConversationErrorState
+            message={conversationQuery.error?.message ?? null}
+            onRetry={() => void conversationQuery.refetch()}
+          />
         ) : !conversation ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Carregando…
+            Carregando conversa…
           </div>
         ) : (
           <>
@@ -472,32 +524,84 @@ export default function ComunicacoesPage() {
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 {!conversation.assignedToName && (
-                  <DSBtn variant="glass" small icon="user" onClick={handleAssumeSelf}>Assumir</DSBtn>
+                  <DSBtn
+                    variant="glass"
+                    small
+                    icon="user"
+                    onClick={handleAssumeSelf}
+                    loading={assignMutation.isPending}
+                  >
+                    Assumir
+                  </DSBtn>
                 )}
                 <DSBtn variant="glass" small icon="arrowRight" disabled title="Escalar (em breve)">Escalar</DSBtn>
                 {conversation.status !== 'resolved' && (
-                  <DSBtn small icon="check" onClick={handleResolve}>Resolver</DSBtn>
+                  <DSBtn
+                    small
+                    icon="check"
+                    onClick={handleResolve}
+                    loading={resolveMutation.isPending}
+                  >
+                    Resolver
+                  </DSBtn>
                 )}
               </div>
             </header>
 
-            <Thread
-              messages={messages}
-              onLoadOlder={() => {
-                const nc = messagesQuery.data?.nextCursor ?? null;
-                if (nc && nc !== olderCursor) setOlderCursor(nc);
-              }}
-              hasMoreOlder={hasMoreOlder}
-              isLoadingOlder={messagesQuery.isFetching}
-              onRetry={handleRetry}
-              typingUser={typingUser}
-            />
+            {messagesQuery.isError && messages.length === 0 ? (
+              <div
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 12,
+                  padding: 24,
+                  textAlign: 'center',
+                }}
+              >
+                <Mono size={9} color={T.danger}>FALHA AO CARREGAR MENSAGENS</Mono>
+                {messagesQuery.error?.message && (
+                  <details style={{ fontSize: 10, color: T.textMuted, maxWidth: 360 }}>
+                    <summary style={{ cursor: 'pointer' }}>Detalhes técnicos</summary>
+                    <pre
+                      style={{
+                        marginTop: 6,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        textAlign: 'left',
+                      }}
+                    >
+                      {messagesQuery.error.message}
+                    </pre>
+                  </details>
+                )}
+                <DSBtn small variant="glass" icon="arrowRight" onClick={() => void messagesQuery.refetch()}>
+                  Tentar novamente
+                </DSBtn>
+              </div>
+            ) : (
+              <Thread
+                messages={messages}
+                onLoadOlder={() => {
+                  const nc = messagesQuery.data?.nextCursor ?? null;
+                  if (nc && nc !== olderCursor) setOlderCursor(nc);
+                }}
+                hasMoreOlder={hasMoreOlder}
+                isLoadingOlder={messagesQuery.isFetching}
+                onRetry={handleRetry}
+                typingUser={typingUser}
+              />
+            )}
 
             <Composer
               onSend={handleSend}
               onTyping={handleTyping}
               disabled={conversation.status === 'resolved' || conversation.status === 'archived'}
               isSending={sendMutation.isPending}
+              conversationChannel={conversation.channelType as 'whatsapp' | 'instagram' | 'email' | 'sms' | 'webchat' | 'phone'}
             />
           </>
         )}
@@ -505,28 +609,244 @@ export default function ComunicacoesPage() {
 
       {/* Coluna 3: Contexto */}
       <div className="min-h-0">
-        {contact && (
+        {selectedId && contactQuery.isError ? (
+          <aside
+            style={{
+              height: '100%',
+              borderLeft: `1px solid ${T.divider}`,
+              background: 'rgba(255,255,255,0.30)',
+              padding: 24,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              textAlign: 'center',
+            }}
+          >
+            <Mono size={9} color={T.danger}>FALHA AO CARREGAR CONTEXTO</Mono>
+            <DSBtn small variant="glass" icon="arrowRight" onClick={() => void contactQuery.refetch()}>
+              Tentar novamente
+            </DSBtn>
+          </aside>
+        ) : contact ? (
           <ContactPanel
             context={contact}
             onUpdateTags={(tags) =>
-              updateTagsMutation.mutate({ contactId: contact.id, tags })
-            }
-            onLinkToPatient={() => {
-              const patientId = prompt('ID do paciente:');
-              if (!patientId) return;
-              linkPatientMutation.mutate(
-                { contactId: contact.id, patientId },
+              updateTagsMutation.mutate(
+                { contactId: contact.id, tags },
                 {
-                  onSuccess: () => {
-                    void utils.omni.getContactContext.invalidate({ contactId: contact.id });
-                  },
+                  onError: (err) =>
+                    toast.error('Falha ao atualizar tags', { description: describeError(err) }),
                 },
-              );
-            }}
+              )
+            }
+            onLinkToPatient={() => setLinkOpen(true)}
+            onOpenChart={(patientId) => router.push(`/pacientes/${patientId}/prontuario`)}
+            onOpenAgenda={(patientId) => router.push(`/agenda?paciente=${patientId}`)}
+            onConfirmAppointment={handleConfirmAppointment}
+            onSendTemplate={() =>
+              toast.info('Use o botão TEMPLATE no compositor', {
+                description: 'Templates são inseridos diretamente na mensagem que você está escrevendo.',
+              })
+            }
             isUpdatingTags={updateTagsMutation.isPending}
+            isConfirming={confirmApptMutation.isPending}
           />
+        ) : (
+          <aside
+            style={{
+              height: '100%',
+              borderLeft: `1px solid ${T.divider}`,
+              background: 'rgba(255,255,255,0.30)',
+              padding: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Mono size={9}>SELECIONE UMA CONVERSA</Mono>
+          </aside>
         )}
       </div>
+
+      {contact && (
+        <LinkPatientDialog
+          open={linkOpen}
+          onOpenChange={setLinkOpen}
+          contactName={contact.name}
+          isLinking={linkPatientMutation.isPending}
+          onConfirm={(patientId) => {
+            linkPatientMutation.mutate(
+              { contactId: contact.id, patientId },
+              {
+                onSuccess: () => {
+                  void utils.omni.getContactContext.invalidate({ contactId: contact.id });
+                  setLinkOpen(false);
+                  toast.success('Contato vinculado ao paciente');
+                },
+                onError: (err) =>
+                  toast.error('Falha ao vincular', { description: describeError(err) }),
+              },
+            );
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Sub-componentes locais ─────────────────────────────────────────────── */
+
+function EmptyConversationState({
+  hasItems,
+  isLoading,
+}: {
+  hasItems: boolean;
+  isLoading: boolean;
+}) {
+  return (
+    <div
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 14,
+        padding: 32,
+        textAlign: 'center',
+      }}
+    >
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: '50%',
+          background: T.glass,
+          border: `1px solid ${T.glassBorder}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ico name="message" size={24} color={T.textMuted} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 360 }}>
+        <Mono size={9} spacing="1.1px">CENTRAL DE CONVERSAS</Mono>
+        <p style={{ fontSize: 13, color: T.textPrimary, fontWeight: 600 }}>
+          {isLoading ? 'Carregando inbox…' : 'Selecione uma conversa para começar'}
+        </p>
+        <p style={{ fontSize: 11, color: T.textMuted, lineHeight: 1.5 }}>
+          {hasItems
+            ? 'Escolha uma conversa na lista à esquerda para ver mensagens, contexto do paciente e ações disponíveis.'
+            : 'Quando pacientes ou leads enviarem mensagens nos canais conectados, elas aparecerão aqui em tempo real.'}
+        </p>
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <a
+          href="/comunicacoes/templates"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '6px 12px',
+            borderRadius: T.r.pill,
+            background: T.glass,
+            border: `1px solid ${T.glassBorder}`,
+            color: T.textSecondary,
+            fontSize: 11,
+            fontFamily: "'IBM Plex Sans', sans-serif",
+            fontWeight: 500,
+            textDecoration: 'none',
+          }}
+        >
+          <Ico name="copy" size={11} color={T.textSecondary} />
+          Gerenciar templates
+        </a>
+        <a
+          href="/comunicacoes/agentes"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '6px 12px',
+            borderRadius: T.r.pill,
+            background: T.aiBg,
+            border: `1px solid ${T.aiBorder}`,
+            color: T.ai,
+            fontSize: 11,
+            fontFamily: "'IBM Plex Sans', sans-serif",
+            fontWeight: 500,
+            textDecoration: 'none',
+          }}
+        >
+          <Ico name="zap" size={11} color={T.ai} />
+          Aurora
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function ConversationErrorState({
+  message,
+  onRetry,
+}: {
+  message: string | null;
+  onRetry: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+        padding: 32,
+        textAlign: 'center',
+      }}
+    >
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: '50%',
+          background: T.dangerBg,
+          border: `1px solid ${T.dangerBorder}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ico name="x" size={22} color={T.danger} />
+      </div>
+      <Mono size={9} color={T.danger}>FALHA AO ABRIR CONVERSA</Mono>
+      <p style={{ fontSize: 12, color: T.textPrimary, maxWidth: 360, lineHeight: 1.5 }}>
+        Não foi possível carregar esta conversa. Verifique sua conexão e tente novamente.
+      </p>
+      {message && (
+        <details style={{ fontSize: 10, color: T.textMuted, maxWidth: 360 }}>
+          <summary style={{ cursor: 'pointer' }}>Detalhes técnicos</summary>
+          <pre
+            style={{
+              marginTop: 6,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontFamily: "'IBM Plex Mono', monospace",
+              textAlign: 'left',
+            }}
+          >
+            {message}
+          </pre>
+        </details>
+      )}
+      <DSBtn small variant="glass" icon="arrowRight" onClick={onRetry}>
+        Tentar novamente
+      </DSBtn>
     </div>
   );
 }
