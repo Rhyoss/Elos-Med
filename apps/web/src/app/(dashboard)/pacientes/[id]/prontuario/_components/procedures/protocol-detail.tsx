@@ -394,8 +394,9 @@ function ProductConsumedBadge({
     { id: product.productId },
     { enabled: !!product.productId, staleTime: 300_000 },
   );
-  const name = productQ.data?.product?.name ?? product.productId.slice(0, 8);
-  const unit = productQ.data?.product?.unit ?? '';
+  const resolved = productQ.data as { name?: string; unit?: string } | null | undefined;
+  const name = resolved?.name ?? product.productId.slice(0, 8);
+  const unit = resolved?.unit ?? '';
 
   return (
     <div style={{

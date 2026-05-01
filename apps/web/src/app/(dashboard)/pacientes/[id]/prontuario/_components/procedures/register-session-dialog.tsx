@@ -96,6 +96,26 @@ export function RegisterSessionDialog({
         preImageIds: [],
         postImageIds: [],
       });
+
+      if (scheduleNext && suggestQ.data?.suggestedAt) {
+        const providers = providersQ.data?.providers ?? [];
+        const providerId = providers[0]?.id;
+        if (providerId) {
+          try {
+            await createAppointmentMut.mutateAsync({
+              patientId,
+              providerId,
+              type: 'aesthetic',
+              scheduledAt: suggestQ.data.suggestedAt,
+              durationMin: 30,
+              internalNotes: `Sessão ${sessionNumber + 1}/${totalSessions} — ${protocolName}`,
+            });
+          } catch {
+            // Non-blocking
+          }
+        }
+      }
+
       onRegistered?.();
       onClose();
     } catch {
@@ -334,7 +354,43 @@ export function RegisterSessionDialog({
             />
           </div>
 
-          {/* TODO: integrar upload de fotos antes/depois quando endpoint disponível */}
+          {/* Schedule next session */}
+          {sessionNumber < totalSessions && suggestQ.data?.suggestedAt && (
+            <Glass style={{ padding: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Ico name="calendar" size={16} color={T.primary} />
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 500, color: T.textPrimary }}>
+                      Agendar próxima sessão
+                    </p>
+                    <p style={{ fontSize: 12, color: T.textMuted }}>
+                      Sessão {sessionNumber + 1} — {new Date(suggestQ.data.suggestedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setScheduleNext(!scheduleNext)}
+                  style={{
+                    width: 40, height: 22, borderRadius: 11,
+                    background: scheduleNext ? T.primary : T.glassBorder,
+                    border: 'none', cursor: 'pointer', position: 'relative',
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  <div style={{
+                    width: 18, height: 18, borderRadius: '50%',
+                    background: '#fff', position: 'absolute', top: 2,
+                    left: scheduleNext ? 20 : 2,
+                    transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                  }} />
+                </button>
+              </div>
+            </Glass>
+          )}
+
+          {/* Photo guidance */}
           <div style={{
             padding: '10px 14px', borderRadius: T.r.md,
             background: T.infoBg, border: `1px solid ${T.infoBorder}`,

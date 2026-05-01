@@ -662,7 +662,7 @@ function StepPhotos({
         background: T.infoBg, border: `1px solid ${T.infoBorder}`,
         display: 'flex', gap: 8, alignItems: 'center',
       }}>
-        <Ico name="info" size={14} color={T.info} />
+        <Ico name="alert" size={14} color={T.info} />
         <p style={{ fontSize: 12, color: T.info }}>
           O upload de fotos registra referências. Imagens completas podem ser adicionadas pela aba Imagens do prontuário.
         </p>

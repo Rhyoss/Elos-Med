@@ -62,6 +62,7 @@ export function TabProcedimentos({ patientId, patientName }: TabProcedimentosPro
       const timer = setTimeout(() => setSubmitSuccess(false), 4000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [submitSuccess]);
 
   if (listQ.isLoading) {
@@ -247,28 +248,12 @@ export function TabProcedimentos({ patientId, patientName }: TabProcedimentosPro
       {/* Procedure list */}
       {procedures.map((enc) => {
         const isOpen = expanded === enc.id;
-        const sd = enc.structuredData as Record<string, unknown> | null;
-        const procedureType = sd?.procedureType as string | undefined;
-        const procedureName = sd?.procedureName as string | undefined;
-        const regions = sd?.regionLabels as string | undefined;
-        const products = (sd?.products ?? []) as Array<{
-          productName: string;
-          quantity: number;
-          unit: string;
-          lotNumber?: string;
-        }>;
-        const orientations = sd?.orientations as string | undefined;
-        const returnDays = sd?.returnDays as number | undefined;
-        const durationMin = sd?.durationMin as number | undefined;
-        const consentAttached = sd?.consentAttached as boolean | undefined;
-        const photosBefore = (sd?.photosBefore ?? []) as Array<{ id: string; name: string }>;
-        const photosAfter = (sd?.photosAfter ?? []) as Array<{ id: string; name: string }>;
 
         const matchedType = PROCEDURE_TYPES.find((t) =>
-          t.id === procedureType || enc.chiefComplaint?.toLowerCase().includes(t.label.toLowerCase()),
+          enc.chiefComplaint?.toLowerCase().includes(t.label.toLowerCase()),
         );
         const typeIcon: IcoName = matchedType?.icon ?? 'zap';
-        const displayName = procedureName || enc.chiefComplaint || TYPE_LABEL[enc.type] || 'Procedimento estético';
+        const displayName = enc.chiefComplaint || TYPE_LABEL[enc.type] || 'Procedimento estético';
 
         return (
           <Glass key={enc.id} hover style={{ padding: 0, overflow: 'hidden' }}>
@@ -294,23 +279,10 @@ export function TabProcedimentos({ patientId, patientName }: TabProcedimentosPro
                   <p style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary }}>
                     {displayName}
                   </p>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 2 }}>
-                    <Mono size={10}>{formatDateTime(enc.createdAt)}</Mono>
-                    {regions && (
-                      <>
-                        <span style={{ color: T.textMuted, fontSize: 10 }}>·</span>
-                        <Mono size={10} color={T.clinical.color}>{regions}</Mono>
-                      </>
-                    )}
-                  </div>
+                  <Mono size={10}>{formatDateTime(enc.createdAt)}</Mono>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {products.length > 0 && (
-                  <Badge variant="default" dot={false}>
-                    {products.length} prod.
-                  </Badge>
-                )}
                 <Badge variant={enc.signedAt ? 'success' : 'warning'} dot={false}>
                   {enc.signedAt ? 'Assinado' : 'Rascunho'}
                 </Badge>
@@ -324,155 +296,14 @@ export function TabProcedimentos({ patientId, patientName }: TabProcedimentosPro
               </div>
             </button>
 
-            {/* Expanded content */}
+            {/* Expanded content — fetches full encounter detail */}
             {isOpen && (
-              <div style={{ padding: '0 18px 18px', borderTop: `1px solid ${T.divider}` }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
-                  {/* Procedure type */}
-                  <DetailBlock label="PROCEDIMENTO" color={T.primary} bg={T.primaryBg} border={T.primaryBorder}>
-                    {displayName}
-                  </DetailBlock>
-
-                  {/* Region */}
-                  {regions && (
-                    <DetailBlock label="REGIÃO ANATÔMICA" color={T.clinical.color} bg={T.clinical.bg} border={T.clinical.border}>
-                      {regions}
-                    </DetailBlock>
-                  )}
-                </div>
-
-                {/* Products consumed */}
-                {products.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
-                    <Mono size={9} spacing="0.5px" color={T.textMuted} style={{ marginBottom: 6 }}>
-                      PRODUTOS UTILIZADOS
-                    </Mono>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {products.map((p, i) => (
-                        <div key={i} style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '6px 10px', borderRadius: T.r.md,
-                          background: T.supply.bg, border: `1px solid ${T.supply.border}`,
-                        }}>
-                          <Ico name="box" size={12} color={T.supply.color} />
-                          <span style={{ fontSize: 13, color: T.textPrimary, flex: 1 }}>
-                            {p.productName}
-                          </span>
-                          <Mono size={10} color={T.supply.color}>
-                            {p.quantity} {p.unit}
-                            {p.lotNumber && ` · Lote ${p.lotNumber}`}
-                          </Mono>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Photos */}
-                {(photosBefore.length > 0 || photosAfter.length > 0) && (
-                  <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                    {photosBefore.length > 0 && (
-                      <div style={{ flex: 1 }}>
-                        <Mono size={9} color={T.textMuted} style={{ marginBottom: 4 }}>FOTOS ANTES</Mono>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {photosBefore.map((p) => (
-                            <span key={p.id} style={{
-                              padding: '3px 8px', borderRadius: T.r.sm,
-                              background: T.clinical.bg, border: `1px solid ${T.clinical.border}`,
-                              fontSize: 11, color: T.clinical.color,
-                            }}>
-                              {p.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {photosAfter.length > 0 && (
-                      <div style={{ flex: 1 }}>
-                        <Mono size={9} color={T.textMuted} style={{ marginBottom: 4 }}>FOTOS DEPOIS</Mono>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {photosAfter.map((p) => (
-                            <span key={p.id} style={{
-                              padding: '3px 8px', borderRadius: T.r.sm,
-                              background: T.successBg, border: `1px solid ${T.successBorder}`,
-                              fontSize: 11, color: T.success,
-                            }}>
-                              {p.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Additional info row */}
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
-                  {durationMin && (
-                    <span style={{
-                      padding: '4px 10px', borderRadius: T.r.md,
-                      background: T.glass, border: `1px solid ${T.glassBorder}`,
-                      fontSize: 12, color: T.textSecondary,
-                    }}>
-                      <Ico name="clock" size={11} color={T.textMuted} /> {durationMin} min
-                    </span>
-                  )}
-                  {consentAttached && (
-                    <span style={{
-                      padding: '4px 10px', borderRadius: T.r.md,
-                      background: T.successBg, border: `1px solid ${T.successBorder}`,
-                      fontSize: 12, color: T.success,
-                    }}>
-                      <Ico name="check" size={11} color={T.success} /> Termo anexado
-                    </span>
-                  )}
-                  {returnDays && (
-                    <span style={{
-                      padding: '4px 10px', borderRadius: T.r.md,
-                      background: T.primaryBg, border: `1px solid ${T.primaryBorder}`,
-                      fontSize: 12, color: T.primary,
-                    }}>
-                      <Ico name="calendar" size={11} color={T.primary} /> Retorno {returnDays}d
-                    </span>
-                  )}
-                </div>
-
-                {/* Orientations */}
-                {orientations && (
-                  <div style={{
-                    marginTop: 10, padding: '10px 12px', borderRadius: T.r.md,
-                    background: T.infoBg, border: `1px solid ${T.infoBorder}`,
-                  }}>
-                    <Mono size={9} color={T.info} style={{ marginBottom: 4 }}>ORIENTAÇÕES PÓS-PROCEDIMENTO</Mono>
-                    <p style={{ fontSize: 13, color: T.textPrimary, lineHeight: 1.5 }}>{orientations}</p>
-                  </div>
-                )}
-
-                {/* Diagnoses */}
-                {enc.diagnoses.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
-                    <Mono size={9} color={T.textMuted} style={{ marginBottom: 4 }}>DIAGNÓSTICO</Mono>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {enc.diagnoses.map((d) => (
-                        <Badge key={d.code} variant="default" dot={false}>
-                          {d.code} — {d.description}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
-                  <Btn
-                    variant="glass"
-                    small
-                    icon="eye"
-                    onClick={() => router.push(`/pacientes/${patientId}/prontuario/consulta/${enc.id}`)}
-                  >
-                    Ver detalhes
-                  </Btn>
-                </div>
-              </div>
+              <ProcedureExpandedDetail
+                encounterId={enc.id}
+                patientId={patientId}
+                displayName={displayName}
+                diagnoses={enc.diagnoses}
+              />
             )}
           </Glass>
         );
@@ -487,6 +318,150 @@ export function TabProcedimentos({ patientId, patientName }: TabProcedimentosPro
         onSubmit={handleFormSubmit}
         isSubmitting={isSubmitting}
       />
+    </div>
+  );
+}
+
+/* ── Expanded procedure detail (fetches full encounter) ──────────────── */
+
+function ProcedureExpandedDetail({
+  encounterId,
+  patientId,
+  displayName,
+  diagnoses,
+}: {
+  encounterId: string;
+  patientId: string;
+  displayName: string;
+  diagnoses: Array<{ code: string; description: string }>;
+}) {
+  const router = useRouter();
+  const detailQ = trpc.clinical.encounters.getById.useQuery(
+    { id: encounterId },
+    { staleTime: 30_000 },
+  );
+
+  const enc = detailQ.data?.encounter as {
+    structuredData?: Record<string, unknown>;
+  } | null;
+
+  const sd = enc?.structuredData ?? {};
+  const regions = sd.regionLabels as string | undefined;
+  const products = (sd.products ?? []) as Array<{
+    productName: string; quantity: number; unit: string; lotNumber?: string;
+  }>;
+  const orientations = sd.orientations as string | undefined;
+  const returnDays = sd.returnDays as number | undefined;
+  const durationMin = sd.durationMin as number | undefined;
+  const consentAttached = sd.consentAttached as boolean | undefined;
+
+  return (
+    <div style={{ padding: '0 18px 18px', borderTop: `1px solid ${T.divider}` }}>
+      {detailQ.isLoading && (
+        <div style={{ padding: '12px 0' }}>
+          <Skeleton height={60} />
+        </div>
+      )}
+
+      {!detailQ.isLoading && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
+            <DetailBlock label="PROCEDIMENTO" color={T.primary} bg={T.primaryBg} border={T.primaryBorder}>
+              {(sd.procedureName as string) || displayName}
+            </DetailBlock>
+            {regions && (
+              <DetailBlock label="REGIÃO ANATÔMICA" color={T.clinical.color} bg={T.clinical.bg} border={T.clinical.border}>
+                {regions}
+              </DetailBlock>
+            )}
+          </div>
+
+          {products.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <Mono size={9} spacing="0.5px" color={T.textMuted} style={{ marginBottom: 6 }}>
+                PRODUTOS UTILIZADOS
+              </Mono>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {products.map((p, i) => (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '6px 10px', borderRadius: T.r.md,
+                    background: T.supply.bg, border: `1px solid ${T.supply.border}`,
+                  }}>
+                    <Ico name="box" size={12} color={T.supply.color} />
+                    <span style={{ fontSize: 13, color: T.textPrimary, flex: 1 }}>{p.productName}</span>
+                    <Mono size={10} color={T.supply.color}>
+                      {p.quantity} {p.unit}{p.lotNumber && ` · Lote ${p.lotNumber}`}
+                    </Mono>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+            {durationMin && (
+              <span style={{
+                padding: '4px 10px', borderRadius: T.r.md,
+                background: T.glass, border: `1px solid ${T.glassBorder}`,
+                fontSize: 12, color: T.textSecondary,
+              }}>
+                {durationMin} min
+              </span>
+            )}
+            {consentAttached && (
+              <span style={{
+                padding: '4px 10px', borderRadius: T.r.md,
+                background: T.successBg, border: `1px solid ${T.successBorder}`,
+                fontSize: 12, color: T.success,
+              }}>
+                Termo anexado
+              </span>
+            )}
+            {returnDays && (
+              <span style={{
+                padding: '4px 10px', borderRadius: T.r.md,
+                background: T.primaryBg, border: `1px solid ${T.primaryBorder}`,
+                fontSize: 12, color: T.primary,
+              }}>
+                Retorno {returnDays}d
+              </span>
+            )}
+          </div>
+
+          {orientations && (
+            <div style={{
+              marginTop: 10, padding: '10px 12px', borderRadius: T.r.md,
+              background: T.infoBg, border: `1px solid ${T.infoBorder}`,
+            }}>
+              <Mono size={9} color={T.info} style={{ marginBottom: 4 }}>ORIENTAÇÕES PÓS-PROCEDIMENTO</Mono>
+              <p style={{ fontSize: 13, color: T.textPrimary, lineHeight: 1.5 }}>{orientations}</p>
+            </div>
+          )}
+
+          {diagnoses.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <Mono size={9} color={T.textMuted} style={{ marginBottom: 4 }}>DIAGNÓSTICO</Mono>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {diagnoses.map((d) => (
+                  <Badge key={d.code} variant="default" dot={false}>
+                    {d.code} — {d.description}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+            <Btn
+              variant="glass" small icon="eye"
+              onClick={() => router.push(`/pacientes/${patientId}/prontuario/consulta/${encounterId}`)}
+            >
+              Ver detalhes
+            </Btn>
+          </div>
+        </>
+      )}
     </div>
   );
 }
