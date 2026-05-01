@@ -3,407 +3,241 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  Glass, Btn, Mono, Badge, Ico, Input, Select, Skeleton, EmptyState,
-  PageHero, T,
-} from '@dermaos/ui/ds';
 import { keepPreviousData } from '@tanstack/react-query';
+import {
+  Btn, Mono, PageHero, EmptyState, T,
+} from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import {
   adaptPatientSummary,
-  STATUS_LABELS,
-  STATUS_BADGE_VARIANT,
   type PatientView,
 } from '@/lib/adapters/patient-adapter';
+import { PatientTable } from './_components/patient-table';
+import { PatientQuickDrawer } from './_components/patient-quick-drawer';
+import { PatientFiltersBar, type PatientFilters } from './_components/patient-filters';
+import { QuickRegisterDialog } from './_components/quick-register-dialog';
 
 /**
- * Pacientes & Leads — DS table inline + side detail panel.
+ * Pacientes — Redesigned patient list with:
+ *   - Proper columns (Paciente, Alertas clínicos, Contato, Última consulta, Status)
+ *   - Rich filter bar with chips
+ *   - Quick drawer with full patient data (fetched via getById)
+ *   - Keyboard navigation (↑/↓/Enter)
+ *   - Double-click → prontuário
+ *   - Quick registration dialog
  *
- * Phase-4 reskin: tabela DS própria (substitui legacy DataTable),
- * search/filtros DS, painel lateral DS quando uma linha é selecionada.
- * Mantém `trpc.patients.list` com todos os filtros (search debounced,
- * status, source, paginação server-side).
- *
- * NOTA CLÍNICA: A coluna de "Alergias" exibe apenas alergias (campo correto
- * do PatientSummary). Diagnósticos/condições crônicas só estão disponíveis
- * no full patient (getById) — nunca use allergies como stand-in para diagnóstico.
+ * NOTA CLÍNICA: Alergias NUNCA aparecem como diagnóstico.
+ * chronicConditions e activeMedications vêm do getById no drawer.
  */
-
-// PatientView (do adapter) substitui o PatientRow local — tipos separados garantidos
-type PatientRow = PatientView;
-
-// STATUS_LABELS e STATUS_BADGE_VARIANT importados do adapter
-
-const SOURCE_OPTIONS = [
-  { value: 'whatsapp',  label: 'WhatsApp'   },
-  { value: 'google',    label: 'Google'     },
-  { value: 'referral',  label: 'Indicação'  },
-  { value: 'walk_in',   label: 'Presencial' },
-  { value: 'instagram', label: 'Instagram'  },
-  { value: 'facebook',  label: 'Facebook'   },
-  { value: 'site',      label: 'Site'       },
-];
-
-function formatDate(d: Date | string | null | undefined): string {
-  if (!d) return '—';
-  const date = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(date);
-}
 
 const PAGE_SIZE = 20;
 
 export default function PacientesPage() {
   const router = useRouter();
 
-  const [search,         setSearch]         = React.useState('');
+  // ── Filters ────────────────────────────────────────────────────────
+  const [filters, setFilters] = React.useState<PatientFilters>({
+    search: '',
+    status: '',
+    source: '',
+    sortBy: 'name',
+    sortDir: 'asc',
+  });
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
-  const [status,         setStatus]         = React.useState('');
-  const [source,         setSource]         = React.useState('');
-  const [page,           setPage]           = React.useState(1);
-  const [selected,       setSelected]       = React.useState<PatientRow | null>(null);
+  const [page, setPage] = React.useState(1);
 
+  // Debounce search
   React.useEffect(() => {
     const t = setTimeout(() => {
-      setDebouncedSearch(search);
+      setDebouncedSearch(filters.search);
       setPage(1);
     }, 300);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [filters.search]);
 
-  React.useEffect(() => { setPage(1); }, [status, source]);
+  // Reset page on filter change
+  React.useEffect(() => { setPage(1); }, [filters.status, filters.source]);
 
+  // ── Data fetch ─────────────────────────────────────────────────────
   const { data, isLoading, isFetching } = trpc.patients.list.useQuery(
     {
       search:   debouncedSearch || undefined,
-      status:   (status || undefined) as
+      status:   (filters.status || undefined) as
         | 'active' | 'inactive' | 'blocked' | 'deceased' | 'transferred' | 'merged' | undefined,
-      source:   source || undefined,
+      source:   filters.source || undefined,
       page,
       pageSize: PAGE_SIZE,
-      sortBy:   'name',
-      sortDir:  'asc',
+      sortBy:   filters.sortBy,
+      sortDir:  filters.sortDir,
     },
     { placeholderData: keepPreviousData },
   );
 
-  const patients: PatientRow[] = React.useMemo(
+  const patients: PatientView[] = React.useMemo(
     () => (data?.data ?? []).map(adaptPatientSummary),
     [data],
   );
 
-  /** Exibe contagem de alergias ou "—". Nunca usa allergies como diagnóstico. */
-  function allergyLabel(p: PatientRow): string {
-    if (p.allergies.length === 0) return '—';
-    if (p.allergies.length === 1) return p.allergies[0]!;
-    return `${p.allergies[0]!} +${p.allergies.length - 1}`;
-  }
-
   const total      = data?.total      ?? 0;
   const totalPages = data?.totalPages ?? 1;
-  const hasFilters = !!(debouncedSearch || status || source);
+  const hasFilters = !!(debouncedSearch || filters.status || filters.source);
 
-  function clearFilters() {
-    setSearch('');
-    setStatus('');
-    setSource('');
-    setPage(1);
+  // ── Selection / focus ──────────────────────────────────────────────
+  const [selected, setSelected] = React.useState<PatientView | null>(null);
+  const [focusedIndex, setFocusedIndex] = React.useState(-1);
+
+  // Reset selection on data change
+  React.useEffect(() => {
+    if (selected && !patients.find((p) => p.id === selected.id)) {
+      setSelected(null);
+      setFocusedIndex(-1);
+    }
+  }, [patients, selected]);
+
+  // ── Quick register dialog ──────────────────────────────────────────
+  const [quickRegisterOpen, setQuickRegisterOpen] = React.useState(false);
+
+  function handleSelect(patient: PatientView) {
+    setSelected(patient);
+  }
+
+  function handleOpenRecord(patientId: string) {
+    router.push(`/pacientes/${patientId}/prontuario`);
   }
 
   return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      {/* Lista principal */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <div style={{ padding: '20px 26px 12px', flexShrink: 0 }}>
-          <PageHero
-            eyebrow="PRONTUÁRIO ELETRÔNICO"
-            title="Pacientes & Leads"
-            module="clinical"
-            icon="user"
-            actions={
-              <Link href="/pacientes/novo" style={{ textDecoration: 'none' }}>
-                <Btn small icon="plus">Novo Paciente</Btn>
-              </Link>
-            }
-          />
+    <>
+      <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+        {/* Main column */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* Header */}
+          <div style={{ padding: '20px 26px 8px', flexShrink: 0 }}>
+            <PageHero
+              eyebrow="PRONTUÁRIO ELETRÔNICO"
+              title="Pacientes"
+              module="clinical"
+              icon="users"
+            />
 
-          {/* Toolbar — single row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Input
-                leadingIcon="search"
-                type="search"
-                placeholder="Buscar nome, CPF, telefone, diagnóstico, prontuário…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                aria-label="Buscar pacientes"
-              />
-            </div>
-
-            <div style={{ width: 150, flexShrink: 0 }}>
-              <Select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
-                <option value="">Status</option>
-                <option value="active">Ativo</option>
-                <option value="inactive">Inativo</option>
-                <option value="blocked">Bloqueado</option>
-                <option value="transferred">Transferido</option>
-              </Select>
-            </div>
-
-            <div style={{ width: 150, flexShrink: 0 }}>
-              <Select value={source} onChange={(e) => setSource(e.target.value)} aria-label="Origem">
-                <option value="">Origem</option>
-                {SOURCE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </Select>
-            </div>
-
-            {hasFilters && (
-              <Btn variant="ghost" small icon="x" onClick={clearFilters}>Limpar</Btn>
-            )}
-
-            {!isLoading && (
-              <Mono size={11}>
-                {total} {total === 1 ? 'PACIENTE' : 'PACIENTES'}
-                {isFetching && !isLoading && ' · ATUALIZANDO'}
-              </Mono>
-            )}
+            <PatientFiltersBar
+              filters={filters}
+              onChange={setFilters}
+              total={total}
+              isLoading={isLoading}
+              isFetching={isFetching}
+              onNewPatient={() => router.push('/pacientes/novo')}
+              onQuickRegister={() => setQuickRegisterOpen(true)}
+            />
           </div>
-        </div>
 
-        {/* Tabela */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 26px 22px', minHeight: 0 }}>
-          <Glass style={{ padding: 0, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['Prontuário', 'Paciente', 'Idade', 'Alergias', 'Última', 'Status', ''].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        padding: '9px 16px',
-                        textAlign: 'left',
-                        fontSize: 10,
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        letterSpacing: '1.1px',
-                        color: T.textMuted,
-                        fontWeight: 500,
-                        borderBottom: `1px solid ${T.divider}`,
-                        background: T.metalGrad,
-                        position: 'sticky',
-                        top: 0,
-                        zIndex: 1,
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading
-                  ? Array.from({ length: 8 }).map((_, i) => (
-                      <tr key={i} style={{ borderBottom: `1px solid ${T.divider}` }}>
-                        {Array.from({ length: 7 }).map((__, j) => (
-                          <td key={j} style={{ padding: '11px 16px' }}>
-                            <Skeleton height={12} delay={i * 80} />
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  : patients.map((p, i) => (
-                      <tr
-                        key={p.id}
-                        onClick={() => setSelected(p)}
-                        onDoubleClick={() => router.push(`/pacientes/${p.id}/prontuario`)}
-                        title="Click: pré-visualização. Duplo-click: abrir prontuário."
-                        style={{
-                          borderBottom: `1px solid ${T.divider}`,
-                          background: selected?.id === p.id
-                            ? T.primaryBg
-                            : i % 2 === 0
-                              ? 'transparent'
-                              : 'rgba(255,255,255,0.22)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <td style={{ padding: '11px 16px' }}>
-                          <Mono size={11}>{p.displayId}</Mono>
-                        </td>
-                        <td style={{ padding: '11px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: T.r.sm,
-                                background: T.clinical.bg,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <Ico name="user" size={12} color={T.clinical.color} />
-                            </div>
-                            <div>
-                              <p style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{p.name}</p>
-                              <Mono size={10}>{p.cpfMasked ?? '—'}</Mono>
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{ padding: '12px 16px', fontSize: 14, color: T.textSecondary }}>
-                          {p.age != null ? `${p.age} anos` : '—'}
-                        </td>
-                        <td style={{ padding: '12px 16px', fontSize: 13, color: T.textSecondary }}>
-                          {allergyLabel(p)}
-                        </td>
-                        <td style={{ padding: '11px 16px' }}>
-                          <Mono size={11}>{formatDate(p.lastVisitAt)}</Mono>
-                        </td>
-                        <td style={{ padding: '11px 16px' }}>
-                          <Badge variant={STATUS_BADGE_VARIANT[p.status] ?? 'default'}>
-                            {STATUS_LABELS[p.status] ?? p.status}
-                          </Badge>
-                        </td>
-                        <td style={{ padding: '11px 16px' }}>
-                          <Link
-                            href={`/pacientes/${p.id}/prontuario`}
-                            onClick={(e) => e.stopPropagation()}
-                            aria-label={`Abrir prontuário de ${p.name}`}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: 4,
-                              borderRadius: T.r.sm,
-                            }}
-                          >
-                            <Ico
-                              name="arrowRight"
-                              size={13}
-                              color={selected?.id === p.id ? T.primary : T.textMuted}
-                            />
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-              </tbody>
-            </table>
-
-            {!isLoading && patients.length === 0 && (
+          {/* Table area */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 26px 22px', minHeight: 0 }}>
+            {!isLoading && patients.length === 0 ? (
               <EmptyState
                 icon="users"
                 title={hasFilters ? 'Nenhum paciente corresponde aos filtros' : 'Nenhum paciente cadastrado'}
-                description={hasFilters
-                  ? 'Tente limpar os filtros ou ajustar a busca.'
-                  : 'Cadastre o primeiro paciente da clínica.'}
-                action={!hasFilters
-                  ? <Link href="/pacientes/novo" style={{ textDecoration: 'none' }}><Btn small icon="plus">Novo Paciente</Btn></Link>
-                  : <Btn variant="ghost" small onClick={clearFilters}>Limpar filtros</Btn>}
+                description={
+                  hasFilters
+                    ? 'Tente limpar os filtros ou ajustar a busca.'
+                    : 'Cadastre o primeiro paciente da clínica.'
+                }
+                action={
+                  hasFilters ? (
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                      <Btn
+                        variant="ghost"
+                        small
+                        icon="x"
+                        onClick={() => setFilters({ ...filters, search: '', status: '', source: '' })}
+                      >
+                        Limpar filtros
+                      </Btn>
+                      <Btn small icon="plus" onClick={() => setQuickRegisterOpen(true)}>
+                        Cadastrar paciente
+                      </Btn>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                      <Btn small icon="zap" onClick={() => setQuickRegisterOpen(true)}>
+                        Cadastro rápido
+                      </Btn>
+                      <Link href="/pacientes/novo" style={{ textDecoration: 'none' }}>
+                        <Btn variant="glass" small icon="plus">Cadastro completo</Btn>
+                      </Link>
+                    </div>
+                  )
+                }
+              />
+            ) : (
+              <PatientTable
+                patients={patients}
+                isLoading={isLoading}
+                selectedId={selected?.id ?? null}
+                focusedIndex={focusedIndex}
+                onSelect={handleSelect}
+                onOpenRecord={handleOpenRecord}
+                onFocusedIndexChange={setFocusedIndex}
               />
             )}
-          </Glass>
 
-          {/* Paginação */}
-          {!isLoading && total > PAGE_SIZE && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-              <Mono size={11}>PÁGINA {page} DE {totalPages}</Mono>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <Btn variant="ghost" small icon="arrowLeft" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
-                  Anterior
-                </Btn>
-                <Btn variant="ghost" small icon="arrowRight" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-                  Próxima
-                </Btn>
+            {/* Pagination */}
+            {!isLoading && total > PAGE_SIZE && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: 12,
+                }}
+              >
+                <Mono size={11}>
+                  PÁGINA {page} DE {totalPages} · {total} PACIENTES
+                </Mono>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <Btn
+                    variant="ghost"
+                    small
+                    icon="arrowLeft"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                  >
+                    Anterior
+                  </Btn>
+                  <Btn
+                    variant="ghost"
+                    small
+                    icon="arrowRight"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                  >
+                    Próxima
+                  </Btn>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+
+        {/* Quick drawer — opens on single click */}
+        {selected && (
+          <PatientQuickDrawer
+            listPatient={selected}
+            onClose={() => {
+              setSelected(null);
+              setFocusedIndex(-1);
+            }}
+          />
+        )}
       </div>
 
-      {/* Painel lateral de detalhes */}
-      {selected && (
-        <div
-          style={{
-            width: 280,
-            borderLeft: `1px solid ${T.divider}`,
-            background: 'rgba(255,255,255,0.30)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            overflowY: 'auto',
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              padding: '14px 16px',
-              borderBottom: `1px solid ${T.divider}`,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary }}>Prontuário</span>
-            <button
-              onClick={() => setSelected(null)}
-              aria-label="Fechar painel"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-            >
-              <Ico name="x" size={15} color={T.textMuted} />
-            </button>
-          </div>
-          <div style={{ padding: 16 }}>
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: T.r.lg,
-                background: T.clinical.bg,
-                border: `1px solid ${T.clinical.color}18`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 12,
-              }}
-            >
-              <Ico name="user" size={22} color={T.clinical.color} />
-            </div>
-            <p style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary, marginBottom: 3 }}>{selected.name}</p>
-            <Mono size={11}>{selected.displayId}{selected.age != null ? ` · ${selected.age} anos` : ''}</Mono>
-            <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {([
-                ['CPF',             selected.cpfMasked ?? '—'],
-                ['Alergias',        allergyLabel(selected)],
-                ['Telefone',        selected.phoneMasked ?? '—'],
-                ['Status',          STATUS_LABELS[selected.status] ?? selected.status],
-                ['Última consulta', formatDate(selected.lastVisitAt)],
-              ] as const).map(([k, v]) => (
-                <div
-                  key={k}
-                  style={{
-                    padding: '8px 10px',
-                    borderRadius: T.r.md,
-                    background: T.glass,
-                    border: `1px solid ${T.glassBorder}`,
-                  }}
-                >
-                  <Mono size={9}>{k.toUpperCase()}</Mono>
-                  <p style={{ fontSize: 14, color: T.textPrimary, marginTop: 2 }}>{v}</p>
-                </div>
-              ))}
-            </div>
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <Btn small icon="edit" onClick={() => router.push(`/pacientes/${selected.id}/prontuario`)}>
-                Abrir prontuário
-              </Btn>
-              <Link href={`/agenda?paciente=${selected.id}`} style={{ textDecoration: 'none' }}>
-                <Btn variant="glass" small icon="calendar" style={{ width: '100%' }}>Agendar</Btn>
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Quick register dialog */}
+      <QuickRegisterDialog
+        open={quickRegisterOpen}
+        onClose={() => setQuickRegisterOpen(false)}
+        onCreated={() => {
+          // Table will auto-refresh via cache invalidation
+        }}
+      />
+    </>
   );
 }
