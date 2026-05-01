@@ -8,9 +8,6 @@ import {
 } from '@dermaos/ui/ds';
 import {
   AllergyBanner,
-  Button,
-  Input,
-  LoadingSkeleton,
   useToast,
 } from '@dermaos/ui';
 import { trpc } from '@/lib/trpc-provider';
@@ -30,6 +27,13 @@ import { SignModal } from './_components/sign-modal';
 import { EncounterImages } from './_components/encounter-images';
 import { EncounterPrescriptions } from './_components/encounter-prescriptions';
 import { SaveStatusIndicator, type SaveStatus } from './_components/save-status';
+import { EncounterPatientSidebar } from './_components/encounter-patient-sidebar';
+import { EncounterActionsPanel } from './_components/encounter-actions-panel';
+import { PrescriptionDrawer } from './_components/prescription-drawer';
+import { FinalizationDialog } from './_components/finalization-dialog';
+import { AddendumModal } from './_components/addendum-modal';
+import type { TemplateSection } from './_components/template-panel';
+import styles from './encounter.module.css';
 
 /* ── Form state ──────────────────────────────────────────────────────── */
 
@@ -95,7 +99,7 @@ function shallowDiff(a: FormState, b: FormState): Partial<FormState> {
   return diff;
 }
 
-/* ── Glass section wrapper ───────────────────────────────────────────── */
+/* ── SOAP section wrapper ───────────────────────────────────────────── */
 
 function SoapSection({
   label,
@@ -107,15 +111,24 @@ function SoapSection({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ marginBottom: 4 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <Mono size={11} spacing="1px" color={T.primary}>{label.toUpperCase()}</Mono>
+    <div className={styles.soapSection}>
+      <div className={styles.soapHeader}>
+        <Mono size={10} spacing="1px" color={T.primary}>{label.toUpperCase()}</Mono>
         {action}
       </div>
       {children}
     </div>
   );
 }
+
+/* ── Status labels ───────────────────────────────────────────────────── */
+
+const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'success' | 'warning' | 'danger' | 'info' }> = {
+  rascunho: { label: 'Rascunho', variant: 'default' },
+  revisao:  { label: 'Em revisão', variant: 'warning' },
+  assinado: { label: 'Assinado', variant: 'success' },
+  corrigido:{ label: 'Corrigido', variant: 'info' },
+};
 
 /* ── Page ────────────────────────────────────────────────────────────── */
 
@@ -141,14 +154,20 @@ export default function ConsultaPage({
 
   const encounter = encounterQuery.data?.encounter;
   const patient   = patientQuery.data?.patient;
-  const isSigned  = encounter?.status === 'assinado';
+  const isSigned  = encounter?.status === 'assinado' || encounter?.status === 'corrigido';
+  const statusInfo = STATUS_MAP[encounter?.status ?? ''] ?? { label: 'Rascunho', variant: 'default' as const };
+
+  /* ── Modals state ────────────────────────────────────────────────── */
+  const [signOpen, setSignOpen]           = React.useState(false);
+  const [prescriptionOpen, setPrescriptionOpen] = React.useState(false);
+  const [finalizationOpen, setFinalizationOpen] = React.useState(false);
+  const [addendumOpen, setAddendumOpen]   = React.useState(false);
+  const [showNotes, setShowNotes]         = React.useState(false);
 
   /* ── Form state ──────────────────────────────────────────────────── */
   const [form, setForm]       = React.useState<FormState>(EMPTY_FORM);
   const lastSyncedRef         = React.useRef<FormState>(EMPTY_FORM);
   const [saveStatus, setSaveStatus] = React.useState<SaveStatus>({ kind: 'idle', lastSavedAt: null });
-  const [signOpen, setSignOpen]   = React.useState(false);
-  const [showNotes, setShowNotes] = React.useState(false);
 
   React.useEffect(() => {
     if (!encounter) return;
@@ -306,18 +325,40 @@ export default function ConsultaPage({
     }
   }
 
+  /* ── Template application ────────────────────────────────────────── */
+  function handleApplyTemplate(sections: TemplateSection[]) {
+    const hasContent = form.subjective || form.objective || form.assessment || form.plan;
+    if (hasContent) {
+      const confirmed = window.confirm(
+        'Já existem dados nos campos SOAP. O template será mesclado ao conteúdo existente. Deseja continuar?',
+      );
+      if (!confirmed) return;
+    }
+
+    setForm((prev) => {
+      const next = { ...prev };
+      for (const section of sections) {
+        const key = section.key as keyof FormState;
+        if (key === 'subjective' || key === 'objective' || key === 'assessment' || key === 'plan') {
+          const existing = prev[key] as string;
+          if (existing && stripHtml(existing).trim()) {
+            next[key] = existing + section.content;
+          } else {
+            next[key] = section.content;
+          }
+        }
+      }
+      return next;
+    });
+  }
+
+  /* ── Sign flow ───────────────────────────────────────────────────── */
   async function handleSign() {
     try {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       await persist();
       await signMut.mutateAsync({ id: encounterId });
 
-      /* ── Invalidar caches após assinatura ─────────────────────────
-       * encounter.getById  → status muda para "assinado"
-       * encounters.getByPatient → lista do prontuário
-       * patients.getById   → lastVisitAt e totalVisits mudam
-       * scheduling.agendaDay → status do appointment
-       */
       void utils.clinical.encounters.getById.invalidate({ id: encounterId });
       void utils.clinical.encounters.getByPatient.invalidate({ patientId });
       void utils.patients.getById.invalidate({ id: patientId });
@@ -325,6 +366,7 @@ export default function ConsultaPage({
 
       toast.success('Prontuário assinado');
       setSignOpen(false);
+      setFinalizationOpen(false);
       router.push(`/pacientes/${patientId}/prontuario`);
     } catch (err) {
       toast.error('Não foi possível assinar', {
@@ -336,9 +378,21 @@ export default function ConsultaPage({
   /* ── Loading / error ─────────────────────────────────────────────── */
   if (encounterQuery.isLoading) {
     return (
-      <div style={{ padding: 24 }}>
+      <div style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
         <Glass style={{ padding: 32, textAlign: 'center' }}>
-          <Mono size={11} color={T.textMuted}>CARREGANDO ATENDIMENTO…</Mono>
+          <div
+            style={{
+              width: 24,
+              height: 24,
+              border: `2px solid ${T.primary}`,
+              borderTopColor: 'transparent',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+              margin: '0 auto 12px',
+            }}
+          />
+          <Mono size={10} color={T.textMuted}>CARREGANDO ATENDIMENTO…</Mono>
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </Glass>
       </div>
     );
@@ -346,13 +400,16 @@ export default function ConsultaPage({
 
   if (encounterQuery.isError || !encounter) {
     return (
-      <div style={{ padding: 24 }}>
-        <Glass style={{ padding: 32, textAlign: 'center' }}>
+      <div style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+        <Glass style={{ padding: 32, textAlign: 'center', maxWidth: 400 }}>
           <Ico name="alert" size={24} color={T.danger} />
           <p style={{ fontSize: 15, color: T.danger, marginTop: 8 }}>Atendimento não encontrado.</p>
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'center' }}>
             <Link href={`/pacientes/${patientId}/prontuario`} style={{ textDecoration: 'none' }}>
               <Btn variant="glass" small icon="arrowLeft">Voltar ao prontuário</Btn>
+            </Link>
+            <Link href="/agenda" style={{ textDecoration: 'none' }}>
+              <Btn variant="ghost" small icon="calendar">Ir para agenda</Btn>
             </Link>
           </div>
         </Glass>
@@ -363,56 +420,30 @@ export default function ConsultaPage({
   const soapTextForAi = buildSoapTextForAi(form);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Top bar */}
-      <div
-        style={{
-          padding: '12px 22px',
-          borderBottom: `1px solid ${T.divider}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexShrink: 0,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div className={styles.layout}>
+      {/* ── Top bar ──────────────────────────────────────────────────── */}
+      <div className={styles.topBar} style={{ borderBottom: `1px solid ${T.divider}` }}>
+        <div className={styles.topBarLeft}>
           <Link href={`/pacientes/${patientId}/prontuario`} style={{ textDecoration: 'none' }}>
             <Btn variant="ghost" small iconOnly icon="arrowLeft" aria-label="Voltar ao prontuário" />
           </Link>
           <div>
-            <p style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary }}>
+            <p style={{ fontSize: 17, fontWeight: 700, color: T.textPrimary, margin: 0 }}>
               {patient?.name ?? 'Atendimento'}
             </p>
-            <Mono size={11}>{encounterId.slice(0, 8).toUpperCase()}</Mono>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
+              <Mono size={10}>{encounterId.slice(0, 8).toUpperCase()}</Mono>
+              <Badge variant={statusInfo.variant} dot>
+                {statusInfo.label}
+              </Badge>
+            </div>
           </div>
-          <Badge variant={isSigned ? 'success' : 'default'} dot>
-            {isSigned ? 'Assinado' : 'Em atendimento'}
-          </Badge>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Glass
-            metal
-            style={{
-              padding: '5px 12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              borderRadius: T.r.md,
-            }}
-          >
-            <Ico name="clock" size={15} color={T.textMuted} />
-            <span
-              style={{
-                fontSize: 15,
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontVariantNumeric: 'tabular-nums',
-                color: T.textPrimary,
-                fontWeight: 600,
-              }}
-            >
+        <div className={styles.topBarRight}>
+          <Glass metal className={styles.timerPill} style={{ borderRadius: T.r.md }}>
+            <Ico name="clock" size={14} color={T.textMuted} />
+            <span style={{ color: T.textPrimary }}>
               {formatElapsed(elapsedMs)}
             </span>
           </Glass>
@@ -423,30 +454,33 @@ export default function ConsultaPage({
         </div>
       </div>
 
-      {/* Allergy banner */}
+      {/* ── Allergy banner ────────────────────────────────────────────── */}
       {patient && patient.allergies.length > 0 && (
-        <div style={{ padding: '0 22px', flexShrink: 0 }}>
+        <div style={{ padding: '0 18px', flexShrink: 0 }}>
           <AllergyBanner allergies={patient.allergies} />
         </div>
       )}
 
-      {/* Main body — split panel */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {/* Left: SOAP fields */}
+      {/* ── 3-column body ─────────────────────────────────────────────── */}
+      <div className={styles.body}>
+        {/* LEFT — Patient sidebar */}
+        <div className={styles.sidebarLeft}>
+          <EncounterPatientSidebar
+            patientId={patientId}
+            encounterId={encounterId}
+          />
+        </div>
+
+        {/* CENTER — Clinical editor */}
         <section
           aria-labelledby="soap-heading"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            overflowY: 'auto',
-            padding: '18px 22px',
-            borderRight: `1px solid ${T.divider}`,
-          }}
+          className={styles.center}
+          style={{ borderLeft: `1px solid ${T.divider}`, borderRight: `1px solid ${T.divider}` }}
         >
-          <h2 id="soap-heading" className="sr-only">Campos SOAP</h2>
-          <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <h2 id="soap-heading" className="sr-only">Editor clínico SOAP</h2>
+          <div className={styles.centerInner}>
             {/* Chief complaint */}
-            <Glass style={{ padding: '16px 18px' }}>
+            <Glass style={{ padding: '14px 16px' }}>
               <SoapSection label="Queixa Principal">
                 <input
                   value={form.chiefComplaint}
@@ -476,10 +510,10 @@ export default function ConsultaPage({
               </SoapSection>
             </Glass>
 
-            {/* Subjective */}
-            <Glass style={{ padding: '16px 18px' }}>
+            {/* Subjective / HDA */}
+            <Glass style={{ padding: '14px 16px' }}>
               <SoapSection
-                label="Subjetivo"
+                label="Subjetivo / HDA"
                 action={
                   <Btn
                     variant="glass"
@@ -496,21 +530,21 @@ export default function ConsultaPage({
                   label="Subjetivo"
                   value={form.subjective}
                   onChange={(v) => update('subjective', v)}
-                  placeholder="História clínica, queixas, evolução…"
+                  placeholder="História clínica, queixas, evolução, antecedentes, medicamentos, alergias…"
                   disabled={isSigned}
                   minHeight="7rem"
                 />
               </SoapSection>
             </Glass>
 
-            {/* Objective */}
-            <Glass style={{ padding: '16px 18px' }}>
-              <SoapSection label="Objetivo">
+            {/* Objective / Exam */}
+            <Glass style={{ padding: '14px 16px' }}>
+              <SoapSection label="Exame Físico Dermatológico">
                 <SoapEditor
                   label="Objetivo"
                   value={form.objective}
                   onChange={(v) => update('objective', v)}
-                  placeholder="Exame físico, achados dermatológicos…"
+                  placeholder="Descrição das lesões, localização, distribuição, dermoscopia, achados…"
                   disabled={isSigned}
                   minHeight="7rem"
                 />
@@ -525,31 +559,49 @@ export default function ConsultaPage({
             </Glass>
 
             {/* Assessment */}
-            <Glass style={{ padding: '16px 18px' }}>
-              <SoapSection label="Avaliação">
+            <Glass style={{ padding: '14px 16px' }}>
+              <SoapSection label="Hipóteses / Diagnóstico">
                 <SoapEditor
                   label="Avaliação"
                   value={form.assessment}
                   onChange={(v) => update('assessment', v)}
-                  placeholder="Impressão clínica, hipóteses diagnósticas…"
+                  placeholder="Impressão clínica, hipóteses diagnósticas, dermoscopia…"
                   disabled={isSigned}
-                  minHeight="6rem"
+                  minHeight="5rem"
                 />
+                <div style={{ marginTop: 12 }}>
+                  <CidAutocomplete
+                    diagnoses={form.diagnoses}
+                    onChange={(d) => update('diagnoses', d)}
+                    soapText={soapTextForAi}
+                    disabled={isSigned}
+                  />
+                </div>
               </SoapSection>
             </Glass>
 
-            {/* Plan */}
-            <Glass style={{ padding: '16px 18px' }}>
-              <SoapSection label="Plano">
+            {/* Plan / Conduta */}
+            <Glass style={{ padding: '14px 16px' }}>
+              <SoapSection label="Conduta / Plano">
                 <SoapEditor
                   label="Plano"
                   value={form.plan}
                   onChange={(v) => update('plan', v)}
-                  placeholder="Conduta, prescrição, exames, orientações…"
+                  placeholder="Conduta terapêutica, prescrição, orientações, exames solicitados…"
                   disabled={isSigned}
-                  minHeight="6rem"
+                  minHeight="5rem"
                 />
               </SoapSection>
+            </Glass>
+
+            {/* Next appointment — inline in center */}
+            <Glass style={{ padding: '14px 16px' }}>
+              <NextAppointmentSection
+                value={form.nextAppointment}
+                onChange={(v) => update('nextAppointment', v)}
+                patientId={patientId}
+                disabled={isSigned}
+              />
             </Glass>
 
             {/* Internal notes (collapsible) */}
@@ -559,7 +611,7 @@ export default function ConsultaPage({
                 onClick={() => setShowNotes(!showNotes)}
                 style={{
                   width: '100%',
-                  padding: '12px 18px',
+                  padding: '10px 16px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -568,14 +620,14 @@ export default function ConsultaPage({
                   cursor: 'pointer',
                 }}
               >
-                <Mono size={11} color={T.textMuted}>NOTAS INTERNAS (NÃO IMPRESSAS)</Mono>
+                <Mono size={10} color={T.textMuted}>NOTAS INTERNAS (NÃO IMPRESSAS)</Mono>
                 <span style={{ transform: showNotes ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.15s' }}>
                   <Ico name="chevDown" size={14} color={T.textMuted} />
                 </span>
               </button>
               {showNotes && (
-                <div style={{ padding: '0 18px 16px', borderTop: `1px solid ${T.divider}` }}>
-                  <div style={{ paddingTop: 12 }}>
+                <div style={{ padding: '0 16px 14px', borderTop: `1px solid ${T.divider}` }}>
+                  <div style={{ paddingTop: 10 }}>
                     <SoapEditor
                       label="Notas internas"
                       value={form.internalNotes}
@@ -588,34 +640,9 @@ export default function ConsultaPage({
                 </div>
               )}
             </Glass>
-          </div>
-        </section>
 
-        {/* Right: Context panel */}
-        <aside
-          aria-labelledby="context-heading"
-          style={{
-            width: '38%',
-            minWidth: 320,
-            maxWidth: 480,
-            overflowY: 'auto',
-            padding: '18px 20px',
-            background: 'rgba(242,242,242,0.5)',
-            flexShrink: 0,
-          }}
-        >
-          <h2 id="context-heading" className="sr-only">Contexto clínico</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <Glass style={{ padding: '16px 18px' }}>
-              <CidAutocomplete
-                diagnoses={form.diagnoses}
-                onChange={(d) => update('diagnoses', d)}
-                soapText={soapTextForAi}
-                disabled={isSigned}
-              />
-            </Glass>
-
-            <Glass style={{ padding: '16px 18px' }}>
+            {/* Linked content — Images & Prescriptions (inline for mobile when sidebar hidden) */}
+            <Glass style={{ padding: '14px 16px' }}>
               <EncounterImages
                 encounterId={encounterId}
                 patientId={patientId}
@@ -623,48 +650,52 @@ export default function ConsultaPage({
               />
             </Glass>
 
-            <Glass style={{ padding: '16px 18px' }}>
+            <Glass style={{ padding: '14px 16px' }}>
               <EncounterPrescriptions
                 encounterId={encounterId}
                 patientId={patientId}
                 disabled={isSigned}
               />
             </Glass>
-
-            <Glass style={{ padding: '16px 18px' }}>
-              <NextAppointmentSection
-                value={form.nextAppointment}
-                onChange={(v) => update('nextAppointment', v)}
-                patientId={patientId}
-                disabled={isSigned}
-              />
-            </Glass>
           </div>
+        </section>
+
+        {/* RIGHT — Actions panel */}
+        <aside
+          aria-labelledby="actions-heading"
+          className={styles.sidebarRight}
+        >
+          <h2 id="actions-heading" className="sr-only">Ações do atendimento</h2>
+          <EncounterActionsPanel
+            encounterId={encounterId}
+            patientId={patientId}
+            isSigned={isSigned}
+            saveStatus={saveStatus}
+            onPersist={() => void persist()}
+            onOpenPrescription={() => setPrescriptionOpen(true)}
+            onOpenFinalization={() => setFinalizationOpen(true)}
+            onOpenAddendum={() => setAddendumOpen(true)}
+            onApplyTemplate={handleApplyTemplate}
+          />
         </aside>
       </div>
 
-      {/* Bottom action bar */}
+      {/* ── Bottom bar ─────────────────────────────────────────────────── */}
       <div
+        className={styles.bottomBar}
         style={{
-          padding: '10px 22px',
           borderTop: `1px solid ${T.divider}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexShrink: 0,
-          flexWrap: 'wrap',
           background: T.glass,
           backdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
           WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Glass metal style={{ padding: '6px 12px', borderRadius: T.r.md, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Ico name="clock" size={14} color={T.textMuted} />
+        <div className={styles.bottomBarLeft}>
+          <Glass metal style={{ padding: '5px 10px', borderRadius: T.r.md, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Ico name="clock" size={13} color={T.textMuted} />
             <span
               style={{
-                fontSize: 14,
+                fontSize: 13,
                 fontFamily: "'IBM Plex Mono', monospace",
                 fontVariantNumeric: 'tabular-nums',
                 color: T.textSecondary,
@@ -678,27 +709,52 @@ export default function ConsultaPage({
             onRetry={saveStatus.kind === 'error' ? () => void persist() : undefined}
           />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Btn
-            variant="glass"
-            small
-            icon="download"
-            onClick={() => void persist()}
-            disabled={isSigned}
-          >
-            Salvar rascunho
-          </Btn>
-          <Btn
-            variant="accent"
-            small
-            icon="shield"
-            onClick={() => setSignOpen(true)}
-            disabled={isSigned || signMut.isPending}
-          >
-            {isSigned ? 'Prontuário assinado' : 'Assinar e fechar'}
-          </Btn>
+        <div className={styles.bottomBarRight}>
+          {!isSigned && (
+            <>
+              <Btn
+                variant="glass"
+                small
+                icon="download"
+                onClick={() => void persist()}
+              >
+                Salvar rascunho
+              </Btn>
+              <Btn
+                variant="accent"
+                small
+                icon="shield"
+                onClick={() => setFinalizationOpen(true)}
+              >
+                Finalizar atendimento
+              </Btn>
+            </>
+          )}
+          {isSigned && (
+            <Btn
+              variant="glass"
+              small
+              icon="edit"
+              onClick={() => setAddendumOpen(true)}
+            >
+              Adicionar adendo
+            </Btn>
+          )}
         </div>
       </div>
+
+      {/* ── Modals / Drawers ────────────────────────────────────────── */}
+      <FinalizationDialog
+        open={finalizationOpen}
+        onOpenChange={setFinalizationOpen}
+        onConfirmSign={handleSign}
+        isSubmitting={signMut.isPending}
+        chiefComplaint={form.chiefComplaint}
+        objective={form.objective}
+        assessment={form.assessment}
+        plan={form.plan}
+        diagnoses={form.diagnoses}
+      />
 
       <SignModal
         open={signOpen}
@@ -707,6 +763,21 @@ export default function ConsultaPage({
         providerCrm={sessionUser?.crm ?? null}
         onConfirm={handleSign}
         isSubmitting={signMut.isPending}
+      />
+
+      <PrescriptionDrawer
+        open={prescriptionOpen}
+        onOpenChange={setPrescriptionOpen}
+        patientId={patientId}
+        encounterId={encounterId}
+        allergies={patient?.allergies ?? []}
+      />
+
+      <AddendumModal
+        open={addendumOpen}
+        onOpenChange={setAddendumOpen}
+        encounterId={encounterId}
+        patientId={patientId}
       />
     </div>
   );
