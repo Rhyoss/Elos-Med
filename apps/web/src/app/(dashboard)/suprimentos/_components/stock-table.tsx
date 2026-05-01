@@ -20,6 +20,12 @@ export interface StockRow {
   statuses:         StockStatus[];
   is_controlled:    boolean;
   is_cold_chain:    boolean;
+  /** Vem de StockPositionRow.supplier_name (preferred_supplier). Null se não cadastrado. */
+  supplier_name?:   string | null;
+  /** Custo unitário catalogado (não o custo do lote). */
+  unit_cost?:       number | null;
+  /** Quantidade de lotes ativos com saldo. */
+  active_lots?:     number;
 }
 
 export interface StockTableProps {
@@ -32,6 +38,11 @@ export interface StockTableProps {
 
 function formatQty(n: number): string {
   return n % 1 === 0 ? String(n) : n.toFixed(2);
+}
+
+function formatBRL(n: number | null | undefined): string {
+  if (n == null) return '—';
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function ExpiryCell({ date }: { date: string | null }) {
@@ -125,16 +136,19 @@ export function StockTable({
 
   return (
     <div style={{ width: '100%', overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 880 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1180 }}>
         <thead>
           <tr>
             <th style={HEAD_CELL}>Status</th>
             <th style={HEAD_CELL}>Produto</th>
             <th style={HEAD_CELL}>Categoria</th>
+            <th style={{ ...HEAD_CELL, textAlign: 'right' }}>Lotes</th>
+            <th style={HEAD_CELL}>Próx. Venc.</th>
             <th style={{ ...HEAD_CELL, textAlign: 'right' }}>Qtd</th>
             <th style={{ ...HEAD_CELL, textAlign: 'right' }}>Mín.</th>
+            <th style={{ ...HEAD_CELL, textAlign: 'right' }}>Custo</th>
+            <th style={HEAD_CELL}>Fornecedor</th>
             <th style={{ ...HEAD_CELL, textAlign: 'right' }}>Cob.</th>
-            <th style={HEAD_CELL}>Próx. Venc.</th>
             <th style={HEAD_CELL}></th>
           </tr>
         </thead>
@@ -217,6 +231,14 @@ export function StockTable({
                 {row.category_name ?? '—'}
               </td>
               <td style={{ ...CELL, textAlign: 'right' }}>
+                <Mono size={10} color={T.textPrimary} weight={500}>
+                  {row.active_lots ?? 0}
+                </Mono>
+              </td>
+              <td style={CELL}>
+                <ExpiryCell date={row.next_expiry} />
+              </td>
+              <td style={{ ...CELL, textAlign: 'right' }}>
                 <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: T.textPrimary }}>
                   {formatQty(row.qty_total)}
                 </span>
@@ -228,10 +250,15 @@ export function StockTable({
                 </span>
               </td>
               <td style={{ ...CELL, textAlign: 'right' }}>
-                <CoverageCell days={row.coverage_days} />
+                <Mono size={10} color={T.textSecondary}>
+                  {formatBRL(row.unit_cost)}
+                </Mono>
               </td>
-              <td style={CELL}>
-                <ExpiryCell date={row.next_expiry} />
+              <td style={{ ...CELL, color: T.textSecondary, fontSize: 11, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {row.supplier_name ?? '—'}
+              </td>
+              <td style={{ ...CELL, textAlign: 'right' }}>
+                <CoverageCell days={row.coverage_days} />
               </td>
               <td style={CELL}>
                 <div

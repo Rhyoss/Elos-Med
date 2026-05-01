@@ -13,9 +13,13 @@ interface ProductSheetProps {
   product:  StockRow | null;
   onClose:  () => void;
   onAdjust: (product: StockRow) => void;
+  /** Optional: open MovementModal pre-set to entrada for this product. */
+  onEntry?: (product: StockRow) => void;
+  /** Optional: open MovementModal pre-set to saida for this product. */
+  onExit?:  (product: StockRow) => void;
 }
 
-export function ProductSheet({ product, onClose, onAdjust }: ProductSheetProps) {
+export function ProductSheet({ product, onClose, onAdjust, onEntry, onExit }: ProductSheetProps) {
   const [movPage, setMovPage] = React.useState(1);
 
   const lotsQuery = trpc.supply.stock.lots.useQuery(
@@ -57,13 +61,33 @@ export function ProductSheet({ product, onClose, onAdjust }: ProductSheetProps) 
                 <StatusBadge statuses={product.statuses} showAll />
               </div>
             </div>
-            <Button
-              size="sm" variant="outline"
-              onClick={() => onAdjust(product)}
-              aria-label="Ajustar estoque"
-            >
-              Ajustar
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {onEntry && (
+                <Button
+                  size="sm"
+                  onClick={() => onEntry(product)}
+                  aria-label="Registrar entrada"
+                >
+                  Entrada
+                </Button>
+              )}
+              {onExit && (
+                <Button
+                  size="sm" variant="outline"
+                  onClick={() => onExit(product)}
+                  aria-label="Registrar baixa"
+                >
+                  Baixa
+                </Button>
+              )}
+              <Button
+                size="sm" variant="outline"
+                onClick={() => onAdjust(product)}
+                aria-label="Ajustar estoque"
+              >
+                Ajustar
+              </Button>
+            </div>
           </div>
         </SheetHeader>
 
@@ -126,17 +150,29 @@ export function ProductSheet({ product, onClose, onAdjust }: ProductSheetProps) 
                       const daysExp = expiry
                         ? Math.ceil((expiry.getTime() - Date.now()) / 86_400_000)
                         : null;
-                      const expiryClass = daysExp != null && daysExp < 30
+                      const isExpired = daysExp != null && daysExp <= 0;
+                      const expiryClass = isExpired
+                        ? 'text-red-700 font-semibold line-through'
+                        : daysExp != null && daysExp < 30
                         ? 'text-red-600 font-medium'
                         : daysExp != null && daysExp < 60
                         ? 'text-yellow-600'
                         : '';
                       return (
-                        <tr key={lot.id} className="border-t last:border-0">
+                        <tr
+                          key={lot.id}
+                          className={`border-t last:border-0 ${isExpired ? 'bg-red-50/40' : ''}`}
+                          aria-disabled={isExpired || undefined}
+                        >
                           <Td>
                             <span className="font-mono text-xs">{lot.lot_number}</span>
                             {lot.batch_number && (
                               <span className="ml-2 text-xs text-muted-foreground">{lot.batch_number}</span>
+                            )}
+                            {isExpired && (
+                              <Badge className="ml-2 border-0 bg-red-100 text-red-800 text-[10px]">
+                                BLOQUEADO
+                              </Badge>
                             )}
                           </Td>
                           <Td>{formatQty(lot.quantity_current)} {product.unit}</Td>

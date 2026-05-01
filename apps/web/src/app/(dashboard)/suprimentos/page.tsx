@@ -3,8 +3,8 @@
 import * as React from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
-  Glass, Btn, Stat, Mono, Ico, MetalTag, Input, Select,
-  PageHero, T,
+  Glass, Btn, Stat, Mono, Input, Select,
+  PageHero, T, MetalTag,
 } from '@dermaos/ui/ds';
 import { keepPreviousData } from '@tanstack/react-query';
 import { trpc } from '@/lib/trpc-provider';
@@ -20,16 +20,15 @@ import { ProductModal } from './_components/product-modal';
 import { CategoryModal } from './_components/category-modal';
 import { SupplierModal } from './_components/supplier-modal';
 import { StorageLocationModal } from './_components/storage-location-modal';
+import { MovementModal, type MovementModalInitial } from './_components/movement-modal';
+import { InventoryAlertsPanel } from './_components/inventory-alerts-panel';
 
 /**
- * Suprimentos — DS chrome + StockTable legacy preservada.
+ * Suprimentos — Estoque dermatológico (FEFO + rastreabilidade ANVISA).
  *
- * Phase-4 reskin:
- * - PageHero com módulo `supply` e compliance MetalTags.
- * - 4 Stats FEFO (Em estoque / Alertas / Kits ativos / Compras).
- * - Toolbar DS (search debounced, filtros category/status/location).
- * - StockTable, modais e ProductSheet mantidos intactos para preservar
- *   adjust/transfer/receive flows. Migração para DS em Phase 5.
+ * Centro operacional do módulo: posição consolidada, alertas, registro de
+ * movimentação e drawer de produto/lote. As páginas filhas (lotes, compras,
+ * recebimento, kits, rastreabilidade) recebem navegação via SuprimentosTabs.
  */
 
 const PAGE_SIZE = 50;
@@ -82,6 +81,7 @@ export default function SuprimentosPage() {
   const [categoryModalOpen, setCategoryModalOpen] = React.useState(false);
   const [supplierModalOpen, setSupplierModalOpen] = React.useState(false);
   const [locationModalOpen, setLocationModalOpen] = React.useState(false);
+  const [movementInitial, setMovementInitial] = React.useState<MovementModalInitial | null>(null);
 
   const utils = trpc.useUtils();
 
@@ -97,6 +97,24 @@ export default function SuprimentosPage() {
     { placeholderData: keepPreviousData, staleTime: 30_000 },
   );
 
+  // KPIs sem filtros aplicados (refletem total da clínica, não a página)
+  const totalProductsQuery = trpc.supply.stock.position.useQuery(
+    { page: 1, limit: 1 },
+    { staleTime: 60_000 },
+  );
+  const expiringSoonQuery = trpc.supply.lots.list.useQuery(
+    { alertLevel: 'critical', includeConsumed: false, page: 1, limit: 1 },
+    { staleTime: 60_000 },
+  );
+  const criticalStockQuery = trpc.supply.stock.position.useQuery(
+    { statuses: ['CRITICO', 'RUPTURA'], page: 1, limit: 1 },
+    { staleTime: 60_000 },
+  );
+  const openOrdersQuery = trpc.supply.purchaseOrders.list.useQuery(
+    { status: 'pendente_aprovacao', page: 1, limit: 1 },
+    { staleTime: 60_000 },
+  );
+
   const categoriesQuery = trpc.supply.categories.list.useQuery({}, { staleTime: 60_000 });
   const locationsQuery  = trpc.supply.storageLocations.list.useQuery({}, { staleTime: 60_000 });
   const hasCatalogError = categoriesQuery.isError || locationsQuery.isError;
@@ -107,19 +125,33 @@ export default function SuprimentosPage() {
     locationsQuery.error?.message ??
     'Falha ao carregar suprimentos.';
 
-  /* Backend returns `{ data, total }` per supply router; rows é projetado para
-     a forma `StockRow` que `StockTable` consome. */
+  /* Backend retorna `{ data, total }`; rows projeta a forma `StockRow` que
+     `StockTable` consome. Os campos extras (supplier_name, unit_cost,
+     active_lots) já vêm no payload — basta tipá-los. */
   const rows: StockRow[] = (stockQuery.data?.data ?? []) as unknown as StockRow[];
   const total = stockQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  /* KPIs — "Em estoque" e "Alertas FEFO" derivados; "Kits ativos" e "Compras"
-     são mock até Phase 5b ligar `supply.kits.summary` e `supply.purchases.summary`. */
-  const alertsCount   = rows.filter((r) => !r.statuses.includes('OK')).length;
-  const expiringCount = rows.filter((r) => r.statuses.includes('VENCIMENTO_PROXIMO')).length;
+  /* KPIs reais — derivados das queries dedicadas (limit:1 só para `total`). */
+  const totalProducts = totalProductsQuery.data?.total ?? 0;
+  const expiringSoon  = expiringSoonQuery.data?.total ?? 0;
+  const criticalStock = criticalStockQuery.data?.total ?? 0;
+  const openOrders    = openOrdersQuery.data?.total ?? 0;
 
-  function handleRefresh() { void utils.supply.stock.position.invalidate(); }
-  function handleSaved()   { void utils.supply.stock.position.invalidate(); }
+  /* Valor estimado do que está visível: estimativa baseada na página atual.
+     Real "valor total em estoque" demandaria endpoint dedicado — mantemos
+     marker visível para evitar interpretação errada. */
+  const visibleStockValue = rows.reduce((acc, r) => {
+    const cost = r.unit_cost ?? 0;
+    return acc + cost * r.qty_total;
+  }, 0);
+
+  function handleRefresh() {
+    void utils.supply.stock.position.invalidate();
+    void utils.supply.lots.list.invalidate();
+    void utils.supply.purchaseOrders.list.invalidate();
+  }
+  function handleSaved() { handleRefresh(); }
 
   useRealtime(
     [
@@ -127,7 +159,7 @@ export default function SuprimentosPage() {
       'stock.lot_status_changed',
       'stock.rupture', 'stock.critical_alert', 'stock.low_alert', 'stock.lot_expiring',
     ],
-    () => { void utils.supply.stock.position.invalidate(); },
+    handleRefresh,
   );
 
   const hasFilters = !!(filterCat || filterStatus || filterLoc || searchQ);
@@ -137,22 +169,83 @@ export default function SuprimentosPage() {
       <div style={{ padding: '20px 26px 12px', flexShrink: 0 }}>
         <PageHero
           eyebrow="GESTÃO DE INVENTÁRIO FEFO"
-          title="Suprimentos"
+          title="Estoque"
           module="supply"
           icon="box"
           actions={
             <>
-              <Btn variant="glass" small icon="layers">Kits</Btn>
-              <Btn small icon="plus" onClick={() => setProductModalOpen(true)}>Novo Produto</Btn>
+              <Btn
+                variant="ghost"
+                small
+                icon="settings"
+                onClick={() => setSupplierModalOpen(true)}
+              >
+                Fornecedores
+              </Btn>
+              <Btn
+                variant="ghost"
+                small
+                icon="layers"
+                onClick={() => setLocationModalOpen(true)}
+              >
+                Locais
+              </Btn>
+              <Btn
+                variant="glass"
+                small
+                icon="edit"
+                onClick={() => setMovementInitial({ type: 'saida' })}
+              >
+                Nova baixa
+              </Btn>
+              <Btn
+                small
+                icon="plus"
+                onClick={() => setMovementInitial({ type: 'entrada' })}
+              >
+                Registrar entrada
+              </Btn>
             </>
           }
         />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginBottom: 12 }}>
-          <Stat label="Em estoque"   value={String(total) || '0'}     sub="produtos catalogados"             icon="box"        mod="supply"    pct={80} />
-          <Stat label="Alertas FEFO" value={String(alertsCount)}      sub={`${expiringCount} vencendo em 30d`} icon="alert"     mod="supply"    pct={alertsCount > 0 ? Math.min(100, alertsCount * 10) : 0} />
-          <Stat label="Kits ativos"  value="12"                       sub="3 aguardando"                     icon="layers"     mod="supply"    pct={75} />
-          <Stat label="Compras"      value="R$ 3.280"                 sub="2 ordens abertas"                 icon="creditCard" mod="financial" pct={60} />
+          <Stat
+            label="Produtos ativos"
+            value={String(totalProducts)}
+            sub="catalogados"
+            icon="box"
+            mod="supply"
+            pct={totalProducts > 0 ? 80 : 0}
+          />
+          <Stat
+            label="Estoque crítico"
+            value={String(criticalStock)}
+            sub={criticalStock > 0 ? 'requer ação' : 'nenhum item'}
+            icon="alert"
+            mod="supply"
+            pct={criticalStock > 0 ? Math.min(100, criticalStock * 10) : 0}
+          />
+          <Stat
+            label="Lotes vencendo"
+            value={String(expiringSoon)}
+            sub="< 30 dias"
+            icon="clock"
+            mod="supply"
+            pct={expiringSoon > 0 ? Math.min(100, expiringSoon * 8) : 0}
+          />
+          <Stat
+            label="Compras abertas"
+            value={String(openOrders)}
+            sub={openOrders > 0 ? 'aguardando aprovação' : 'sem ordens pendentes'}
+            icon="creditCard"
+            mod="financial"
+            pct={openOrders > 0 ? 50 : 0}
+          />
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <InventoryAlertsPanel />
         </div>
 
         {/* Toolbar */}
@@ -199,12 +292,28 @@ export default function SuprimentosPage() {
             </Btn>
           )}
 
-          <Btn variant="ghost" small icon="activity" onClick={handleRefresh} aria-label="Atualizar">{''}</Btn>
+          <Btn variant="ghost" small icon="activity" onClick={handleRefresh} aria-label="Atualizar">
+            {''}
+          </Btn>
+
+          <Btn
+            variant="ghost"
+            small
+            icon="plus"
+            onClick={() => setProductModalOpen(true)}
+            title="Cadastrar novo produto"
+          >
+            Novo produto
+          </Btn>
 
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 5 }}>
             <MetalTag>FEFO</MetalTag>
             <MetalTag>ANVISA</MetalTag>
-            <MetalTag>AES-256</MetalTag>
+            {visibleStockValue > 0 && (
+              <MetalTag>
+                {visibleStockValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+              </MetalTag>
+            )}
           </div>
         </Glass>
 
@@ -215,6 +324,7 @@ export default function SuprimentosPage() {
                 ? 'NENHUM PRODUTO ENCONTRADO'
                 : `${total} ${total !== 1 ? 'PRODUTOS ENCONTRADOS' : 'PRODUTO ENCONTRADO'}`}
               {stockQuery.isFetching && ' · ATUALIZANDO'}
+              {visibleStockValue > 0 && ` · VALOR VISÍVEL ${visibleStockValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`}
             </Mono>
           </div>
         )}
@@ -240,7 +350,7 @@ export default function SuprimentosPage() {
               isLoading={stockQuery.isLoading}
               onRowClick={(row) => setSheetProduct(row)}
               onAdjust={(row) => setAdjustProduct(row)}
-              onOrder={(row) => { console.info('order', row.id); }}
+              onOrder={(row) => setMovementInitial({ type: 'entrada', productId: row.id })}
             />
           )}
         </Glass>
@@ -264,12 +374,22 @@ export default function SuprimentosPage() {
         product={sheetProduct}
         onClose={() => setSheetProduct(null)}
         onAdjust={(p) => { setSheetProduct(null); setAdjustProduct(p); }}
+        onEntry={(p) => { setSheetProduct(null); setMovementInitial({ type: 'entrada', productId: p.id }); }}
+        onExit={(p) => { setSheetProduct(null); setMovementInitial({ type: 'saida', productId: p.id }); }}
       />
       <AdjustStockModal product={adjustProduct} onClose={() => setAdjustProduct(null)} onSaved={handleSaved} />
       <ProductModal     open={productModalOpen}  onClose={() => setProductModalOpen(false)}  onSaved={handleSaved} />
       <CategoryModal    open={categoryModalOpen} onClose={() => setCategoryModalOpen(false)} onSaved={handleSaved} />
       <SupplierModal    open={supplierModalOpen} onClose={() => setSupplierModalOpen(false)} onSaved={handleSaved} />
       <StorageLocationModal open={locationModalOpen} onClose={() => setLocationModalOpen(false)} onSaved={handleSaved} />
+
+      <MovementModal
+        open={!!movementInitial}
+        initial={movementInitial}
+        contextLot={null}
+        onClose={() => setMovementInitial(null)}
+        onSaved={handleSaved}
+      />
     </div>
   );
 }
