@@ -26,6 +26,10 @@ export interface StockRow {
   unit_cost?:       number | null;
   /** Quantidade de lotes ativos com saldo. */
   active_lots?:     number;
+  /** ISO timestamp da última movimentação registrada (qualquer tipo). */
+  last_movement_at?:   string | null;
+  /** Tipo da última movimentação. */
+  last_movement_type?: string | null;
 }
 
 export interface StockTableProps {
@@ -43,6 +47,78 @@ function formatQty(n: number): string {
 function formatBRL(n: number | null | undefined): string {
   if (n == null) return '—';
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+/* ── Última movimentação ─────────────────────────────────────────────────── */
+
+const MOV_TYPE_CHIP: Record<string, { label: string; bg: string; fg: string }> = {
+  entrada:       { label: 'ENT', bg: T.successBg, fg: T.success },
+  saida:         { label: 'SAÍ', bg: T.dangerBg,  fg: T.danger  },
+  uso_paciente:  { label: 'USO', bg: T.infoBg,    fg: T.info    },
+  ajuste:        { label: 'AJU', bg: T.warningBg, fg: T.warning },
+  perda:         { label: 'PER', bg: T.dangerBg,  fg: T.danger  },
+  vencimento:    { label: 'VNC', bg: T.dangerBg,  fg: T.danger  },
+  transferencia: { label: 'TRF', bg: T.infoBg,    fg: T.info    },
+};
+
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  const diff = Date.now() - then;
+  if (Number.isNaN(then)) return '';
+  if (diff < 0)              return 'agora';
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1)           return 'agora';
+  if (minutes < 60)          return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24)            return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30)             return `${days}d`;
+  const months = Math.floor(days / 30);
+  if (months < 12)           return `${months}mes`;
+  const years = Math.floor(months / 12);
+  return `${years}a`;
+}
+
+function LastMovementCell({
+  at,
+  type,
+}: {
+  at:   string | null | undefined;
+  type: string | null | undefined;
+}) {
+  if (!at) return <Mono size={9} color={T.textMuted}>—</Mono>;
+  const chip = type ? MOV_TYPE_CHIP[type] : undefined;
+  const absolute = new Date(at).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+  return (
+    <div
+      title={absolute}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+    >
+      {chip && (
+        <span
+          style={{
+            padding: '1px 5px',
+            borderRadius: 3,
+            background: chip.bg,
+            color: chip.fg,
+            fontSize: 8,
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontWeight: 700,
+            letterSpacing: '0.6px',
+            flexShrink: 0,
+          }}
+        >
+          {chip.label}
+        </span>
+      )}
+      <Mono size={10} color={T.textPrimary} weight={500}>
+        {relativeTime(at)}
+      </Mono>
+    </div>
+  );
 }
 
 function ExpiryCell({ date }: { date: string | null }) {
@@ -136,7 +212,7 @@ export function StockTable({
 
   return (
     <div style={{ width: '100%', overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1180 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1280 }}>
         <thead>
           <tr>
             <th style={HEAD_CELL}>Status</th>
@@ -148,6 +224,7 @@ export function StockTable({
             <th style={{ ...HEAD_CELL, textAlign: 'right' }}>Mín.</th>
             <th style={{ ...HEAD_CELL, textAlign: 'right' }}>Custo</th>
             <th style={HEAD_CELL}>Fornecedor</th>
+            <th style={HEAD_CELL}>Últ. Mov.</th>
             <th style={{ ...HEAD_CELL, textAlign: 'right' }}>Cob.</th>
             <th style={HEAD_CELL}></th>
           </tr>
@@ -256,6 +333,9 @@ export function StockTable({
               </td>
               <td style={{ ...CELL, color: T.textSecondary, fontSize: 11, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {row.supplier_name ?? '—'}
+              </td>
+              <td style={CELL}>
+                <LastMovementCell at={row.last_movement_at} type={row.last_movement_type} />
               </td>
               <td style={{ ...CELL, textAlign: 'right' }}>
                 <CoverageCell days={row.coverage_days} />

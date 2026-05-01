@@ -37,6 +37,10 @@ export interface StockPositionRow {
   statuses:         StockStatus[];
   status_priority:  number;
   created_at:       string;
+  /** Timestamp ISO da última movimentação registrada (qualquer tipo). Null se nunca movimentou. */
+  last_movement_at:   string | null;
+  /** Tipo da última movimentação (entrada/saida/ajuste/perda/transferencia/uso_paciente/vencimento). */
+  last_movement_type: string | null;
 }
 
 export interface LotRow {
@@ -136,6 +140,15 @@ export async function listStockPosition(
          WHERE clinic_id = $1
          GROUP BY product_id
       ),
+      last_mov AS (
+        SELECT DISTINCT ON (product_id)
+               product_id,
+               performed_at AS last_movement_at,
+               type::text   AS last_movement_type
+          FROM supply.inventory_movements
+         WHERE clinic_id = $1
+         ORDER BY product_id, performed_at DESC
+      ),
       with_status AS (
         SELECT
           p.id, p.clinic_id, p.name, p.sku, p.barcode, p.brand, p.unit,
@@ -167,12 +180,15 @@ export async function listStockPosition(
                       AND la.next_expiry <= CURRENT_DATE + INTERVAL '30 days'
                  THEN 'VENCIMENTO_PROXIMO' END
           ], NULL) AS statuses_arr,
-          p.created_at
+          p.created_at,
+          lm.last_movement_at,
+          lm.last_movement_type
         FROM supply.products p
    LEFT JOIN supply.categories c ON c.id = p.category_id AND c.deleted_at IS NULL
    LEFT JOIN supply.suppliers  s ON s.id = p.preferred_supplier_id AND s.deleted_at IS NULL
    LEFT JOIN lot_agg la ON la.product_id = p.id
    LEFT JOIN consumption co ON co.product_id = p.id
+   LEFT JOIN last_mov lm ON lm.product_id = p.id
         WHERE ${productWhere} ${locationFilter}
       )
       SELECT *,
