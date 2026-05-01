@@ -133,6 +133,14 @@ export function buildDisplayId(id: string): string {
   return id.slice(0, 8).toUpperCase();
 }
 
+/** Mascara CPF "12345678901" → "***.456.789-**" */
+export function maskCpf(cpf: string | null | undefined): string | null {
+  if (!cpf) return null;
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11) return cpf;
+  return `***.${digits.slice(3, 6)}.${digits.slice(6, 9)}-**`;
+}
+
 /** Mascara telefone "11987654321" → "(11) •••••-4321" */
 export function maskPhone(phone: string | null | undefined): string | null {
   if (!phone) return null;

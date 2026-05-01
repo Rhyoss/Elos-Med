@@ -1,6 +1,6 @@
 'use client';
 
-import { Badge, Bar, Glass, Ico, Mono, EmptyState, T } from '@dermaos/ui/ds';
+import { Badge, Bar, Btn, Glass, Ico, Mono, EmptyState, Skeleton, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 
 interface TabProtocolosProps {
@@ -39,9 +39,11 @@ export function TabProtocolos({ patientId }: TabProtocolosProps) {
 
   if (listQ.isLoading) {
     return (
-      <Glass style={{ padding: 32, textAlign: 'center' }}>
-        <Mono size={11} color={T.textMuted}>CARREGANDO PROTOCOLOS…</Mono>
-      </Glass>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Skeleton key={i} height={140} delay={i * 80} />
+        ))}
+      </div>
     );
   }
 
@@ -49,14 +51,17 @@ export function TabProtocolos({ patientId }: TabProtocolosProps) {
 
   if (items.length === 0) {
     return (
-      <Glass style={{ padding: 40 }}>
-        <EmptyState
-          icon="layers"
-          title="Nenhum protocolo"
-          description="Protocolos de tratamento (séries de sessões como peeling, laser, etc.) aparecerão aqui quando criados."
-          tone="primary"
-        />
-      </Glass>
+      <EmptyState
+        label="PROTOCOLOS"
+        icon="layers"
+        title="Nenhum protocolo"
+        description="Protocolos de tratamento seriados (peeling, laser, fototerapia, rejuvenescimento) aparecerão aqui quando criados."
+        action={
+          <Btn small icon="layers" disabled>
+            Novo protocolo
+          </Btn>
+        }
+      />
     );
   }
 

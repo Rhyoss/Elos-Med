@@ -1,11 +1,12 @@
 'use client';
 
-import { Badge, Glass, Ico, Mono, EmptyState, Btn, T } from '@dermaos/ui/ds';
+import { Badge, Btn, Glass, Ico, Mono, EmptyState, Skeleton, T } from '@dermaos/ui/ds';
 import { PRESCRIPTION_STATUS_LABELS, PRESCRIPTION_TYPE_LABELS } from '@dermaos/shared';
 import { trpc } from '@/lib/trpc-provider';
 
 interface TabPrescricoesProps {
   patientId: string;
+  onNovaPrescrição?: () => void;
 }
 
 const STATUS_VARIANT: Record<string, 'default' | 'success' | 'warning' | 'danger'> = {
@@ -25,7 +26,7 @@ const DELIVERY_LABEL: Record<string, string> = {
   failed:    'Falhou',
 };
 
-const DELIVERY_ICON: Record<string, 'clock' | 'check' | 'check' | 'alert'> = {
+const DELIVERY_ICON: Record<string, 'clock' | 'check' | 'alert'> = {
   pending:   'clock',
   sent_mock: 'check',
   delivered: 'check',
@@ -38,7 +39,7 @@ function formatDate(d: Date | string | null): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export function TabPrescricoes({ patientId }: TabPrescricoesProps) {
+export function TabPrescricoes({ patientId, onNovaPrescrição }: TabPrescricoesProps) {
   const listQ = trpc.clinical.prescriptions.listByPatient.useQuery({
     patientId,
     page:     1,
@@ -47,9 +48,11 @@ export function TabPrescricoes({ patientId }: TabPrescricoesProps) {
 
   if (listQ.isLoading) {
     return (
-      <Glass style={{ padding: 32, textAlign: 'center' }}>
-        <Mono size={11} color={T.textMuted}>CARREGANDO PRESCRIÇÕES…</Mono>
-      </Glass>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} height={100} delay={i * 80} />
+        ))}
+      </div>
     );
   }
 
@@ -57,14 +60,19 @@ export function TabPrescricoes({ patientId }: TabPrescricoesProps) {
 
   if (items.length === 0) {
     return (
-      <Glass style={{ padding: 40 }}>
-        <EmptyState
-          icon="file"
-          title="Nenhuma prescrição"
-          description="As prescrições serão criadas durante os atendimentos e aparecerão aqui automaticamente."
-          tone="primary"
-        />
-      </Glass>
+      <EmptyState
+        label="PRESCRIÇÕES"
+        icon="file"
+        title="Nenhuma prescrição"
+        description="As prescrições serão criadas durante os atendimentos e aparecerão aqui automaticamente."
+        action={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            {onNovaPrescrição && (
+              <Btn small icon="file" onClick={onNovaPrescrição}>Nova prescrição</Btn>
+            )}
+          </div>
+        }
+      />
     );
   }
 
@@ -74,31 +82,27 @@ export function TabPrescricoes({ patientId }: TabPrescricoesProps) {
         <Mono size={11} spacing="1.2px" color={T.primary}>
           {items.length} {items.length === 1 ? 'PRESCRIÇÃO' : 'PRESCRIÇÕES'}
         </Mono>
+        {onNovaPrescrição && (
+          <Btn variant="ghost" small icon="file" onClick={onNovaPrescrição}>Nova prescrição</Btn>
+        )}
       </div>
 
       {items.map((rx) => (
         <Glass key={rx.id} hover style={{ padding: '16px 18px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: T.r.md,
-                  background: T.primaryBg,
-                  border: `1px solid ${T.primaryBorder}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
+              <div style={{
+                width: 36, height: 36, borderRadius: T.r.md,
+                background: T.primaryBg, border: `1px solid ${T.primaryBorder}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
                 <Ico name="file" size={18} color={T.primary} />
               </div>
               <div>
-                <p style={{ fontSize: 16, fontWeight: 600, color: T.textPrimary }}>
+                <p style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary }}>
                   {rx.prescriptionNumber ?? rx.id.slice(0, 8).toUpperCase()}
                 </p>
-                <Mono size={11}>
+                <Mono size={10}>
                   {formatDate(rx.signedAt ?? rx.createdAt)} · {PRESCRIPTION_TYPE_LABELS[rx.type] ?? rx.type}
                 </Mono>
               </div>
@@ -108,21 +112,11 @@ export function TabPrescricoes({ patientId }: TabPrescricoesProps) {
             </Badge>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr',
-              gap: 10,
-            }}
-          >
-            <div
-              style={{
-                padding: '10px 12px',
-                borderRadius: T.r.md,
-                background: T.glass,
-                border: `1px solid ${T.glassBorder}`,
-              }}
-            >
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <div style={{
+              padding: '10px 12px', borderRadius: T.r.md,
+              background: T.glass, border: `1px solid ${T.glassBorder}`,
+            }}>
               <Mono size={9}>ITENS</Mono>
               <p style={{ fontSize: 22, fontWeight: 700, color: T.textPrimary, marginTop: 2 }}>
                 {rx.itemCount}
@@ -132,14 +126,10 @@ export function TabPrescricoes({ patientId }: TabPrescricoesProps) {
               </Mono>
             </div>
 
-            <div
-              style={{
-                padding: '10px 12px',
-                borderRadius: T.r.md,
-                background: T.glass,
-                border: `1px solid ${T.glassBorder}`,
-              }}
-            >
+            <div style={{
+              padding: '10px 12px', borderRadius: T.r.md,
+              background: T.glass, border: `1px solid ${T.glassBorder}`,
+            }}>
               <Mono size={9}>ENVIO</Mono>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
                 <Ico
@@ -153,14 +143,10 @@ export function TabPrescricoes({ patientId }: TabPrescricoesProps) {
               </div>
             </div>
 
-            <div
-              style={{
-                padding: '10px 12px',
-                borderRadius: T.r.md,
-                background: T.primaryBg,
-                border: `1px solid ${T.primaryBorder}`,
-              }}
-            >
+            <div style={{
+              padding: '10px 12px', borderRadius: T.r.md,
+              background: T.primaryBg, border: `1px solid ${T.primaryBorder}`,
+            }}>
               <Mono size={9} color={T.primary}>DATA</Mono>
               <p style={{ fontSize: 14, fontWeight: 600, color: T.primary, marginTop: 4 }}>
                 {formatDate(rx.signedAt ?? rx.createdAt)}

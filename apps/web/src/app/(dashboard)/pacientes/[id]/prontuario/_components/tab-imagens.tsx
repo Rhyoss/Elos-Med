@@ -1,12 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { Glass, Ico, Mono, Badge, EmptyState, T } from '@dermaos/ui/ds';
+import { Btn, Glass, Ico, Mono, Badge, EmptyState, Skeleton, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { ImageViewer, type ImageMeta } from './image-viewer';
 
 interface TabImagensProps {
   patientId: string;
+  onUploadFotos?: () => void;
 }
 
 const CAPTURE_LABEL: Record<string, string> = {
@@ -33,7 +34,7 @@ function formatDate(d: Date | string | null): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export function TabImagens({ patientId }: TabImagensProps) {
+export function TabImagens({ patientId, onUploadFotos }: TabImagensProps) {
   const listQ = trpc.clinical.lesions.listPatientImages.useQuery({
     patientId,
     page:     1,
@@ -46,22 +47,29 @@ export function TabImagens({ patientId }: TabImagensProps) {
 
   if (listQ.isLoading) {
     return (
-      <Glass style={{ padding: 32, textAlign: 'center' }}>
-        <Mono size={11} color={T.textMuted}>CARREGANDO IMAGENS…</Mono>
-      </Glass>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} height={200} delay={i * 60} />
+        ))}
+      </div>
     );
   }
 
   if (items.length === 0) {
     return (
-      <Glass style={{ padding: 40 }}>
-        <EmptyState
-          icon="image"
-          title="Nenhuma imagem clínica"
-          description="Fotos clínicas, dermoscópicas e de acompanhamento capturadas durante consultas aparecerão aqui."
-          tone="primary"
-        />
-      </Glass>
+      <EmptyState
+        label="IMAGENS CLÍNICAS"
+        icon="image"
+        title="Nenhuma imagem clínica"
+        description="Fotos clínicas, dermoscópicas e de acompanhamento capturadas durante consultas aparecerão aqui."
+        action={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            {onUploadFotos && (
+              <Btn small icon="image" onClick={onUploadFotos}>Upload fotos clínicas</Btn>
+            )}
+          </div>
+        }
+      />
     );
   }
 
@@ -70,6 +78,16 @@ export function TabImagens({ patientId }: TabImagensProps) {
 
   return (
     <>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <Mono size={11} spacing="1.2px" color={T.primary}>
+          {items.length} {items.length === 1 ? 'IMAGEM' : 'IMAGENS'}
+        </Mono>
+        {onUploadFotos && (
+          <Btn variant="ghost" small icon="image" onClick={onUploadFotos}>Upload fotos</Btn>
+        )}
+      </div>
+
       {/* Filters */}
       {captureTypes.length > 1 && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>

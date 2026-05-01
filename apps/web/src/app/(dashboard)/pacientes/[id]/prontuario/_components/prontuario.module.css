@@ -1,9 +1,31 @@
-/* ── Layout principal ────────────────────────────────────────────── */
+/* ── Layout principal — 2 colunas: sidebar + content ─────────────── */
 .shell {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+}
+
+.header {
+  flex-shrink: 0;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--divider, #E8E8E8);
+  background: #FAFAFA;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .main {
@@ -20,16 +42,18 @@
   background: #F2F2F2;
 }
 
-/* ── Mobile (< 900px) ────────────────────────────────────────────── */
-@media (max-width: 900px) {
-  .shell {
-    height: auto;
-    min-height: 100%;
-    overflow: visible;
+/* ── Mobile (< 1024px): sidebar collapses ────────────────────────── */
+@media (max-width: 1024px) {
+  .body {
+    flex-direction: column;
   }
 
-  .main {
-    overflow: visible;
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--divider, #E8E8E8);
+    max-height: 240px;
+    padding: 14px 16px;
   }
 
   .content {
@@ -46,8 +70,15 @@
     background: white;
   }
 
+  .header,
+  .sidebar {
+    display: none !important;
+  }
+
+  .body,
   .main {
     overflow: visible;
+    display: block;
   }
 
   .content {
@@ -56,20 +87,16 @@
     overflow: visible;
   }
 
-  /* Esconde a chrome global (Dashboard sidebar, top bar) e os botões da tab bar */
   .shell :global(nav[aria-label*="navegação principal"]),
-  .shell :global(nav[aria-label*="Seções do prontuário"]),
   .shell :global(.print-hide) {
     display: none !important;
   }
 
-  /* Cada Glass card vira borda simples para impressão */
   .content :global([data-print-section]) {
     page-break-inside: avoid;
     margin-bottom: 12pt;
   }
 
-  /* A4 page setup */
   @page {
     size: A4;
     margin: 14mm 12mm;
