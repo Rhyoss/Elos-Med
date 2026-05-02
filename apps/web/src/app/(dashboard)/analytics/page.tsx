@@ -1,188 +1,220 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
-  Glass, Btn, Stat, Mono, Bar,
-  PageHero, T, type ShellModule,
+  Glass, Btn, Mono, TabBar, PageHero, T,
+  type TabItem,
 } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
+import { isoNDaysAgo, isoToday } from './_components/analytics-helpers';
+import { TabOcupacao } from './_components/tab-ocupacao';
+import { TabReceita } from './_components/tab-receita';
+import { TabPacientes } from './_components/tab-pacientes';
+import { TabProcedimentos } from './_components/tab-procedimentos';
+import { TabComunicacao } from './_components/tab-comunicacao';
+import { TabEstoque } from './_components/tab-estoque';
 
-/**
- * Analytics — inteligência operacional.
- *
- * Wired-up Phase 5b — chama `trpc.analytics.overview` para o range padrão
- * (últimos 30 dias). As 4 cards de stats / chart semanal / NPS / breakdown
- * permanecem como demo visual até as MVs noturnas (Prompt 17) terem dados
- * reais de produção; servem como referência de layout enquanto a clínica
- * acumula histórico.
- */
-function isoNDaysAgo(days: number): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+/* ── Tab definitions ───────────────────────────────────────────────────────── */
+
+const TABS: ReadonlyArray<TabItem> = [
+  { id: 'ocupacao',       label: 'Ocupação',       icon: 'calendar' },
+  { id: 'receita',        label: 'Receita',        icon: 'creditCard' },
+  { id: 'pacientes',      label: 'Pacientes',      icon: 'users' },
+  { id: 'procedimentos',  label: 'Procedimentos',  icon: 'activity' },
+  { id: 'comunicacao',    label: 'Comunicação',     icon: 'message' },
+  { id: 'estoque',        label: 'Estoque',         icon: 'box' },
+];
+
+type TabId = typeof TABS[number]['id'];
+
+const EXPORT_TAB_MAP: Record<TabId, string> = {
+  ocupacao:      'overview',
+  receita:       'financial',
+  pacientes:     'journey',
+  procedimentos: 'overview',
+  comunicacao:   'omni',
+  estoque:       'supply',
+};
+
+/* ── Period presets ─────────────────────────────────────────────────────────── */
+
+const PRESETS = [
+  { label: '7d',  days: 7 },
+  { label: '30d', days: 30 },
+  { label: '90d', days: 90 },
+  { label: '12m', days: 365 },
+] as const;
+
+/* ── Main page ─────────────────────────────────────────────────────────────── */
 
 export default function AnalyticsPage() {
-  /* ── tRPC (live data) — overview p/ os últimos 30 dias ──────────── */
-  const overviewQuery = trpc.analytics.overview.useQuery(
-    { start: isoNDaysAgo(30), end: isoToday() },
-    { staleTime: 60_000, retry: false },
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+
+  const activeTab = (params.get('tab') as TabId) || 'ocupacao';
+  const startParam = params.get('start') || isoNDaysAgo(30);
+  const endParam = params.get('end') || isoToday();
+
+  function updateParams(updates: Record<string, string | null>) {
+    const next = new URLSearchParams(params.toString());
+    for (const [key, val] of Object.entries(updates)) {
+      if (val == null || val === '') next.delete(key);
+      else next.set(key, val);
+    }
+    router.replace(`${pathname}?${next.toString()}`);
+  }
+
+  function setTab(id: string) {
+    updateParams({ tab: id });
+  }
+
+  function setPeriod(days: number) {
+    updateParams({ start: isoNDaysAgo(days), end: isoToday() });
+  }
+
+  const activeDays = Math.round(
+    (new Date(endParam).getTime() - new Date(startParam).getTime()) / 86_400_000 + 1
   );
-  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-  const _live = overviewQuery.data;
-  /* (live data renderizada nas sub-rotas de analytics; nesta tela mantemos
-     o demo visual até existir histórico relevante para os 4 stats agregados) */
-  const stats: Array<{
-    label: string;
-    value: string;
-    sub: string;
-    icon: 'user' | 'creditCard' | 'zap' | 'box';
-    mod: ShellModule;
-  }> = [
-    { label: 'Clinical',     value: '68%',       sub: 'Consultas e prontuários',  icon: 'user',       mod: 'clinical' },
-    { label: 'Financeiro',   value: 'R$ 62.4k',  sub: 'Receita do mês',           icon: 'creditCard', mod: 'financial' },
-    { label: 'IA / Aurora',  value: '94%',       sub: 'Satisfação atendimento',   icon: 'zap',        mod: 'aiMod' },
-    { label: 'Suprimentos',  value: '127',       sub: 'Itens em estoque',         icon: 'box',        mod: 'supply' },
-  ];
 
-  const weekData = [
-    { l: 'Seg', v: 12 },
-    { l: 'Ter', v: 18 },
-    { l: 'Qua', v: 14 },
-    { l: 'Qui', v: 20 },
-    { l: 'Sex', v: 16 },
-    { l: 'Sáb', v: 6  },
-  ];
+  /* ── Export ──────────────────────────────────────────────────────────────── */
 
-  const nps = [
-    { l: 'Atendimento clínico', v: 96, c: T.clinical.color },
-    { l: 'Comunicação IA',      v: 91, c: T.ai },
-    { l: 'Tempo de espera',     v: 74, c: T.warning },
-    { l: 'Espaço físico',       v: 88, c: T.financial.color },
-  ];
+  const exportMut = trpc.analytics.exportReport.useMutation({
+    onSuccess: (result) => {
+      if (result.format === 'pdf' && 'contentBase64' in result) {
+        const binary = atob(result.contentBase64 as string);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'text/html; charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      } else if (result.format === 'csv' && 'content' in result) {
+        const blob = new Blob([result.content as string], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `analytics-${activeTab}-${startParam}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    },
+  });
 
-  const breakdown: Array<{ mod: ShellModule; items: Array<[string, string]> }> = [
-    { mod: 'clinical',  items: [['Consultas', '86'], ['Prescrições', '43'], ['Protocolos', '21']] },
-    { mod: 'financial', items: [['Receita', 'R$ 62.4k'], ['Ticket', 'R$ 580'], ['Faturas', '108']] },
-    { mod: 'aiMod',     items: [['Msgs IA', '412'], ['Escalações', '14'], ['NPS IA', '91%']] },
-    { mod: 'supply',    items: [['Kits usados', '38'], ['Consumidos', '247'], ['Compras', 'R$ 8.2k']] },
-  ];
+  function handleExport(format: 'pdf' | 'csv') {
+    const tab = EXPORT_TAB_MAP[activeTab] as 'overview' | 'financial' | 'journey' | 'omni' | 'supply';
+    exportMut.mutate({ tab, format, start: startParam, end: endParam });
+  }
 
   return (
-    <div style={{ overflowY: 'auto', height: '100%', padding: '22px 26px' }}>
-      <PageHero
-        eyebrow="INTELIGÊNCIA OPERACIONAL"
-        title="Analytics"
-        icon="barChart"
-        accent={T.ai}
-        actions={
-          <>
-            <Btn variant="ghost" small>CSV</Btn>
-            <Btn variant="glass" small icon="download">PDF</Btn>
-          </>
-        }
-      />
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginBottom: 20 }}>
-        {stats.map((s) => (
-          <Stat key={s.label} {...s} />
-        ))}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-        {/* Bar chart Consultas/dia */}
-        <Glass style={{ padding: '18px 22px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>Consultas/dia — Jan 2026</span>
-            <Mono size={9} color={T.clinical.color}>86 TOTAL</Mono>
-          </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 80 }}>
-            {weekData.map((d, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 3,
-                  flex: 1,
-                }}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Header */}
+      <div style={{ padding: '22px 26px 0' }}>
+        <PageHero
+          eyebrow="INTELIGÊNCIA OPERACIONAL"
+          title="Analytics"
+          icon="barChart"
+          accent={T.ai}
+          actions={
+            <>
+              <Btn
+                variant="ghost"
+                small
+                onClick={() => handleExport('csv')}
+                disabled={exportMut.isPending}
               >
-                <div
-                  style={{
-                    width: '100%',
-                    borderRadius: `${T.r.sm}px ${T.r.sm}px 0 0`,
-                    background: `linear-gradient(180deg, ${T.clinical.color}, ${T.clinical.color}88)`,
-                    height: `${(d.v / 24) * 72}px`,
-                    transition: 'height 0.6s',
-                  }}
-                />
-                <Mono size={7}>{d.l}</Mono>
-              </div>
-            ))}
-          </div>
-        </Glass>
+                CSV
+              </Btn>
+              <Btn
+                variant="glass"
+                small
+                icon="download"
+                onClick={() => handleExport('pdf')}
+                disabled={exportMut.isPending}
+              >
+                {exportMut.isPending ? 'Exportando…' : 'PDF'}
+              </Btn>
+            </>
+          }
+        />
 
-        {/* NPS metal */}
-        <Glass metal style={{ padding: '18px 22px' }}>
-          <Mono size={9} spacing="1.2px">NPS &amp; SATISFAÇÃO</Mono>
-          <div style={{ marginTop: 12 }}>
-            {nps.map((item) => (
-              <div key={item.l} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <span style={{ fontSize: 11, color: T.textSecondary, width: 150, flexShrink: 0 }}>
-                  {item.l}
-                </span>
-                <Bar pct={item.v} color={item.c} />
-                <span
+        {/* Period filter */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+          <Mono size={10} spacing="1px" color={T.textMuted}>PERÍODO</Mono>
+          <div style={{ display: 'flex', gap: 4, marginLeft: 8 }}>
+            {PRESETS.map((p) => {
+              const isActive = activeDays === p.days || (p.days === 365 && activeDays >= 360);
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => setPeriod(p.days)}
                   style={{
+                    padding: '4px 12px',
+                    borderRadius: T.r.sm,
+                    border: `1px solid ${isActive ? T.primary : T.divider}`,
+                    background: isActive ? `${T.primary}12` : 'transparent',
+                    color: isActive ? T.primary : T.textSecondary,
                     fontSize: 12,
-                    fontWeight: 700,
-                    color: T.textPrimary,
-                    width: 32,
-                    textAlign: 'right',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
                   }}
                 >
-                  {item.v}%
-                </span>
-              </div>
-            ))}
+                  {p.label}
+                </button>
+              );
+            })}
           </div>
-        </Glass>
+          <div style={{ marginLeft: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input
+              type="date"
+              value={startParam}
+              onChange={(e) => updateParams({ start: e.target.value })}
+              style={{
+                padding: '4px 8px', borderRadius: T.r.sm,
+                border: `1px solid ${T.divider}`, background: 'transparent',
+                color: T.textPrimary, fontSize: 12, fontFamily: "'IBM Plex Mono', monospace",
+              }}
+            />
+            <span style={{ color: T.textMuted, fontSize: 11 }}>—</span>
+            <input
+              type="date"
+              value={endParam}
+              onChange={(e) => updateParams({ end: e.target.value })}
+              style={{
+                padding: '4px 8px', borderRadius: T.r.sm,
+                border: `1px solid ${T.divider}`, background: 'transparent',
+                color: T.textPrimary, fontSize: 12, fontFamily: "'IBM Plex Mono', monospace",
+              }}
+            />
+          </div>
+          {exportMut.isError && (
+            <span style={{ fontSize: 11, color: T.danger, marginLeft: 12 }}>
+              Erro ao exportar. Verifique suas permissões.
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Breakdown por módulo */}
-      <Glass style={{ padding: '18px 22px' }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>Breakdown por módulo — Jan 2026</span>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginTop: 12 }}>
-          {breakdown.map((col) => {
-            const m = T[col.mod];
-            return (
-              <div
-                key={col.mod}
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: T.r.md,
-                  background: m.bg,
-                  border: `1px solid ${m.color}15`,
-                }}
-              >
-                <Mono size={7} color={m.color}>{m.label.toUpperCase()}</Mono>
-                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {col.items.map(([k, v]) => (
-                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 11, color: T.textMuted }}>{k}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary }}>{v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Glass>
+      {/* Tab bar */}
+      <TabBar
+        tabs={TABS}
+        activeId={activeTab}
+        onChange={setTab}
+        module="clinical"
+      />
+
+      {/* Tab content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 26px 40px' }}>
+        {activeTab === 'ocupacao' && <TabOcupacao start={startParam} end={endParam} />}
+        {activeTab === 'receita' && <TabReceita start={startParam} end={endParam} />}
+        {activeTab === 'pacientes' && <TabPacientes start={startParam} end={endParam} />}
+        {activeTab === 'procedimentos' && <TabProcedimentos start={startParam} end={endParam} />}
+        {activeTab === 'comunicacao' && <TabComunicacao start={startParam} end={endParam} />}
+        {activeTab === 'estoque' && <TabEstoque start={startParam} end={endParam} />}
+      </div>
     </div>
   );
 }

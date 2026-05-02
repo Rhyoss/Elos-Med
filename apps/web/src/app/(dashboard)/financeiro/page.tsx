@@ -1,94 +1,195 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import {
-  Glass, Btn, Stat, Mono, Badge, Ico, Bar,
+  Glass, Btn, Stat, Mono, Badge, Ico, Bar, Skeleton,
   PageHero, T,
+  type IcoName, type BadgeVariant,
 } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
+import { usePermission } from '@/lib/auth';
+import {
+  INVOICE_STATUS_LABELS,
+  PAYMENT_METHOD_LABELS,
+  type InvoiceStatus,
+  type PaymentMethod,
+} from '@dermaos/shared';
 
-/**
- * Financeiro — caixa & faturamento.
- *
- * Wired-up Phase 5b — tabela de faturas usa `trpc.financial.invoices.list`.
- * Stats/DRE/cashSplit permanecem como demo visual (não há single-call
- * agregador correspondente; cada um exigiria dashboard procedure dedicado).
- * Sub-rotas (`/financeiro/dre`, `/faturas`, `/metas`) seguem como roadmap.
- */
-const STATUS_LABEL: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' }> = {
-  paid:      { label: 'Pago',     variant: 'success' },
-  pending:   { label: 'Pendente', variant: 'warning' },
-  overdue:   { label: 'Vencida',  variant: 'danger'  },
-  partial:   { label: 'Parcial',  variant: 'warning' },
-  cancelled: { label: 'Cancelada', variant: 'danger' },
-  draft:     { label: 'Rascunho', variant: 'warning' },
+const STATUS_BADGE: Record<InvoiceStatus, BadgeVariant> = {
+  rascunho:  'default',
+  emitida:   'info',
+  parcial:   'warning',
+  paga:      'success',
+  vencida:   'danger',
+  cancelada: 'danger',
 };
 
 function fmtBRL(centavos: number): string {
-  return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return (centavos / 100).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    maximumFractionDigits: 0,
+  });
 }
+
+function fmtBRLFull(centavos: number): string {
+  return (centavos / 100).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+}
+
 function fmtShortDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
 }
 
+function fmtPct(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function isoToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isoMonthStart(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function monthLabel(): string {
+  const d = new Date();
+  return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+
+function SectionHeader({
+  icon,
+  color,
+  title,
+  action,
+}: {
+  icon: IcoName;
+  color?: string;
+  title: string;
+  action?: React.ReactNode;
+}) {
+  const c = color ?? T.financial.color;
+  return (
+    <div
+      style={{
+        padding: '14px 18px',
+        borderBottom: `1px solid ${T.divider}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: T.r.sm,
+            background: `${c}10`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Ico name={icon} size={14} color={c} />
+        </div>
+        <span style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{title}</span>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function ErrorCard({
+  title,
+  onRetry,
+}: {
+  title: string;
+  onRetry: () => void;
+}) {
+  return (
+    <Glass style={{ padding: '32px 22px', textAlign: 'center' }}>
+      <Ico name="alert" size={22} color={T.danger} />
+      <p style={{ fontSize: 13, color: T.textMuted, margin: '10px 0 4px' }}>{title}</p>
+      <Btn small variant="ghost" onClick={onRetry}>Tentar novamente</Btn>
+    </Glass>
+  );
+}
+
+function EmptyState({
+  icon,
+  text,
+  action,
+}: {
+  icon: IcoName;
+  text: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div style={{ padding: '40px 22px', textAlign: 'center' }}>
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: T.r.md,
+          background: T.financial.bg,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 12,
+        }}
+      >
+        <Ico name={icon} size={20} color={T.financial.color} />
+      </div>
+      <p style={{ fontSize: 14, color: T.textMuted, marginBottom: action ? 14 : 0 }}>{text}</p>
+      {action}
+    </div>
+  );
+}
+
 export default function FinanceiroPage() {
-  /* ── tRPC (live data) ───────────────────────────────────────────── */
-  const invoicesQuery = trpc.financial.invoices.list.useQuery(
-    { page: 1, limit: 5 },
+  const router = useRouter();
+  const canWrite = usePermission('financial', 'write');
+  const canExport = usePermission('analytics', 'export');
+
+  const today = React.useMemo(() => isoToday(), []);
+  const monthStart = React.useMemo(() => isoMonthStart(), []);
+
+  const financialQ = trpc.analytics.financial.useQuery(
+    { start: monthStart, end: today },
+    { staleTime: 60_000 },
+  );
+
+  const caixaQ = trpc.financial.caixa.getDia.useQuery(
+    {},
     { staleTime: 30_000 },
   );
 
-  const stats = [
-    { label: 'Receita hoje',     value: 'R$ 8.420',  sub: 'Meta: R$ 10k',       icon: 'activity'   as const, mod: 'financial' as const, pct: 84 },
-    { label: 'Faturas abertas',  value: '7',         sub: 'R$ 4.230 pend.',     icon: 'creditCard' as const, mod: 'financial' as const, pct: 42 },
-    { label: 'Recebido mês',     value: 'R$ 62.4k',  sub: '+12% vs jan/25',     icon: 'barChart'   as const, mod: 'financial' as const, pct: 78 },
-    { label: 'Ticket médio',     value: 'R$ 580',    sub: 'vs R$ 510',          icon: 'percent'    as const, mod: 'financial' as const, pct: 68 },
-  ];
+  const invoicesQ = trpc.financial.invoices.list.useQuery(
+    { page: 1, limit: 10 },
+    { staleTime: 30_000 },
+  );
 
-  const dre = [
-    { l: 'Consultas',     v: 6200, p: 62 },
-    { l: 'Procedimentos', v: 3100, p: 31 },
-    { l: 'Produtos',      v: 700,  p: 7  },
-  ];
+  const overdueQ = trpc.financial.invoices.list.useQuery(
+    { status: 'vencida', page: 1, limit: 100 },
+    { staleTime: 60_000 },
+  );
 
-  const cashSplit = [
-    { l: 'Dinheiro', v: 'R$ 1.240', p: 15 },
-    { l: 'Débito',   v: 'R$ 2.800', p: 33 },
-    { l: 'Crédito',  v: 'R$ 3.100', p: 37 },
-    { l: 'PIX',      v: 'R$ 1.280', p: 15 },
-  ];
+  const fin = financialQ.data;
+  const caixa = caixaQ.data;
+  const invoices = invoicesQ.data?.data ?? [];
+  const invoicesTotal = invoicesQ.data?.total ?? 0;
+  const overdueCount = overdueQ.data?.total ?? 0;
 
-  type FaturaRow = {
-    id:      string;
-    patient: string;
-    valor:   string;
-    status:  string;
-    s:       'success' | 'warning' | 'danger';
-    data:    string;
-  };
-
-  const faturasMock: FaturaRow[] = [
-    { id: 'F-0091', patient: 'Ana Clara Mendes', valor: 'R$ 580,00',   status: 'Pago',     s: 'success', data: '15 jan' },
-    { id: 'F-0092', patient: 'Roberto Alves',    valor: 'R$ 320,00',   status: 'Pendente', s: 'warning', data: '18 jan' },
-    { id: 'F-0093', patient: 'Mariana Costa',    valor: 'R$ 1.200,00', status: 'Pago',     s: 'success', data: '20 jan' },
-    { id: 'F-0094', patient: 'João Ferreira',    valor: 'R$ 450,00',   status: 'Vencida',  s: 'danger',  data: '10 jan' },
-    { id: 'F-0095', patient: 'Carla Nunes',      valor: 'R$ 890,00',   status: 'Pago',     s: 'success', data: '19 jan' },
-  ];
-
-  const faturas: FaturaRow[] = (invoicesQuery.data?.data?.length ?? 0) > 0
-    ? invoicesQuery.data!.data.map((row): FaturaRow => {
-        const sl = STATUS_LABEL[row.status] ?? { label: row.status, variant: 'warning' as const };
-        return {
-          id:      row.invoice_number,
-          patient: (row as { patient_name?: string }).patient_name ?? '—',
-          valor:   fmtBRL(row.total_amount),
-          status:  sl.label,
-          s:       sl.variant,
-          data:    fmtShortDate(row.issue_date),
-        };
-      })
-    : faturasMock;
+  const kpis = fin?.kpis;
 
   return (
     <div style={{ overflowY: 'auto', height: '100%', padding: '22px 26px' }}>
@@ -98,135 +199,669 @@ export default function FinanceiroPage() {
         module="financial"
         icon="creditCard"
         actions={
-          <>
-            <Btn variant="glass" small icon="barChart">DRE</Btn>
-            <Btn small icon="plus">Nova fatura</Btn>
-          </>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {canExport && (
+              <Btn variant="glass" small icon="download">
+                Exportar
+              </Btn>
+            )}
+            <Btn
+              variant="glass"
+              small
+              icon="barChart"
+              onClick={() => router.push('/financeiro/dre')}
+            >
+              DRE
+            </Btn>
+            {canWrite && (
+              <Btn small icon="plus" onClick={() => router.push('/financeiro/faturas')}>
+                Nova fatura
+              </Btn>
+            )}
+          </div>
         }
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginBottom: 20 }}>
-        {stats.map((s) => (
-          <Stat key={s.label} {...s} />
-        ))}
+      {/* ── KPIs ───────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))',
+          gap: 10,
+          marginBottom: 20,
+        }}
+      >
+        <Stat
+          label="Receita mês"
+          value={
+            financialQ.isLoading
+              ? '…'
+              : kpis?.revenue.value != null
+                ? fmtBRL(kpis.revenue.value)
+                : '—'
+          }
+          sub={
+            kpis?.revenue.trendPct != null
+              ? `${kpis.revenue.trendPct >= 0 ? '+' : ''}${kpis.revenue.trendPct.toFixed(0)}% vs período anterior`
+              : monthLabel()
+          }
+          icon="barChart"
+          mod="financial"
+        />
+        <Stat
+          label="Receita hoje"
+          value={
+            caixaQ.isLoading
+              ? '…'
+              : caixa
+                ? fmtBRL(caixa.totalGeral)
+                : '—'
+          }
+          sub={
+            caixa
+              ? `${caixa.countTransacoes} transaç${caixa.countTransacoes !== 1 ? 'ões' : 'ão'}`
+              : 'Caixa do dia'
+          }
+          icon="activity"
+          mod="financial"
+        />
+        <Stat
+          label="Ticket médio"
+          value={
+            financialQ.isLoading
+              ? '…'
+              : kpis != null && kpis.avgTicket.value != null
+                ? fmtBRL(kpis.avgTicket.value)
+                : '—'
+          }
+          sub={
+            kpis?.avgTicket.trendPct != null
+              ? `${kpis.avgTicket.trendPct >= 0 ? '+' : ''}${kpis.avgTicket.trendPct.toFixed(0)}% vs anterior`
+              : 'Por fatura paga'
+          }
+          icon="percent"
+          mod="financial"
+        />
+        <Stat
+          label="Faturas abertas"
+          value={
+            invoicesQ.isLoading
+              ? '…'
+              : String(invoicesTotal)
+          }
+          sub={`${overdueCount} vencida${overdueCount !== 1 ? 's' : ''}`}
+          icon="creditCard"
+          mod={overdueCount > 0 ? 'accentMod' : 'financial'}
+        />
+        <Stat
+          label="Inadimplência"
+          value={
+            financialQ.isLoading
+              ? '…'
+              : kpis?.overdueAmount.value != null
+                ? fmtBRL(kpis.overdueAmount.value)
+                : '—'
+          }
+          sub="Total vencido em aberto"
+          icon="alert"
+          mod={kpis != null && (kpis.overdueAmount.value ?? 0) > 0 ? 'accentMod' : 'financial'}
+        />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-        {/* DRE */}
-        <Glass style={{ padding: '18px 22px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>DRE — Janeiro 2026</span>
-            <Mono size={9} color={T.financial.color}>R$ 10.000 / MÊS</Mono>
-          </div>
-          {dre.map((d) => (
-            <div key={d.l} style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                <span style={{ fontSize: 12, color: T.textSecondary }}>{d.l}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>R$ {d.v.toLocaleString('pt-BR')}</span>
+      {/* ── Caixa do dia + Receita por método ──────────────────────────── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 12,
+          marginBottom: 14,
+        }}
+      >
+        {/* Caixa do dia */}
+        {caixaQ.isError ? (
+          <ErrorCard title="Erro ao carregar caixa" onRetry={() => caixaQ.refetch()} />
+        ) : (
+          <Glass metal style={{ padding: '18px 22px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Mono size={10} spacing="1.2px">CAIXA DO DIA</Mono>
+              {caixa && (
+                <Mono size={9} color={T.textMuted}>
+                  {new Date(caixa.date).toLocaleDateString('pt-BR')}
+                </Mono>
+              )}
+            </div>
+
+            {caixaQ.isLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 8 }}>
+                <Skeleton width="60%" height={32} />
+                <Skeleton width="40%" height={14} />
+                <Skeleton width="100%" height={6} />
+                <Skeleton width="100%" height={6} />
               </div>
-              <Bar pct={d.p} color={T.financial.color} />
-            </div>
-          ))}
-          <div
-            style={{
-              paddingTop: 10,
-              borderTop: `1px solid ${T.divider}`,
-              display: 'flex',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>Total</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: T.financial.color }}>R$ 10.000</span>
-          </div>
-        </Glass>
-
-        {/* Caixa do dia (metal) */}
-        <Glass metal style={{ padding: '18px 22px' }}>
-          <Mono size={9} spacing="1.2px">CAIXA DO DIA</Mono>
-          <p
-            style={{
-              fontSize: 30,
-              fontWeight: 700,
-              color: T.textPrimary,
-              letterSpacing: '-0.02em',
-              marginTop: 6,
-              marginBottom: 8,
-            }}
-          >
-            R$ 8.420
-          </p>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-            <Badge variant="success">+R$ 1.200 botox</Badge>
-            <Badge variant="warning">−R$ 320 fornec.</Badge>
-          </div>
-          {cashSplit.map((m) => (
-            <div key={m.l} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
-              <span style={{ fontSize: 11, color: T.textSecondary, width: 55, flexShrink: 0 }}>{m.l}</span>
-              <Bar pct={m.p} color={T.primary} height={4} />
-              <span style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary, width: 65, textAlign: 'right', flexShrink: 0 }}>
-                {m.v}
-              </span>
-            </div>
-          ))}
-        </Glass>
-      </div>
-
-      <Glass style={{ padding: 0, overflow: 'hidden' }}>
-        <div
-          style={{
-            padding: '12px 18px',
-            borderBottom: `1px solid ${T.divider}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-          }}
-        >
-          <Ico name="creditCard" size={14} color={T.financial.color} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>Faturas recentes</span>
-        </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              {['N°', 'Paciente', 'Valor', 'Data', 'Status', ''].map((h) => (
-                <th
-                  key={h}
+            ) : caixa && caixa.countTransacoes > 0 ? (
+              <>
+                <p
                   style={{
-                    padding: '9px 16px',
-                    textAlign: 'left',
-                    fontSize: 8,
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    letterSpacing: '1.1px',
-                    color: T.textMuted,
-                    fontWeight: 500,
-                    borderBottom: `1px solid ${T.divider}`,
-                    background: T.metalGrad,
+                    fontSize: 30,
+                    fontWeight: 700,
+                    color: T.textPrimary,
+                    letterSpacing: '-0.02em',
+                    marginBottom: 8,
                   }}
                 >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {faturas.map((f, i) => (
-              <tr
-                key={f.id}
+                  {fmtBRL(caixa.totalGeral)}
+                </p>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <Badge variant="success">
+                    {caixa.countTransacoes} transaç{caixa.countTransacoes !== 1 ? 'ões' : 'ão'}
+                  </Badge>
+                </div>
+                {Object.entries(caixa.totalPorMetodo).map(([method, amount]) => {
+                  const total = caixa.totalGeral || 1;
+                  const pct = Math.round((amount / total) * 100);
+                  const label =
+                    PAYMENT_METHOD_LABELS[method as PaymentMethod] ?? method;
+                  return (
+                    <div
+                      key={method}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 9,
+                        marginBottom: 7,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: T.textSecondary,
+                          width: 95,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {label}
+                      </span>
+                      <Bar pct={pct} color={T.primary} height={4} />
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: T.textPrimary,
+                          width: 80,
+                          textAlign: 'right',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {fmtBRL(amount)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </>
+            ) : (
+              <EmptyState
+                icon="creditCard"
+                text="Nenhuma transação registrada hoje"
+                action={
+                  canWrite ? (
+                    <Btn small variant="glass" onClick={() => router.push('/financeiro/faturas')}>
+                      Registrar pagamento
+                    </Btn>
+                  ) : undefined
+                }
+              />
+            )}
+          </Glass>
+        )}
+
+        {/* Receita por origem (topServices do analytics.financial) */}
+        {financialQ.isError ? (
+          <ErrorCard title="Erro ao carregar receita" onRetry={() => financialQ.refetch()} />
+        ) : (
+          <Glass style={{ padding: '18px 22px' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: 14,
+              }}
+            >
+              <span style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>
+                Receita por serviço
+              </span>
+              <Mono size={9} color={T.financial.color}>
+                {monthLabel().toUpperCase()}
+              </Mono>
+            </div>
+
+            {financialQ.isLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[0, 1, 2].map((i) => (
+                  <div key={i}>
+                    <Skeleton width="50%" height={12} delay={i * 100} />
+                    <Skeleton width="100%" height={6} delay={i * 100 + 50} style={{ marginTop: 6 }} />
+                  </div>
+                ))}
+              </div>
+            ) : fin && fin.topServices.length > 0 ? (
+              <>
+                {fin.topServices.slice(0, 5).map((svc) => {
+                  const maxRevenue = fin.topServices[0]?.revenue || 1;
+                  const pct = Math.round((svc.revenue / maxRevenue) * 100);
+                  return (
+                    <div key={svc.id} style={{ marginBottom: 12 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginBottom: 5,
+                        }}
+                      >
+                        <span style={{ fontSize: 13, color: T.textSecondary }}>
+                          {svc.name}
+                          <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 6 }}>
+                            ({svc.count}x)
+                          </span>
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: T.textPrimary,
+                          }}
+                        >
+                          {fmtBRL(svc.revenue)}
+                        </span>
+                      </div>
+                      <Bar pct={pct} color={T.financial.color} />
+                    </div>
+                  );
+                })}
+                <div
+                  style={{
+                    paddingTop: 10,
+                    borderTop: `1px solid ${T.divider}`,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span
+                    style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}
+                  >
+                    Total
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: T.financial.color,
+                    }}
+                  >
+                    {kpis?.revenue.value != null ? fmtBRL(kpis.revenue.value) : '—'}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <EmptyState
+                icon="barChart"
+                text="Nenhuma receita registrada no período"
+              />
+            )}
+          </Glass>
+        )}
+      </div>
+
+      {/* ── Recebimentos por método (período) ──────────────────────────── */}
+      {fin && fin.byMethod.length > 0 && (
+        <Glass style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
+          <SectionHeader icon="percent" title="Recebimentos por método" />
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${Math.min(fin.byMethod.length, 6)}, 1fr)`,
+              gap: 0,
+            }}
+          >
+            {fin.byMethod.map((m, i) => {
+              const label =
+                PAYMENT_METHOD_LABELS[m.method as PaymentMethod] ?? m.method;
+              return (
+                <div
+                  key={m.method}
+                  style={{
+                    padding: '16px 18px',
+                    textAlign: 'center',
+                    borderRight:
+                      i < fin.byMethod.length - 1
+                        ? `1px solid ${T.divider}`
+                        : 'none',
+                  }}
+                >
+                  <Mono size={10} spacing="0.8px" color={T.textMuted}>
+                    {label.toUpperCase()}
+                  </Mono>
+                  <p
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 700,
+                      color: T.textPrimary,
+                      marginTop: 6,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {fmtBRL(m.amount)}
+                  </p>
+                  <span style={{ fontSize: 12, color: T.textMuted }}>
+                    {fmtPct(m.share)} · {m.count}x
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Glass>
+      )}
+
+      {/* ── Aging Buckets (inadimplência por faixa) ────────────────────── */}
+      {fin && kpis && (kpis.overdueAmount.value ?? 0) > 0 && (
+        <Glass style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
+          <SectionHeader
+            icon="alert"
+            color={T.danger}
+            title="Inadimplência por faixa"
+          />
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: 0,
+            }}
+          >
+            {([
+              { label: 'A vencer', value: fin.agingBuckets.current, color: T.success },
+              { label: '0–30 dias', value: fin.agingBuckets.d0_30, color: T.warning },
+              { label: '31–60 dias', value: fin.agingBuckets.d31_60, color: T.warning },
+              { label: '61–90 dias', value: fin.agingBuckets.d61_90, color: T.danger },
+              { label: '90+ dias', value: fin.agingBuckets.d90Plus, color: T.danger },
+            ] as const).map((b, i) => (
+              <div
+                key={b.label}
                 style={{
-                  borderBottom: `1px solid ${T.divider}`,
-                  background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.20)',
+                  padding: '14px 16px',
+                  textAlign: 'center',
+                  borderRight: i < 4 ? `1px solid ${T.divider}` : 'none',
                 }}
               >
-                <td style={{ padding: '11px 16px' }}><Mono size={9}>{f.id}</Mono></td>
-                <td style={{ padding: '11px 16px', fontSize: 12, color: T.textPrimary, fontWeight: 500 }}>{f.patient}</td>
-                <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: T.textPrimary }}>{f.valor}</td>
-                <td style={{ padding: '11px 16px' }}><Mono size={9}>{f.data}</Mono></td>
-                <td style={{ padding: '11px 16px' }}><Badge variant={f.s}>{f.status}</Badge></td>
-                <td style={{ padding: '11px 16px' }}><Btn variant="ghost" small>Ver</Btn></td>
-              </tr>
+                <Mono size={9} spacing="0.8px" color={T.textMuted}>
+                  {b.label.toUpperCase()}
+                </Mono>
+                <p
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: b.value > 0 ? b.color : T.textMuted,
+                    marginTop: 4,
+                  }}
+                >
+                  {b.value > 0 ? fmtBRL(b.value) : '—'}
+                </p>
+              </div>
             ))}
-          </tbody>
-        </table>
-      </Glass>
+          </div>
+        </Glass>
+      )}
+
+      {/* ── Faturas recentes ───────────────────────────────────────────── */}
+      {invoicesQ.isError ? (
+        <ErrorCard title="Erro ao carregar faturas" onRetry={() => invoicesQ.refetch()} />
+      ) : (
+        <Glass style={{ padding: 0, overflow: 'hidden' }}>
+          <SectionHeader
+            icon="creditCard"
+            title="Faturas recentes"
+            action={
+              <button
+                onClick={() => router.push('/financeiro/faturas')}
+                style={{
+                  fontSize: 12,
+                  color: T.textLink,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: "'IBM Plex Sans', sans-serif",
+                  fontWeight: 500,
+                  padding: '2px 4px',
+                }}
+              >
+                Ver todas →
+              </button>
+            }
+          />
+
+          {invoicesQ.isLoading ? (
+            <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <Skeleton width={70} height={13} delay={i * 100} />
+                  <Skeleton width="40%" height={13} delay={i * 100 + 40} />
+                  <div style={{ flex: 1 }} />
+                  <Skeleton width={80} height={13} delay={i * 100 + 80} />
+                  <Skeleton width={60} height={20} radius={T.r.pill} delay={i * 100 + 120} />
+                </div>
+              ))}
+            </div>
+          ) : invoices.length === 0 ? (
+            <EmptyState
+              icon="creditCard"
+              text="Nenhuma fatura cadastrada"
+              action={
+                canWrite ? (
+                  <Btn small icon="plus" onClick={() => router.push('/financeiro/faturas')}>
+                    Criar primeira fatura
+                  </Btn>
+                ) : undefined
+              }
+            />
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {['N°', 'Paciente', 'Valor', 'Pago', 'Emissão', 'Vencimento', 'Status', ''].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        style={{
+                          padding: '10px 16px',
+                          textAlign: 'left',
+                          fontSize: 10,
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          letterSpacing: '1px',
+                          color: T.textMuted,
+                          fontWeight: 500,
+                          borderBottom: `1px solid ${T.divider}`,
+                          background: T.metalGrad,
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ),
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map((inv, i) => {
+                  const status = inv.status as InvoiceStatus;
+                  return (
+                    <tr
+                      key={inv.id}
+                      style={{
+                        borderBottom: `1px solid ${T.divider}`,
+                        background:
+                          i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.20)',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => {
+                        if (inv.patient_id) {
+                          router.push(`/pacientes/${inv.patient_id}/prontuario`);
+                        }
+                      }}
+                    >
+                      <td style={{ padding: '12px 16px' }}>
+                        <Mono size={10}>{inv.invoice_number}</Mono>
+                      </td>
+                      <td
+                        style={{
+                          padding: '12px 16px',
+                          fontSize: 13,
+                          color: T.textPrimary,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {(inv as { patient_name?: string }).patient_name ?? '—'}
+                      </td>
+                      <td
+                        style={{
+                          padding: '12px 16px',
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: T.textPrimary,
+                        }}
+                      >
+                        {fmtBRLFull(inv.total_amount)}
+                      </td>
+                      <td
+                        style={{
+                          padding: '12px 16px',
+                          fontSize: 13,
+                          color:
+                            inv.amount_paid >= inv.total_amount
+                              ? T.success
+                              : T.textSecondary,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {fmtBRLFull(inv.amount_paid)}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <Mono size={10}>{fmtShortDate(inv.issue_date)}</Mono>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <Mono size={10}>
+                          {inv.due_date ? fmtShortDate(inv.due_date) : '—'}
+                        </Mono>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <Badge variant={STATUS_BADGE[status] ?? 'default'}>
+                          {INVOICE_STATUS_LABELS[status] ?? status}
+                        </Badge>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <Btn
+                          variant="ghost"
+                          small
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (inv.patient_id) {
+                              router.push(`/pacientes/${inv.patient_id}/prontuario`);
+                            }
+                          }}
+                        >
+                          Paciente
+                        </Btn>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </Glass>
+      )}
+
+      {/* ── Receita por profissional ───────────────────────────────────── */}
+      {fin && fin.byProvider.length > 0 && (
+        <Glass style={{ padding: 0, overflow: 'hidden', marginTop: 14 }}>
+          <SectionHeader icon="user" title="Receita por profissional" />
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {['Profissional', 'Receita', '% do total'].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      padding: '10px 16px',
+                      textAlign: 'left',
+                      fontSize: 10,
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      letterSpacing: '1px',
+                      color: T.textMuted,
+                      fontWeight: 500,
+                      borderBottom: `1px solid ${T.divider}`,
+                      background: T.metalGrad,
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {fin.byProvider.map((p, i) => {
+                const totalRevenue = kpis?.revenue.value || 1;
+                const share = p.revenue / totalRevenue;
+                return (
+                  <tr
+                    key={p.providerId}
+                    style={{
+                      borderBottom: `1px solid ${T.divider}`,
+                      background:
+                        i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.20)',
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: T.textPrimary,
+                      }}
+                    >
+                      {p.providerName}
+                    </td>
+                    <td
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: T.textPrimary,
+                      }}
+                    >
+                      {fmtBRL(p.revenue)}
+                    </td>
+                    <td style={{ padding: '12px 16px', width: '40%' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <Bar
+                          pct={Math.round(share * 100)}
+                          color={T.financial.color}
+                          height={5}
+                        />
+                        <Mono size={10}>
+                          {fmtPct(share)}
+                        </Mono>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Glass>
+      )}
     </div>
   );
 }

@@ -1,10 +1,5 @@
-import { UnderConstruction } from '@/components/under-construction';
+import { redirect } from 'next/navigation';
 
 export default function AnalyticsPacientesPage() {
-  return (
-    <UnderConstruction
-      title="Jornada do Paciente"
-      description="Funil de captação, retenção, LTV e churn de pacientes"
-    />
-  );
+  redirect('/analytics?tab=pacientes');
 }

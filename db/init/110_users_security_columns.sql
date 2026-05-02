@@ -79,6 +79,7 @@ REVOKE ALL ON FUNCTION shared.apply_password_reset(UUID, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION shared.apply_password_reset(UUID, TEXT) TO dermaos_app;
 
 -- find_user_for_login agora retorna password_version e is_invite_pending
+DROP FUNCTION IF EXISTS shared.find_user_for_login(TEXT);
 CREATE OR REPLACE FUNCTION shared.find_user_for_login(p_email TEXT)
 RETURNS TABLE (
   id                     UUID,
@@ -117,6 +118,7 @@ REVOKE ALL ON FUNCTION shared.find_user_for_login(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION shared.find_user_for_login(TEXT) TO dermaos_app;
 
 -- find_user_for_refresh também retorna password_version
+DROP FUNCTION IF EXISTS shared.find_user_for_refresh(UUID);
 CREATE OR REPLACE FUNCTION shared.find_user_for_refresh(p_user_id UUID)
 RETURNS TABLE (
   id                UUID,

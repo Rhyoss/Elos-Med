@@ -275,3 +275,9 @@ CREATE TRIGGER trg_payments_updated_at
 CREATE TRIGGER trg_financial_goals_updated_at
   BEFORE UPDATE ON financial.financial_goals
   FOR EACH ROW EXECUTE FUNCTION shared.set_updated_at();
+
+-- ─── Soft-delete columns (used by services) ──────────────────────────────────
+ALTER TABLE financial.invoices      ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE financial.invoice_items ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE financial.payments      ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_invoices_deleted_at ON financial.invoices(deleted_at) WHERE deleted_at IS NULL;

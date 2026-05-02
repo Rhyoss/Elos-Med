@@ -1,220 +1,152 @@
 'use client';
 
 import * as React from 'react';
-import {
-  Glass, Btn, Mono, Badge, MetalTag, Ico,
-  PageHero, T, type ShellModule,
-} from '@dermaos/ui/ds';
-import { trpc } from '@/lib/trpc-provider';
-import { ROLE_LABELS, type UserRole } from '@dermaos/shared';
+import { Glass, Mono, Ico, PageHero, T, type IcoName } from '@dermaos/ui/ds';
+import { useAuth, usePermission } from '@/lib/auth';
+import { SectionClinica } from './_components/section-clinica';
+import { SectionUsuarios } from './_components/section-usuarios';
+import { SectionServicos } from './_components/section-servicos';
+import { SectionIntegracoes } from './_components/section-integracoes';
+import { SectionSeguranca } from './_components/section-seguranca';
+import { SectionAuditoria } from './_components/section-auditoria';
+import { SectionIA } from './_components/section-ia';
+import { SectionAparencia } from './_components/section-aparencia';
 
-/**
- * Configurações — usuários, RBAC, integrações & compliance.
- *
- * Wired-up Phase 5b — usa `trpc.settings.users.list` e
- * `trpc.settings.integrations.list`. Lista de compliance permanece
- * estática (compile-time facts). Sub-rotas /usuarios, /servicos,
- * /integracoes, /ia, /auditoria continuam com chrome legado.
- */
+interface NavItem {
+  id: string;
+  label: string;
+  icon: IcoName;
+  adminOnly?: boolean;
+  ownerOnly?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: 'clinica',      label: 'Clínica',           icon: 'home' },
+  { id: 'usuarios',     label: 'Usuários & RBAC',   icon: 'users',     adminOnly: true },
+  { id: 'servicos',     label: 'Serviços',          icon: 'box',       adminOnly: true },
+  { id: 'integracoes',  label: 'Integrações',       icon: 'layers',    ownerOnly: true },
+  { id: 'seguranca',    label: 'Segurança',         icon: 'shield' },
+  { id: 'auditoria',    label: 'Auditoria',         icon: 'file',      adminOnly: true },
+  { id: 'ia',           label: 'Aurora IA',         icon: 'zap',       adminOnly: true },
+  { id: 'aparencia',    label: 'Aparência',         icon: 'grid' },
+];
+
+const SECTION_DESCRIPTIONS: Record<string, string> = {
+  clinica: 'Dados cadastrais, endereço, horários de funcionamento e LGPD',
+  usuarios: 'Gerenciamento de usuários, convites e matriz de permissões',
+  servicos: 'Catálogo de procedimentos, valores e configurações por serviço',
+  integracoes: 'WhatsApp, e-mail, webhooks e conexões com serviços externos',
+  seguranca: 'Compliance, política de senha, sessões e criptografia',
+  auditoria: 'Logs de eventos, rastreabilidade e exportação de relatórios',
+  ia: 'Configuração da Aurora IA, modelo, prompt e histórico',
+  aparencia: 'Logo, paleta de cores, tipografia e superfícies do sistema',
+};
+
 export default function ConfiguracoesPage() {
-  /* ── tRPC (live data) ───────────────────────────────────────────── */
-  const usersQuery = trpc.settings.users.list.useQuery(
-    { page: 1, limit: 4 },
-    { staleTime: 30_000 },
-  );
-  const integrationsQuery = trpc.settings.integrations.list.useQuery(
-    undefined,
-    { staleTime: 60_000 },
-  );
+  const { user } = useAuth();
+  const canAdmin = usePermission('admin', 'read');
+  const isOwner = user?.role === 'owner';
+  const isAdmin = user?.role === 'admin' || isOwner;
 
-  /* ── Mock fallback (visual demo até clínica ter dados) ──────────── */
-  const usersMock: Array<{ name: string; role: string; email: string; perms: string[] }> = [
-    { name: 'Dra. Ana Souza',     role: 'Dermatologista', email: 'ana@clinica.com',     perms: ['prontuário', 'prescrição', 'protocolo'] },
-    { name: 'Dr. Carlos Lima',    role: 'Dermatologista', email: 'lima@clinica.com',    perms: ['prontuário', 'prescrição'] },
-    { name: 'Marina Recepção',    role: 'Recepcionista',  email: 'marina@clinica.com',  perms: ['agenda', 'comunicação'] },
-    { name: 'Roberto Admin',      role: 'Gestor',         email: 'roberto@clinica.com', perms: ['financeiro', 'analytics', 'configurações'] },
-  ];
+  const [activeSection, setActiveSection] = React.useState('clinica');
 
-  type IntegrationRow = {
-    name: string;
-    st:   'Conectado' | 'Pendente';
-    icon: 'message' | 'creditCard' | 'shield' | 'zap' | 'box';
-    mod:  ShellModule;
-  };
-  const integrationsMock: IntegrationRow[] = [
-    { name: 'WhatsApp Business API',     st: 'Conectado', icon: 'message',    mod: 'aiMod' },
-    { name: 'Gateway de Pagamento',       st: 'Conectado', icon: 'creditCard', mod: 'financial' },
-    { name: 'ANVISA — Rastreabilidade',   st: 'Conectado', icon: 'shield',     mod: 'supply' },
-    { name: 'Claude API — Aurora IA',     st: 'Conectado', icon: 'zap',        mod: 'aiMod' },
-    { name: 'MinIO — Storage S3',          st: 'Conectado', icon: 'box',        mod: 'supply' },
-    { name: 'Instagram API',               st: 'Pendente',  icon: 'message',    mod: 'aiMod' },
-  ];
+  const visibleNav = NAV_ITEMS.filter((item) => {
+    if (item.ownerOnly && !isOwner) return false;
+    if (item.adminOnly && !isAdmin) return false;
+    return true;
+  });
 
-  /* ── Map server rows to the page format (with mock fallback) ────── */
-  const users = (usersQuery.data?.users?.length ?? 0) > 0
-    ? usersQuery.data!.users.map((u: {
-        name: string;
-        role: string;
-        email: string;
-        permissions?: Array<{ module: string; action: string }>;
-      }) => ({
-        name:  u.name,
-        role:  ROLE_LABELS[u.role as UserRole] ?? u.role,
-        email: u.email,
-        perms: (u.permissions ?? []).map((p) => `${p.module}.${p.action}`),
-      }))
-    : usersMock;
+  React.useEffect(() => {
+    if (!visibleNav.find((n) => n.id === activeSection)) {
+      setActiveSection(visibleNav[0]?.id ?? 'clinica');
+    }
+  }, [visibleNav, activeSection]);
 
-  const CHANNEL_LABEL: Record<string, string> = {
-    whatsapp:  'WhatsApp Business API',
-    instagram: 'Instagram API',
-    telegram:  'Telegram API',
-    email:     'E-mail SMTP',
-  };
+  function renderSection() {
+    switch (activeSection) {
+      case 'clinica':     return <SectionClinica />;
+      case 'usuarios':    return <SectionUsuarios />;
+      case 'servicos':    return <SectionServicos />;
+      case 'integracoes': return <SectionIntegracoes />;
+      case 'seguranca':   return <SectionSeguranca />;
+      case 'auditoria':   return <SectionAuditoria />;
+      case 'ia':          return <SectionIA />;
+      case 'aparencia':   return <SectionAparencia />;
+      default:            return <SectionClinica />;
+    }
+  }
 
-  const integrations: IntegrationRow[] = (integrationsQuery.data?.length ?? 0) > 0
-    ? integrationsQuery.data!.map((intg: { channel: string; isActive: boolean }): IntegrationRow => ({
-        name: CHANNEL_LABEL[intg.channel] ?? intg.channel,
-        st:   intg.isActive ? 'Conectado' : 'Pendente',
-        icon: 'message',
-        mod:  'aiMod',
-      }))
-    : integrationsMock;
-
-  const compliance = [
-    { l: 'LGPD Ativo',          d: 'Consentimentos atualizados' },
-    { l: 'ANVISA Rastreável',   d: 'SHA-256 + PDF auditável' },
-    { l: 'AES-256-GCM',         d: 'Dados cifrados' },
-    { l: 'JWT httpOnly',        d: 'Sessões seguras' },
-    { l: 'RLS Multi-tenant',    d: 'Isolamento por tenant' },
-    { l: 'Auditoria imutável',  d: 'Logs append-only' },
-  ];
+  const activeItem = NAV_ITEMS.find((n) => n.id === activeSection);
 
   return (
-    <div style={{ overflowY: 'auto', height: '100%', padding: '22px 26px' }}>
-      <PageHero
-        eyebrow="USUÁRIOS, RBAC & INTEGRAÇÕES"
-        title="Configurações"
-        icon="settings"
-        actions={<Btn small icon="plus">Novo usuário</Btn>}
-      />
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-        {/* Usuários & RBAC */}
-        <Glass style={{ padding: 0, overflow: 'hidden' }}>
-          <div
-            style={{
-              padding: '12px 18px',
-              borderBottom: `1px solid ${T.divider}`,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <Ico name="users" size={14} color={T.primary} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>Usuários &amp; RBAC</span>
-            </div>
-            <MetalTag>LGPD</MetalTag>
-          </div>
-          {users.map((u, i) => (
-            <div
-              key={u.email}
-              style={{
-                padding: '11px 18px',
-                borderBottom: i < users.length - 1 ? `1px solid ${T.divider}` : 'none',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                <div>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary }}>{u.name}</p>
-                  <Mono size={8}>{u.role} · {u.email}</Mono>
-                </div>
-                <Badge variant="success">Ativo</Badge>
-              </div>
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {u.perms.map((p) => <MetalTag key={p}>{p}</MetalTag>)}
-              </div>
-            </div>
-          ))}
-        </Glass>
-
-        {/* Integrações */}
-        <Glass style={{ padding: 0, overflow: 'hidden' }}>
-          <div
-            style={{
-              padding: '12px 18px',
-              borderBottom: `1px solid ${T.divider}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-            }}
-          >
-            <Ico name="layers" size={14} color={T.aiMod.color} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>Integrações</span>
-          </div>
-          {integrations.map((intg, i) => {
-            const m = T[intg.mod];
-            return (
-              <div
-                key={intg.name}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '10px 18px',
-                  borderBottom: i < integrations.length - 1 ? `1px solid ${T.divider}` : 'none',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <div
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: T.r.sm,
-                      background: m.bg,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Ico name={intg.icon} size={12} color={m.color} />
-                  </div>
-                  <p style={{ fontSize: 12, fontWeight: 500, color: T.textPrimary }}>{intg.name}</p>
-                </div>
-                <Badge variant={intg.st === 'Conectado' ? 'success' : 'warning'}>{intg.st}</Badge>
-              </div>
-            );
-          })}
-        </Glass>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ padding: '22px 26px 0' }}>
+        <PageHero
+          eyebrow="CENTRO ADMINISTRATIVO"
+          title="Configurações"
+          icon="settings"
+          description="Administre clínica, usuários, serviços, integrações e segurança"
+        />
       </div>
 
-      {/* Compliance & Segurança */}
-      <Glass metal style={{ padding: '18px 22px' }}>
-        <Mono size={9} spacing="1.3px" color={T.primary}>COMPLIANCE &amp; SEGURANÇA</Mono>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-          {compliance.map((c) => (
-            <div
-              key={c.l}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '8px 14px',
-                borderRadius: T.r.md,
-                background: T.primaryBg,
-                border: `1px solid ${T.primaryBorder}`,
-              }}
-            >
-              <Ico name="shield" size={14} color={T.primary} />
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{c.l}</p>
-                <Mono size={7}>{c.d}</Mono>
-              </div>
+      <div style={{ flex: 1, display: 'flex', gap: 0, overflow: 'hidden', minHeight: 0 }}>
+        {/* Sidebar */}
+        <nav
+          aria-label="Seções de configuração"
+          style={{
+            width: 240, flexShrink: 0, borderRight: `1px solid ${T.divider}`,
+            overflowY: 'auto', padding: '12px 0',
+          }}
+        >
+          {visibleNav.map((item) => {
+            const isActive = item.id === activeSection;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveSection(item.id)}
+                aria-current={isActive ? 'page' : undefined}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '12px 20px', border: 'none',
+                  background: isActive ? T.primaryBg : 'transparent',
+                  borderLeft: isActive ? `3px solid ${T.primary}` : '3px solid transparent',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                  color: isActive ? T.primary : T.textSecondary,
+                }}
+              >
+                <Ico name={item.icon} size={16} color={isActive ? T.primary : T.textMuted} />
+                <span style={{
+                  fontSize: 14, fontWeight: isActive ? 600 : 400,
+                  fontFamily: "'IBM Plex Sans', sans-serif",
+                }}>
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 26px 26px' }}>
+          {/* Section Header */}
+          <div style={{ padding: '20px 0 16px', borderBottom: `1px solid ${T.divider}`, marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Ico name={activeItem?.icon ?? 'settings'} size={20} color={T.primary} />
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: T.textPrimary }}>
+                {activeItem?.label ?? 'Configurações'}
+              </h2>
             </div>
-          ))}
+            {SECTION_DESCRIPTIONS[activeSection] && (
+              <p style={{ fontSize: 14, color: T.textSecondary, marginTop: 4, marginLeft: 30 }}>
+                {SECTION_DESCRIPTIONS[activeSection]}
+              </p>
+            )}
+          </div>
+
+          {renderSection()}
         </div>
-      </Glass>
+      </div>
     </div>
   );
 }

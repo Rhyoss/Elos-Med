@@ -1,10 +1,5 @@
-import { UnderConstruction } from '@/components/under-construction';
+import { redirect } from 'next/navigation';
 
 export default function AnalyticsOmniPage() {
-  return (
-    <UnderConstruction
-      title="Performance Omnichannel"
-      description="Métricas de atendimento por canal: tempo de resposta, conversão e CSAT"
-    />
-  );
+  redirect('/analytics?tab=comunicacao');
 }

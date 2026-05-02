@@ -16,6 +16,16 @@
 -- ela; o único caminho é via essas funções.
 -- ============================================================================
 
+-- ─── GRANTS para dermaos_authn ───────────────────────────────────────────────
+-- BYPASSRLS desativa RLS, mas NÃO substitui USAGE/SELECT de schema/tabela.
+-- Como o OWNER de funções SECURITY DEFINER é dermaos_authn, ela precisa de
+-- USAGE no schema e SELECT/UPDATE nas tabelas que as funções consultam.
+GRANT USAGE ON SCHEMA shared TO dermaos_authn;
+GRANT USAGE ON SCHEMA omni   TO dermaos_authn;
+GRANT SELECT, UPDATE ON shared.users   TO dermaos_authn;
+GRANT SELECT          ON shared.clinics TO dermaos_authn;
+GRANT SELECT          ON omni.channels  TO dermaos_authn;
+
 -- ─── shared.find_user_for_login(email) ───────────────────────────────────────
 -- Lookup do usuário por email para o fluxo de login (auth.router.login).
 -- Devolve hash da senha (verificação argon2 acontece no app), tentativas
