@@ -4,7 +4,7 @@ import '@fastify/cookie';
 import '@fastify/jwt';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../../trpc/trpc.js';
-import { protectedProcedure } from '../../trpc/middleware/auth.middleware.js';
+import { protectedProcedure, type AuthenticatedContext } from '../../trpc/middleware/auth.middleware.js';
 import { requireRoles } from '../../trpc/middleware/rbac.middleware.js';
 import {
   loginSchema,
@@ -277,14 +277,15 @@ export const authRouter = router({
     return { ok: true };
   }),
 
-  logout: protectedProcedure.mutation(async ({ ctx }) => {
+  logout: protectedProcedure.mutation(async ({ ctx: _ctx }) => {
+    const ctx = _ctx as unknown as AuthenticatedContext;
     // SEC-14: logout do dispositivo atual (jti vem do access token).
     // Outras sessões ativas do usuário continuam válidas.
     const jti = (ctx.user as { jti?: string }).jti;
     await revokeRefreshToken(ctx.redis, ctx.user.sub, jti);
     clearAuthCookies(ctx.res);
 
-    await eventBus.publish('user.logout', ctx.clinicId!, ctx.user.sub, {}, {
+    await eventBus.publish('user.logout', ctx.clinicId, ctx.user.sub, {}, {
       userId: ctx.user.sub,
       ip: ctx.req.ip,
     });
@@ -293,10 +294,11 @@ export const authRouter = router({
   }),
 
   // SEC-14: logout em TODOS os dispositivos do usuário.
-  logoutAllDevices: protectedProcedure.mutation(async ({ ctx }) => {
+  logoutAllDevices: protectedProcedure.mutation(async ({ ctx: _ctx }) => {
+    const ctx = _ctx as unknown as AuthenticatedContext;
     await revokeRefreshToken(ctx.redis, ctx.user.sub); // sem jti = revoga tudo
     clearAuthCookies(ctx.res);
-    await eventBus.publish('user.logout', ctx.clinicId!, ctx.user.sub, { allDevices: true }, {
+    await eventBus.publish('user.logout', ctx.clinicId, ctx.user.sub, { allDevices: true }, {
       userId: ctx.user.sub,
       ip: ctx.req.ip,
     });
@@ -305,17 +307,18 @@ export const authRouter = router({
 
   changePassword: protectedProcedure
     .input(changePasswordSchema)
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx: _ctx }) => {
+      const ctx = _ctx as unknown as AuthenticatedContext;
       await changePassword(
         ctx.db,
         ctx.redis,
         ctx.user.sub,
-        ctx.clinicId!,
+        ctx.clinicId,
         input.currentPassword,
         input.newPassword,
       );
 
-      await eventBus.publish('user.password_changed', ctx.clinicId!, ctx.user.sub, {}, {
+      await eventBus.publish('user.password_changed', ctx.clinicId, ctx.user.sub, {}, {
         userId: ctx.user.sub,
         ip: ctx.req.ip,
       });
@@ -339,7 +342,8 @@ export const authRouter = router({
       return { success: true };
     }),
 
-  me: protectedProcedure.query(async ({ ctx }) => {
+  me: protectedProcedure.query(async ({ ctx: _ctx }) => {
+    const ctx = _ctx as unknown as AuthenticatedContext;
     const result = await ctx.db.query<{
       id: string; clinic_id: string; name: string; email: string; role: string;
       avatar_url: string | null; crm: string | null; specialty: string | null;

@@ -23,14 +23,15 @@ export function useAuth() {
   const devMock = process.env.NEXT_PUBLIC_DEV_MOCK_AUTH === 'true';
 
   useEffect(() => {
+    const s = useAuthStore.getState();
     if (meQuery.data) {
-      store.setSession(meQuery.data.user, meQuery.data.clinic, meQuery.data.permissions);
+      s.setSession(meQuery.data.user, meQuery.data.clinic, meQuery.data.permissions);
     } else if (meQuery.isError && !devMock) {
-      store.clearSession();
+      s.clearSession();
     }
 
     if (!meQuery.isLoading) {
-      store.setHydrated();
+      s.setHydrated();
     }
   }, [meQuery.data, meQuery.isError, meQuery.isLoading, devMock]);
 

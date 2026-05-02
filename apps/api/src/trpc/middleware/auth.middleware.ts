@@ -30,7 +30,7 @@ export const isAuthenticated = t.middleware(({ ctx, next }) => {
       ...ctx,
       user,
       clinicId,
-    } satisfies AuthenticatedContext,
+    } as AuthenticatedContext,
   });
 });
 
