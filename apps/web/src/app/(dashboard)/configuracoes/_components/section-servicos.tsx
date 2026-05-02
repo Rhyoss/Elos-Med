@@ -39,13 +39,13 @@ export function SectionServicos() {
   );
 
   const createService = trpc.settings.services.create.useMutation({
-    onSuccess: () => { servicesQuery.refetch(); setShowCreate(false); resetForm(); },
+    onSuccess: () => { void servicesQuery.refetch(); setShowCreate(false); resetForm(); },
   });
   const updateService = trpc.settings.services.update.useMutation({
-    onSuccess: () => { servicesQuery.refetch(); setEditingService(null); },
+    onSuccess: () => { void servicesQuery.refetch(); setEditingService(null); },
   });
   const deleteService = trpc.settings.services.delete.useMutation({
-    onSuccess: () => { servicesQuery.refetch(); setDeletingService(null); },
+    onSuccess: () => { void servicesQuery.refetch(); setDeletingService(null); },
   });
 
   const [showCreate, setShowCreate] = React.useState(false);

@@ -10,7 +10,7 @@ import {
   SheetDescription,
   Button,
   Input,
-  Select,
+  SelectField,
   SelectItem,
   useToast,
 } from '@dermaos/ui';
@@ -247,14 +247,14 @@ export function PrescriptionDrawer({
           {/* Type */}
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <Mono size={9} spacing="0.6px">TIPO DA PRESCRIÇÃO</Mono>
-            <Select
+            <SelectField
               value={type}
               onValueChange={(v) => setType(v as PrescriptionType)}
             >
               {(Object.entries(TYPE_LABELS) as [PrescriptionType, string][]).map(([key, label]) => (
                 <SelectItem key={key} value={key}>{label}</SelectItem>
               ))}
-            </Select>
+            </SelectField>
           </label>
 
           {/* Items */}

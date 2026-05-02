@@ -3,7 +3,7 @@
 import * as React from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Button, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  Button, Label, SelectRoot, SelectTrigger, SelectValue, SelectContent, SelectItem,
   Textarea,
 } from '@dermaos/ui';
 import { Mono, T } from '@dermaos/ui/ds';
@@ -109,7 +109,7 @@ export function AdjustStockModal({ product, onClose, onSaved }: AdjustStockModal
                 name="reason"
                 control={control}
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectRoot value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger id="adjust-reason" aria-label="Motivo do ajuste">
                       <SelectValue />
                     </SelectTrigger>
@@ -120,7 +120,7 @@ export function AdjustStockModal({ product, onClose, onSaved }: AdjustStockModal
                         </SelectItem>
                       ))}
                     </SelectContent>
-                  </Select>
+                  </SelectRoot>
                 )}
               />
               <p className="text-xs text-muted-foreground">{REASON_HINTS[reason]}</p>

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Button, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Textarea,
+  Button, Label, SelectRoot, SelectTrigger, SelectValue, SelectContent, SelectItem, Textarea,
 } from '@dermaos/ui';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -112,7 +112,7 @@ export function CategoryModal({ open, onClose, onSaved }: CategoryModalProps) {
                 name="parentId"
                 control={control}
                 render={({ field }) => (
-                  <Select
+                  <SelectRoot
                     value={field.value ?? '__none__'}
                     onValueChange={v => field.onChange(v === '__none__' ? null : v)}
                   >
@@ -127,7 +127,7 @@ export function CategoryModal({ open, onClose, onSaved }: CategoryModalProps) {
                         </SelectItem>
                       ))}
                     </SelectContent>
-                  </Select>
+                  </SelectRoot>
                 )}
               />
               {parentDepth >= 2 && (

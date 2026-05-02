@@ -17,7 +17,7 @@ export function SectionIA() {
 
   const updateAI = trpc.settings.ai.update.useMutation({
     onSuccess: () => {
-      aiQuery.refetch();
+      void aiQuery.refetch();
       setSaveStatus('success');
       setTimeout(() => setSaveStatus(null), 3000);
     },
@@ -29,8 +29,8 @@ export function SectionIA() {
 
   const updatePrompt = trpc.settings.ai.updatePrompt.useMutation({
     onSuccess: () => {
-      aiQuery.refetch();
-      historyQuery.refetch();
+      void aiQuery.refetch();
+      void historyQuery.refetch();
       setPromptSaveStatus('success');
       setTimeout(() => setPromptSaveStatus(null), 3000);
     },

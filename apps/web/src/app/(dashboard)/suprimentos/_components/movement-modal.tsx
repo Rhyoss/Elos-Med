@@ -9,7 +9,7 @@ import {
   DialogFooter,
   Button,
   Input,
-  Select,
+  SelectRoot,
   SelectTrigger,
   SelectValue,
   SelectContent,
@@ -253,7 +253,7 @@ export function MovementModal({
                 name="type"
                 control={control}
                 render={({ field }) => (
-                  <Select
+                  <SelectRoot
                     value={field.value}
                     onValueChange={(v) => {
                       // Changing type resets the whole form with new defaults.
@@ -271,7 +271,7 @@ export function MovementModal({
                         </SelectItem>
                       ))}
                     </SelectContent>
-                  </Select>
+                  </SelectRoot>
                 )}
               />
             </div>
@@ -374,7 +374,7 @@ function ProductSelect({
       name={name}
       control={control}
       render={({ field }) => (
-        <Select value={field.value ?? ''} onValueChange={field.onChange} disabled={locked}>
+        <SelectRoot value={field.value ?? ''} onValueChange={field.onChange} disabled={locked}>
           <SelectTrigger>
             <SelectValue placeholder="Selecione o produto" />
           </SelectTrigger>
@@ -385,7 +385,7 @@ function ProductSelect({
               </SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </SelectRoot>
       )}
     />
   );
@@ -401,7 +401,7 @@ function LocationSelect({
       name={name}
       control={control}
       render={({ field }) => (
-        <Select
+        <SelectRoot
           value={field.value ?? ''}
           onValueChange={(v) => field.onChange(v === '__none__' ? null : v)}
         >
@@ -414,7 +414,7 @@ function LocationSelect({
               <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </SelectRoot>
       )}
     />
   );
@@ -487,7 +487,7 @@ function EntryFields({
           name="supplierId"
           control={control}
           render={({ field }) => (
-            <Select
+            <SelectRoot
               value={field.value ?? ''}
               onValueChange={(v) => field.onChange(v === '__none__' ? null : v)}
             >
@@ -498,7 +498,7 @@ function EntryFields({
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </SelectRoot>
           )}
         />
       </div>
@@ -519,14 +519,14 @@ function EntryFields({
           name="reason"
           control={control}
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <SelectRoot value={field.value} onValueChange={field.onChange}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ENTRADA_REASONS.map((r) => (
                   <SelectItem key={r} value={r}>{MOVEMENT_REASON_LABELS[r]}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </SelectRoot>
           )}
         />
       </div>
@@ -590,7 +590,7 @@ function ExitFields({
           name="lotId"
           control={control}
           render={({ field }) => (
-            <Select
+            <SelectRoot
               value={field.value ?? ''}
               disabled={locked}
               onValueChange={(v) => field.onChange(v === '__fefo__' ? null : v)}
@@ -608,7 +608,7 @@ function ExitFields({
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </SelectRoot>
           )}
         />
       </div>
@@ -628,14 +628,14 @@ function ExitFields({
           name="reason"
           control={control}
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <SelectRoot value={field.value} onValueChange={field.onChange}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {SAIDA_REASONS.map((r) => (
                   <SelectItem key={r} value={r}>{MOVEMENT_REASON_LABELS[r]}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </SelectRoot>
           )}
         />
       </div>
@@ -678,7 +678,7 @@ function AdjustFields({
           name="lotId"
           control={control}
           render={({ field }) => (
-            <Select
+            <SelectRoot
               value={field.value ?? ''}
               disabled={locked}
               onValueChange={(v) => field.onChange(v === '__none__' ? null : v)}
@@ -692,7 +692,7 @@ function AdjustFields({
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </SelectRoot>
           )}
         />
       </div>
@@ -713,14 +713,14 @@ function AdjustFields({
           name="reason"
           control={control}
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <SelectRoot value={field.value} onValueChange={field.onChange}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {AJUSTE_REASONS.map((r) => (
                   <SelectItem key={r} value={r}>{MOVEMENT_REASON_LABELS[r]}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </SelectRoot>
           )}
         />
       </div>
@@ -777,14 +777,14 @@ function TransferFields({
           name="fromStorageLocationId"
           control={control}
           render={({ field }) => (
-            <Select value={field.value ?? ''} onValueChange={field.onChange}>
+            <SelectRoot value={field.value ?? ''} onValueChange={field.onChange}>
               <SelectTrigger><SelectValue placeholder="Local de origem" /></SelectTrigger>
               <SelectContent>
                 {locations.map((l) => (
                   <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </SelectRoot>
           )}
         />
         <FieldError message={errors.fromStorageLocationId?.message} />
@@ -796,14 +796,14 @@ function TransferFields({
           name="toStorageLocationId"
           control={control}
           render={({ field }) => (
-            <Select value={field.value ?? ''} onValueChange={field.onChange}>
+            <SelectRoot value={field.value ?? ''} onValueChange={field.onChange}>
               <SelectTrigger><SelectValue placeholder="Local de destino" /></SelectTrigger>
               <SelectContent>
                 {locations.map((l) => (
                   <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </SelectRoot>
           )}
         />
         <FieldError message={errors.toStorageLocationId?.message} />

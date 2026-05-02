@@ -3,7 +3,7 @@
 import * as React from 'react';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
-  Button, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  Button, Label, SelectRoot, SelectTrigger, SelectValue, SelectContent, SelectItem,
   Switch, Tooltip, Textarea,
 } from '@dermaos/ui';
 import { useForm, Controller } from 'react-hook-form';
@@ -222,14 +222,14 @@ export function ProductModal({ open, onClose, onSaved }: ProductModalProps) {
                     name="unit"
                     control={control}
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectRoot value={field.value} onValueChange={field.onChange}>
                         <SelectTrigger id="prod-unit"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {PRODUCT_UNITS.map(u => (
                             <SelectItem key={u} value={u}>{u}</SelectItem>
                           ))}
                         </SelectContent>
-                      </Select>
+                      </SelectRoot>
                     )}
                   />
                 </div>
@@ -241,7 +241,7 @@ export function ProductModal({ open, onClose, onSaved }: ProductModalProps) {
                     name="categoryId"
                     control={control}
                     render={({ field }) => (
-                      <Select value={field.value ?? '__none__'} onValueChange={v => field.onChange(v === '__none__' ? null : v)}>
+                      <SelectRoot value={field.value ?? '__none__'} onValueChange={v => field.onChange(v === '__none__' ? null : v)}>
                         <SelectTrigger id="prod-cat"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Sem categoria</SelectItem>
@@ -251,7 +251,7 @@ export function ProductModal({ open, onClose, onSaved }: ProductModalProps) {
                             </SelectItem>
                           ))}
                         </SelectContent>
-                      </Select>
+                      </SelectRoot>
                     )}
                   />
                 </div>
@@ -263,7 +263,7 @@ export function ProductModal({ open, onClose, onSaved }: ProductModalProps) {
                     name="preferredSupplierId"
                     control={control}
                     render={({ field }) => (
-                      <Select value={field.value ?? '__none__'} onValueChange={v => field.onChange(v === '__none__' ? null : v)}>
+                      <SelectRoot value={field.value ?? '__none__'} onValueChange={v => field.onChange(v === '__none__' ? null : v)}>
                         <SelectTrigger id="prod-sup"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Nenhum</SelectItem>
@@ -271,7 +271,7 @@ export function ProductModal({ open, onClose, onSaved }: ProductModalProps) {
                             <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                           ))}
                         </SelectContent>
-                      </Select>
+                      </SelectRoot>
                     )}
                   />
                 </div>
@@ -391,14 +391,14 @@ export function ProductModal({ open, onClose, onSaved }: ProductModalProps) {
                           name="controlClass"
                           control={control}
                           render={({ field }) => (
-                            <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                            <SelectRoot value={field.value ?? ''} onValueChange={field.onChange}>
                               <SelectTrigger id="prod-class"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                               <SelectContent>
                                 {ANVISA_CONTROL_CLASSES.map(c => (
                                   <SelectItem key={c} value={c}>{c}</SelectItem>
                                 ))}
                               </SelectContent>
-                            </Select>
+                            </SelectRoot>
                           )}
                         />
                         {errors.controlClass && <FieldError>{errors.controlClass.message}</FieldError>}
@@ -435,7 +435,7 @@ export function ProductModal({ open, onClose, onSaved }: ProductModalProps) {
                           name="defaultStorageLocationId"
                           control={control}
                           render={({ field }) => (
-                            <Select value={field.value ?? '__none__'} onValueChange={v => field.onChange(v === '__none__' ? null : v)}>
+                            <SelectRoot value={field.value ?? '__none__'} onValueChange={v => field.onChange(v === '__none__' ? null : v)}>
                               <SelectTrigger id="prod-storage">
                                 <SelectValue placeholder="Selecionar local..." />
                               </SelectTrigger>
@@ -445,7 +445,7 @@ export function ProductModal({ open, onClose, onSaved }: ProductModalProps) {
                                   <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                                 ))}
                               </SelectContent>
-                            </Select>
+                            </SelectRoot>
                           )}
                         />
                         {filteredLocations.length === 0 && (

@@ -626,8 +626,8 @@ export default function DashboardPage() {
           isLoading={agendaQ.isLoading || waitQ.isLoading}
           isError={agendaQ.isError && waitQ.isError}
           onRetry={() => {
-            agendaQ.refetch();
-            waitQ.refetch();
+            void agendaQ.refetch();
+            void waitQ.refetch();
           }}
           count={inProgress.length + queue.length}
           viewAllHref="/agenda"

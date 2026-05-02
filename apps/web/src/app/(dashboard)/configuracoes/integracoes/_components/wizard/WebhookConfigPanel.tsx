@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Glass, Btn, Ico, Mono, Input, Toggle, T } from '@dermaos/ui/ds';
+import { copyText } from '@/lib/clipboard';
 import type { WebhookConfig } from '../../_lib/wizard-config';
 
 interface WebhookConfigPanelProps {
@@ -47,12 +48,12 @@ export function WebhookConfigPanel({
     ? `${typeof window !== 'undefined' ? window.location.origin : 'https://app.elosmed.com'}${config.callbackUrlTemplate}`
     : '';
 
-  function handleCopy() {
+  async function handleCopy() {
     if (!callbackUrl) return;
-    navigator.clipboard.writeText(callbackUrl).then(() => {
+    if (await copyText(callbackUrl)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    }
   }
 
   return (

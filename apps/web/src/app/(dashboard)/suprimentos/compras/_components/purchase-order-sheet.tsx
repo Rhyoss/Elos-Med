@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Button,
   SheetRoot, SheetContent, SheetHeader, SheetTitle, SheetFooter,
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  SelectRoot, SelectTrigger, SelectValue, SelectContent, SelectItem,
   Input,
 } from '@dermaos/ui';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
@@ -54,15 +54,15 @@ export function PurchaseOrderSheet({
 
   const createMutation = trpc.supply.purchaseOrders.create.useMutation({
     onSuccess: () => {
-      utils.supply.purchaseOrders.list.invalidate();
-      utils.supply.purchaseOrders.suggestions.invalidate();
+      void utils.supply.purchaseOrders.list.invalidate();
+      void utils.supply.purchaseOrders.suggestions.invalidate();
       onSuccess();
       onClose();
     },
   });
   const updateMutation = trpc.supply.purchaseOrders.update.useMutation({
     onSuccess: () => {
-      utils.supply.purchaseOrders.list.invalidate();
+      void utils.supply.purchaseOrders.list.invalidate();
       onSuccess();
       onClose();
     },
@@ -147,7 +147,7 @@ export function PurchaseOrderSheet({
           {/* Fornecedor */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="supplierId" className="text-sm font-medium leading-none">Fornecedor *</label>
-            <Select
+            <SelectRoot
               value={watch('supplierId')}
               onValueChange={(v) => setValue('supplierId', v, { shouldValidate: true })}
               disabled={!canEdit}
@@ -160,7 +160,7 @@ export function PurchaseOrderSheet({
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </SelectRoot>
             {errors.supplierId && (
               <p className="text-xs text-red-600" role="alert">{errors.supplierId.message}</p>
             )}
@@ -169,7 +169,7 @@ export function PurchaseOrderSheet({
           {/* Urgência */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="urgency" className="text-sm font-medium leading-none">Urgência *</label>
-            <Select
+            <SelectRoot
               value={watch('urgency')}
               onValueChange={(v) => setValue('urgency', v as FormValues['urgency'], { shouldValidate: true })}
               disabled={!canEdit}
@@ -182,7 +182,7 @@ export function PurchaseOrderSheet({
                   <SelectItem key={u} value={u}>{ORDER_URGENCY_LABELS[u]}</SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </SelectRoot>
           </div>
 
           {/* Entrega esperada */}
@@ -226,7 +226,7 @@ export function PurchaseOrderSheet({
                     <label htmlFor={`items.${idx}.productId`} className="text-xs text-muted-foreground">
                       Produto
                     </label>
-                    <Select
+                    <SelectRoot
                       value={watch(`items.${idx}.productId`)}
                       onValueChange={(v) => setValue(`items.${idx}.productId`, v, { shouldValidate: true })}
                       disabled={!canEdit}
@@ -244,7 +244,7 @@ export function PurchaseOrderSheet({
                           </SelectItem>
                         ))}
                       </SelectContent>
-                    </Select>
+                    </SelectRoot>
                   </div>
                   <div className="flex flex-col gap-1">
                     <label htmlFor={`items.${idx}.quantity`} className="text-xs text-muted-foreground">

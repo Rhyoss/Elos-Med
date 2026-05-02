@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@dermaos/ui';
+import { SelectRoot, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@dermaos/ui';
 import { Plus } from 'lucide-react';
 import { Btn, PageHero } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
@@ -53,12 +53,12 @@ export default function AutomacoesPage() {
 
   async function handleToggle(id: string, isActive: boolean) {
     setTogglingId(id);
-    await toggleMutation.mutateAsync({ id, isActive });
+    try { await toggleMutation.mutateAsync({ id, isActive }); } catch { /* handled by onSettled */ }
   }
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Excluir a automação "${name}"? Esta ação não pode ser desfeita.`)) return;
-    await deleteMutation.mutateAsync({ id });
+    try { await deleteMutation.mutateAsync({ id }); } catch { /* handled by mutation error state */ }
   }
 
   const automations = (query.data?.data ?? []) as AutomationRow[];
@@ -85,7 +85,7 @@ export default function AutomacoesPage() {
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-3" role="group" aria-label="Filtros de automações">
-        <Select value={triggerFilter} onValueChange={setTriggerFilter}>
+        <SelectRoot value={triggerFilter} onValueChange={setTriggerFilter}>
           <SelectTrigger className="w-52" aria-label="Filtrar por gatilho">
             <SelectValue placeholder="Todos os gatilhos" />
           </SelectTrigger>
@@ -95,9 +95,9 @@ export default function AutomacoesPage() {
               <SelectItem key={t} value={t}>{TRIGGER_META[t].label}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </SelectRoot>
 
-        <Select value={channelFilter} onValueChange={setChannelFilter}>
+        <SelectRoot value={channelFilter} onValueChange={setChannelFilter}>
           <SelectTrigger className="w-40" aria-label="Filtrar por canal">
             <SelectValue />
           </SelectTrigger>
@@ -106,9 +106,9 @@ export default function AutomacoesPage() {
               <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </SelectRoot>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <SelectRoot value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44" aria-label="Filtrar por status">
             <SelectValue />
           </SelectTrigger>
@@ -117,7 +117,7 @@ export default function AutomacoesPage() {
               <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </SelectRoot>
 
         {(triggerFilter !== 'all' || channelFilter !== 'all' || statusFilter !== 'all') && (
           <Btn

@@ -9,7 +9,7 @@ import {
   DialogFooter,
   Button,
   Input,
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  SelectRoot, SelectTrigger, SelectValue, SelectContent, SelectItem,
   Textarea,
   Checkbox,
   Badge,
@@ -207,7 +207,7 @@ export function KitEditor({ open, kitId, onClose, onSaved }: KitEditorProps) {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="kit-procedure">Tipo de Procedimento *</Label>
-              <Select value={procedureTypeId} onValueChange={setProcedureTypeId}>
+              <SelectRoot value={procedureTypeId} onValueChange={setProcedureTypeId}>
                 <SelectTrigger id="kit-procedure">
                   <SelectValue placeholder="Selecione o procedimento" />
                 </SelectTrigger>
@@ -216,7 +216,7 @@ export function KitEditor({ open, kitId, onClose, onSaved }: KitEditorProps) {
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
+              </SelectRoot>
             </div>
           </div>
 

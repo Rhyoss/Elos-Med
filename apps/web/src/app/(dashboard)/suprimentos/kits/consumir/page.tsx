@@ -3,7 +3,7 @@
 import * as React from 'react';
 import {
   Button, Badge, Checkbox,
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  SelectRoot, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from '@dermaos/ui';
 import { WifiOff, Check, AlertTriangle, ChevronLeft, ChevronRight, RotateCw } from 'lucide-react';
 import Link from 'next/link';
@@ -308,7 +308,7 @@ export default function ConsumirKitPage() {
                 {it.status !== 'indisponivel' && !it.skipped && (
                   <div className="mt-2">
                     <label className="text-xs text-muted-foreground">Lote</label>
-                    <Select
+                    <SelectRoot
                       value={it.selectedLotId ?? ''}
                       onValueChange={(v) => {
                         const next = [...items]; next[idx] = { ...next[idx]!, selectedLotId: v };
@@ -325,7 +325,7 @@ export default function ConsumirKitPage() {
                           </SelectItem>
                         ))}
                       </SelectContent>
-                    </Select>
+                    </SelectRoot>
                   </div>
                 )}
 

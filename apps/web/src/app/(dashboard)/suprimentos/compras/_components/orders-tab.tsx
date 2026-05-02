@@ -249,7 +249,7 @@ export function OrdersTab() {
         onClose={() => setApprovalOrder(null)}
         onSuccess={() => {
           setApprovalOrder(null);
-          query.refetch();
+          void query.refetch();
         }}
       />
 

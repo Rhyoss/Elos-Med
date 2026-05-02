@@ -3,7 +3,7 @@
 import * as React from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Button, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  Button, Label, SelectRoot, SelectTrigger, SelectValue, SelectContent, SelectItem,
   Switch, Textarea,
 } from '@dermaos/ui';
 import { useForm, Controller } from 'react-hook-form';
@@ -93,7 +93,7 @@ export function StorageLocationModal({ open, onClose, onSaved }: StorageLocation
                 name="type"
                 control={control}
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectRoot value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger id="sl-type" aria-label="Tipo de local">
                       <SelectValue />
                     </SelectTrigger>
@@ -102,7 +102,7 @@ export function StorageLocationModal({ open, onClose, onSaved }: StorageLocation
                         <SelectItem key={t} value={t}>{STORAGE_TYPE_LABELS[t]}</SelectItem>
                       ))}
                     </SelectContent>
-                  </Select>
+                  </SelectRoot>
                 )}
               />
               {isRefrigerated && (

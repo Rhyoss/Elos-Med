@@ -24,7 +24,7 @@ export function SectionClinica() {
 
   const updateClinic = trpc.settings.clinic.update.useMutation({
     onSuccess: () => {
-      clinicQuery.refetch();
+      void clinicQuery.refetch();
       setSaveStatus('success');
       setTimeout(() => setSaveStatus(null), 3000);
     },
@@ -36,7 +36,7 @@ export function SectionClinica() {
 
   const updateHours = trpc.settings.clinic.updateBusinessHours.useMutation({
     onSuccess: () => {
-      hoursQuery.refetch();
+      void hoursQuery.refetch();
       setHoursSaveStatus('success');
       setTimeout(() => setHoursSaveStatus(null), 3000);
     },

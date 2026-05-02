@@ -50,8 +50,8 @@ export function ApprovalSheet({ open, onClose, onSuccess, order }: ApprovalSheet
   });
 
   function invalidate() {
-    utils.supply.purchaseOrders.list.invalidate();
-    if (order?.id) utils.supply.purchaseOrders.get.invalidate({ orderId: order.id });
+    void utils.supply.purchaseOrders.list.invalidate();
+    if (order?.id) void utils.supply.purchaseOrders.get.invalidate({ orderId: order.id });
   }
 
   function closeAll() {

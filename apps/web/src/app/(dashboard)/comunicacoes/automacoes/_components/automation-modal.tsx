@@ -5,7 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Button, Input, Select, SelectTrigger, SelectValue, SelectContent,
+  Button, Input, SelectRoot, SelectTrigger, SelectValue, SelectContent,
   SelectItem, Switch, Label,
 } from '@dermaos/ui';
 import {
@@ -109,7 +109,7 @@ export function AutomationModal({ open, onClose, onSaved }: AutomationModalProps
               name="trigger"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <SelectRoot value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger id="trigger" aria-label="Selecionar gatilho" aria-invalid={!!errors.trigger}>
                     <SelectValue placeholder="Selecione o gatilho…" />
                   </SelectTrigger>
@@ -120,7 +120,7 @@ export function AutomationModal({ open, onClose, onSaved }: AutomationModalProps
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </SelectRoot>
               )}
             />
             {errors.trigger && (
@@ -138,7 +138,7 @@ export function AutomationModal({ open, onClose, onSaved }: AutomationModalProps
               name="channelId"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <SelectRoot value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger id="channelId" aria-label="Selecionar canal" aria-invalid={!!errors.channelId}>
                     <SelectValue placeholder="Selecione o canal…" />
                   </SelectTrigger>
@@ -151,7 +151,7 @@ export function AutomationModal({ open, onClose, onSaved }: AutomationModalProps
                         </SelectItem>
                       ))}
                   </SelectContent>
-                </Select>
+                </SelectRoot>
               )}
             />
             {errors.channelId && (
@@ -166,7 +166,7 @@ export function AutomationModal({ open, onClose, onSaved }: AutomationModalProps
               name="templateId"
               control={control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <SelectRoot value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger id="templateId" aria-label="Selecionar template" aria-invalid={!!errors.templateId}>
                     <SelectValue placeholder={selectedChannelId ? 'Selecione o template…' : 'Selecione o canal primeiro'} />
                   </SelectTrigger>
@@ -178,7 +178,7 @@ export function AutomationModal({ open, onClose, onSaved }: AutomationModalProps
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </SelectRoot>
               )}
             />
             {errors.templateId && (

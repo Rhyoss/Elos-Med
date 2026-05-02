@@ -149,8 +149,8 @@ export default function ComprasPage() {
         prefillItems={prefillItems}
         onClose={() => { setNewSheetOpen(false); setPrefillItems([]); }}
         onSuccess={() => {
-          utils.supply.purchaseOrders.list.invalidate();
-          utils.supply.purchaseOrders.suggestions.invalidate();
+          void utils.supply.purchaseOrders.list.invalidate();
+          void utils.supply.purchaseOrders.suggestions.invalidate();
           setTab('requisicoes');
         }}
       />

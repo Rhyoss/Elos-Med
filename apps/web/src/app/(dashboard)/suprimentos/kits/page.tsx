@@ -3,7 +3,7 @@
 import * as React from 'react';
 import {
   Button, Input, Badge,
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  SelectRoot, SelectTrigger, SelectValue, SelectContent, SelectItem,
   DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from '@dermaos/ui';
 import { Btn, PageHero } from '@dermaos/ui/ds';
@@ -131,7 +131,7 @@ export default function KitsPage() {
             onChange={(e) => setLocalSearch(e.target.value)}
           />
         </div>
-        <Select value={procFilter || '__all__'} onValueChange={(v) => updateParam('procedure', v === '__all__' ? '' : v)}>
+        <SelectRoot value={procFilter || '__all__'} onValueChange={(v) => updateParam('procedure', v === '__all__' ? '' : v)}>
           <SelectTrigger className="h-9 w-[200px]">
             <SelectValue placeholder="Procedimento" />
           </SelectTrigger>
@@ -141,8 +141,8 @@ export default function KitsPage() {
               <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
-        <Select value={availFilter || '__all__'} onValueChange={(v) => updateParam('avail', v === '__all__' ? '' : v)}>
+        </SelectRoot>
+        <SelectRoot value={availFilter || '__all__'} onValueChange={(v) => updateParam('avail', v === '__all__' ? '' : v)}>
           <SelectTrigger className="h-9 w-[160px]">
             <SelectValue placeholder="Disponibilidade" />
           </SelectTrigger>
@@ -152,7 +152,7 @@ export default function KitsPage() {
               <SelectItem key={s} value={s}>{KIT_AVAILABILITY_LABELS[s]}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </SelectRoot>
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={() => { setLocalSearch(''); router.replace(pathname); }}>
             Limpar

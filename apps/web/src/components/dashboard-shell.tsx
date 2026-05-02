@@ -69,10 +69,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const { user, clinic, logout } = useAuth();
 
-  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('sidebar_collapsed') === 'true';
-  });
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+
+  React.useEffect(() => {
+    setSidebarCollapsed(localStorage.getItem('sidebar_collapsed') === 'true');
+  }, []);
 
   const toggleSidebar = React.useCallback((collapsed: boolean) => {
     setSidebarCollapsed(collapsed);

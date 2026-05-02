@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Badge, Input, Textarea, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Label } from '@dermaos/ui';
+import { Button, Badge, Input, Textarea, SelectRoot, SelectTrigger, SelectValue, SelectContent, SelectItem, Label } from '@dermaos/ui';
 import { RotateCcw, Save, Eye } from 'lucide-react';
 import {
   updateTemplateSchema,
@@ -138,7 +138,7 @@ export function TemplateEditor({
               name={'channel' as never}
               control={control}
               render={({ field }: { field: { value: string; onChange: (v: string) => void } }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <SelectRoot value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger id="tpl-channel" aria-label="Selecionar canal" aria-invalid={!!(errors as Record<string, unknown>)['channel']}>
                     <SelectValue />
                   </SelectTrigger>
@@ -147,7 +147,7 @@ export function TemplateEditor({
                       <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </SelectRoot>
               )}
             />
           </div>

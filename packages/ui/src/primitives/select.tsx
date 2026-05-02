@@ -69,12 +69,12 @@ SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayNam
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = 'popper', ...props }, ref) => (
+>(({ className, children, position = 'popper', style, ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        `relative z-[--z-dropdown] max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover
+        `relative max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover
          text-popover-foreground shadow-md
          data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-in`,
         position === 'popper' &&
@@ -82,14 +82,14 @@ const SelectContent = React.forwardRef<
         className,
       )}
       position={position}
+      style={{ zIndex: 100, ...style }}
       {...props}
     >
       <SelectScrollUpButton />
       <SelectPrimitive.Viewport
         className={cn(
           'p-1',
-          position === 'popper' &&
-            'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
+          position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]',
         )}
       >
         {children}
@@ -149,9 +149,16 @@ const SelectSeparator = React.forwardRef<
 ));
 SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
 
-/* ── Select composto com label e erro ────────────────────────────────────── */
+/* ── SelectField: compound com label, hint e erro ────────────────────────────
+ * Use SelectField quando quiser a API "tudo-em-um" (label/error/hint).
+ * Os filhos vão para dentro do SelectContent — passe somente <SelectItem>.
+ *
+ * Para construir o select manualmente (com <SelectTrigger>, <SelectContent>,
+ * etc.), importe SelectRoot. Nunca misture SelectField com SelectTrigger
+ * porque isso gera triggers/contents aninhados.
+ * ────────────────────────────────────────────────────────────────────────── */
 
-export interface SelectProps {
+export interface SelectFieldProps {
   label?: string;
   error?: string;
   hint?: string;
@@ -165,7 +172,7 @@ export interface SelectProps {
   id?: string;
 }
 
-function Select({
+function SelectField({
   label,
   error,
   hint,
@@ -177,7 +184,7 @@ function Select({
   children,
   className,
   id,
-}: SelectProps) {
+}: SelectFieldProps) {
   const selectId = id ?? React.useId();
   const errorId = `${selectId}-error`;
   const hintId  = `${selectId}-hint`;
@@ -225,7 +232,7 @@ function Select({
 }
 
 export {
-  Select,
+  SelectField,
   SelectRoot,
   SelectGroup,
   SelectValue,

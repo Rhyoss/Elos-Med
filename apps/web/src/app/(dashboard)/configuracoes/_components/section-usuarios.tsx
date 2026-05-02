@@ -69,13 +69,13 @@ export function SectionUsuarios() {
   );
 
   const createUser = trpc.settings.users.create.useMutation({
-    onSuccess: () => { usersQuery.refetch(); setShowInvite(false); resetInviteForm(); },
+    onSuccess: () => { void usersQuery.refetch(); setShowInvite(false); resetInviteForm(); },
   });
   const setPermissions = trpc.settings.users.setPermissions.useMutation({
-    onSuccess: () => { usersQuery.refetch(); setEditingUser(null); },
+    onSuccess: () => { void usersQuery.refetch(); setEditingUser(null); },
   });
   const deactivateUser = trpc.settings.users.deactivate.useMutation({
-    onSuccess: () => { usersQuery.refetch(); setDeactivatingUser(null); },
+    onSuccess: () => { void usersQuery.refetch(); setDeactivatingUser(null); },
   });
   const reactivateUser = trpc.settings.users.reactivate.useMutation({
     onSuccess: () => usersQuery.refetch(),

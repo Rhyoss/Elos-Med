@@ -12,6 +12,7 @@ import {
 import { Button } from '@dermaos/ui';
 import { trpc } from '@/lib/trpc-provider';
 import { useAuth } from '@/lib/auth';
+import { copyText } from '@/lib/clipboard';
 import type { Channel } from '@dermaos/shared';
 
 const CHANNEL_META: Record<Channel, { label: string; icon: string; description: string }> = {
@@ -36,14 +37,14 @@ export function SectionIntegracoes() {
   const integrationsQuery = trpc.settings.integrations.list.useQuery(undefined, { staleTime: 60_000 });
 
   const updateCredential = trpc.settings.integrations.updateCredential.useMutation({
-    onSuccess: () => { integrationsQuery.refetch(); setConfigChannel(null); setTokenInput(''); },
+    onSuccess: () => { void integrationsQuery.refetch(); setConfigChannel(null); setTokenInput(''); },
   });
   const testConnection = trpc.settings.integrations.testConnection.useMutation({
     onSuccess: () => integrationsQuery.refetch(),
   });
   const regenerateSecret = trpc.settings.integrations.regenerateWebhookSecret.useMutation({
     onSuccess: (data) => {
-      integrationsQuery.refetch();
+      void integrationsQuery.refetch();
       setNewSecret(data.secret);
     },
   });
@@ -240,7 +241,7 @@ export function SectionIntegracoes() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => { navigator.clipboard.writeText(newSecret); }}>
+              <Button variant="outline" onClick={() => { void copyText(newSecret); }}>
                 Copiar
               </Button>
               <DialogClose asChild>

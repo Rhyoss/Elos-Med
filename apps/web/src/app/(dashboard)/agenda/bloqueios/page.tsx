@@ -8,7 +8,7 @@ import {
   Btn, Glass, Mono, Badge, Ico, EmptyState,
   PageHero, formatHeroDate, T,
 } from '@dermaos/ui/ds';
-import { Input, Select as ShadSelect, useToast } from '@dermaos/ui';
+import { Input, useToast } from '@dermaos/ui';
 import { trpc } from '@/lib/trpc-provider';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */

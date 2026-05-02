@@ -161,6 +161,9 @@ export default function FinanceiroPage() {
   const canWrite = usePermission('financial', 'write');
   const canExport = usePermission('analytics', 'export');
 
+  const today = React.useMemo(() => isoToday(), []);
+  const monthStart = React.useMemo(() => isoMonthStart(), []);
+
   if (!canRead) {
     return (
       <div style={{ padding: '60px 26px', textAlign: 'center' }}>
@@ -174,9 +177,6 @@ export default function FinanceiroPage() {
       </div>
     );
   }
-
-  const today = React.useMemo(() => isoToday(), []);
-  const monthStart = React.useMemo(() => isoMonthStart(), []);
 
   const financialQ = trpc.analytics.financial.useQuery(
     { start: monthStart, end: today },

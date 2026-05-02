@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Calendar } from 'lucide-react';
-import { Checkbox, Input, Select, SelectItem, Button } from '@dermaos/ui';
+import { Checkbox, Input, SelectField, SelectItem, Button } from '@dermaos/ui';
 import type { NextAppointmentHint } from '@dermaos/shared';
 
 interface NextAppointmentProps {
@@ -81,7 +81,7 @@ export function NextAppointmentSection({
         <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
           <label className="block text-xs font-medium text-foreground">
             Intervalo
-            <Select
+            <SelectField
               value={isCustom ? 'custom' : String(currentDays)}
               onValueChange={(v) => {
                 if (v === 'custom') {
@@ -97,7 +97,7 @@ export function NextAppointmentSection({
                   {p.label}
                 </SelectItem>
               ))}
-            </Select>
+            </SelectField>
           </label>
 
           {isCustom && (

@@ -121,7 +121,7 @@ export function SectionAuditoria() {
   function handleFilter() {
     setCursor(undefined);
     setAllRows([]);
-    logsQuery.refetch();
+    void logsQuery.refetch();
   }
 
   function loadMore() {

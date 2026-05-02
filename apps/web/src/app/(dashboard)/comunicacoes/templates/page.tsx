@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@dermaos/ui';
+import { SelectRoot, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@dermaos/ui';
 import { Plus } from 'lucide-react';
 import { Btn, Input as DSInput, PageHero } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
@@ -54,7 +54,7 @@ export default function TemplatesPage() {
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Excluir o template "${name}"? Esta ação não pode ser desfeita.`)) return;
-    await deleteMutation.mutateAsync({ id });
+    try { await deleteMutation.mutateAsync({ id }); } catch { /* handled by mutation error state */ }
   }
 
   const templates = (query.data?.data ?? []) as TemplateRow[];
@@ -105,7 +105,7 @@ export default function TemplatesPage() {
           />
         </div>
 
-        <Select value={channel} onValueChange={setChannel}>
+        <SelectRoot value={channel} onValueChange={setChannel}>
           <SelectTrigger className="w-40" aria-label="Filtrar por canal">
             <SelectValue />
           </SelectTrigger>
@@ -114,7 +114,7 @@ export default function TemplatesPage() {
               <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </SelectRoot>
 
         {(channel !== 'all' || debouncedSearch) && (
           <Btn

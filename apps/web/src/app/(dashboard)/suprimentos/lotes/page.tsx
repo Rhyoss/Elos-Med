@@ -5,7 +5,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   Button,
   Input,
-  Select,
+  SelectRoot,
   SelectTrigger,
   SelectValue,
   SelectContent,
@@ -203,7 +203,7 @@ export default function LotesPage() {
           />
         </div>
 
-        <Select
+        <SelectRoot
           value={filterStatus || '__all__'}
           onValueChange={(v) => updateParam('status', v === '__all__' ? '' : v)}
         >
@@ -216,9 +216,9 @@ export default function LotesPage() {
               <SelectItem key={s} value={s}>{LOT_STATUS_LABELS[s]}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </SelectRoot>
 
-        <Select
+        <SelectRoot
           value={filterAlertLevel || '__all__'}
           onValueChange={(v) => updateParam('alert', v === '__all__' ? '' : v)}
         >
@@ -231,9 +231,9 @@ export default function LotesPage() {
               <SelectItem key={l} value={l}>{EXPIRY_ALERT_LEVEL_LABELS[l]}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </SelectRoot>
 
-        <Select
+        <SelectRoot
           value={filterLocation || '__all__'}
           onValueChange={(v) => updateParam('location', v === '__all__' ? '' : v)}
         >
@@ -246,7 +246,7 @@ export default function LotesPage() {
               <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </SelectRoot>
 
         <div className="flex items-center gap-1.5 ml-1">
           <Checkbox

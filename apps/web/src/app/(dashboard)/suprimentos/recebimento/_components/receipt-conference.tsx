@@ -73,8 +73,8 @@ export function ReceiptConference({ order, onSuccess }: ReceiptConferenceProps) 
   const parseNfeMutation = trpc.supply.purchaseOrders.parseNfe.useMutation();
   const receiveMutation  = trpc.supply.purchaseOrders.receive.useMutation({
     onSuccess: (result) => {
-      utils.supply.purchaseOrders.list.invalidate();
-      utils.supply.purchaseOrders.get.invalidate({ orderId: order.id });
+      void utils.supply.purchaseOrders.list.invalidate();
+      void utils.supply.purchaseOrders.get.invalidate({ orderId: order.id });
       onSuccess(
         `${result.lotsCreated} lote${result.lotsCreated !== 1 ? 's' : ''} criado${result.lotsCreated !== 1 ? 's' : ''}, ` +
         `${result.movementsCreated} item${result.movementsCreated !== 1 ? 'ns' : ''} recebido${result.movementsCreated !== 1 ? 's' : ''}.`,
@@ -164,7 +164,7 @@ export function ReceiptConference({ order, onSuccess }: ReceiptConferenceProps) 
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
+    if (file) void handleFile(file);
   }
 
   function openConfirmDialog(type: 'confirmar_total' | 'confirmar_parcial' | 'recusar') {
@@ -210,7 +210,7 @@ export function ReceiptConference({ order, onSuccess }: ReceiptConferenceProps) 
           accept=".xml"
           className="sr-only"
           aria-label="Selecionar arquivo XML de NF-e"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); }}
         />
         {parseNfeMutation.isPending ? (
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
