@@ -20,17 +20,19 @@ export function useAuth() {
     refetchOnWindowFocus: true,
   });
 
+  const devMock = process.env.NEXT_PUBLIC_DEV_MOCK_AUTH === 'true';
+
   useEffect(() => {
     if (meQuery.data) {
       store.setSession(meQuery.data.user, meQuery.data.clinic, meQuery.data.permissions);
-    } else if (meQuery.isError) {
+    } else if (meQuery.isError && !devMock) {
       store.clearSession();
     }
 
     if (!meQuery.isLoading) {
       store.setHydrated();
     }
-  }, [meQuery.data, meQuery.isError, meQuery.isLoading]);
+  }, [meQuery.data, meQuery.isError, meQuery.isLoading, devMock]);
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
