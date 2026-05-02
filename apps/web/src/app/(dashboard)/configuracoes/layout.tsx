@@ -54,7 +54,7 @@ interface ConfiguracoesLayoutProps {
 
 export default function ConfiguracoesLayout({ children }: ConfiguracoesLayoutProps) {
   const pathname      = usePathname();
-  const { user }      = useAuth();
+  const { user, logout, isLoggingOut } = useAuth();
   const canAdmin      = usePermission('admin', 'read');
   const isOwner       = user?.role === 'owner';
   const isAdmin       = user?.role === 'admin' || isOwner;
@@ -88,42 +88,76 @@ export default function ConfiguracoesLayout({ children }: ConfiguracoesLayoutPro
             width: 'max-content',
             flexShrink: 0,
             borderRight: `1px solid ${T.divider}`,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
             overflowY: 'auto',
-            padding: '12px 0',
+            padding: '12px 0 0',
           }}
         >
-          {visibleNav.map((item) => {
-            const isActive = item.id === activeSection;
-            return (
-              <Link
-                key={item.id}
-                href={item.href}
-                aria-current={isActive ? 'page' : undefined}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '12px 19px 12px 20px',
-                  textDecoration: 'none',
-                  background:   isActive ? T.primaryBg : 'transparent',
-                  borderLeft:   isActive ? `3px solid ${T.primary}` : '3px solid transparent',
-                  color:        isActive ? T.primary : T.textSecondary,
-                  transition:   'all 0.15s',
-                }}
-              >
-                <Ico name={item.icon} size={16} color={isActive ? T.primary : T.textMuted} />
-                <span
+          <div>
+            {visibleNav.map((item) => {
+              const isActive = item.id === activeSection;
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  aria-current={isActive ? 'page' : undefined}
                   style={{
-                    fontSize:   14,
-                    fontWeight: isActive ? 600 : 400,
-                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '12px 19px 12px 20px',
+                    textDecoration: 'none',
+                    background:   isActive ? T.primaryBg : 'transparent',
+                    borderLeft:   isActive ? `3px solid ${T.primary}` : '3px solid transparent',
+                    color:        isActive ? T.primary : T.textSecondary,
+                    transition:   'all 0.15s',
                   }}
                 >
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
+                  <Ico name={item.icon} size={16} color={isActive ? T.primary : T.textMuted} />
+                  <span
+                    style={{
+                      fontSize:   14,
+                      fontWeight: isActive ? 600 : 400,
+                      fontFamily: "'IBM Plex Sans', sans-serif",
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          <div style={{ padding: '12px 12px 16px', borderTop: `1px solid ${T.divider}` }}>
+            <button
+              onClick={logout}
+              disabled={isLoggingOut}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                width: '100%',
+                padding: '10px 8px',
+                borderRadius: T.r.sm,
+                border: 'none',
+                background: 'transparent',
+                color: T.danger,
+                cursor: isLoggingOut ? 'not-allowed' : 'pointer',
+                opacity: isLoggingOut ? 0.6 : 1,
+                transition: 'background 0.15s',
+                fontFamily: "'IBM Plex Sans', sans-serif",
+              }}
+              onMouseEnter={(e) => { if (!isLoggingOut) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(229,62,62,0.08)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+            >
+              <Ico name="logOut" size={16} color={T.danger} />
+              <span style={{ fontSize: 14, fontWeight: 500 }}>
+                {isLoggingOut ? 'Saindo…' : 'Sair'}
+              </span>
+            </button>
+          </div>
         </nav>
 
         {/* Content */}

@@ -39,11 +39,20 @@ export function useAuth() {
       store.clearSession();
       router.push('/login');
     },
+    onError: () => {
+      store.clearSession();
+      router.push('/login');
+    },
   });
 
   const logout = useCallback(() => {
+    if (devMock) {
+      store.clearSession();
+      router.push('/login');
+      return;
+    }
     logoutMutation.mutate();
-  }, [logoutMutation]);
+  }, [logoutMutation, devMock, store, router]);
 
   return {
     user: store.user,

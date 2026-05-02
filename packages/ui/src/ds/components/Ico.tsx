@@ -6,7 +6,7 @@ export type IcoName =
   | 'check' | 'x' | 'chevDown' | 'arrowRight' | 'arrowLeft' | 'shield' | 'zap'
   | 'activity' | 'layers' | 'clock' | 'eye' | 'copy' | 'download' | 'filter'
   | 'home' | 'bell' | 'mail' | 'phone' | 'star' | 'image' | 'file' | 'printer'
-  | 'link' | 'globe' | 'lock' | 'hash' | 'percent';
+  | 'link' | 'globe' | 'lock' | 'hash' | 'percent' | 'logOut';
 
 export interface IcoProps {
   name: IcoName;
@@ -80,6 +80,7 @@ export function Ico({ name, size = 18, color = 'currentColor', sw = 1.7, classNa
     lock: <svg {...p}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
     hash: <svg {...p}><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>,
     percent: <svg {...p}><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>,
+    logOut: <svg {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
   };
   return <span className={className} style={wrapStyle}>{I[name]}</span>;
 }
