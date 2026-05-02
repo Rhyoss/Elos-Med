@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { config } from 'dotenv';
+import { Pool } from 'pg';
 
 config({ path: path.resolve(process.cwd(), '../../.env') });
 config();
@@ -17,16 +18,42 @@ function isCipherLike(value: string): boolean {
   return CIPHER_TEXT_PATTERN.test(value);
 }
 
+/**
+ * Resolve a connection string com bypass de RLS:
+ *   1. DATABASE_ADMIN_URL (preferida — admin user, BYPASSRLS)
+ *   2. DATABASE_URL (fallback — pode ser app user e ser bloqueado por RLS)
+ *
+ * Se DATABASE_URL estiver apontando pro app user (sem BYPASSRLS), o scan
+ * vai retornar 0 mesmo com pacientes legados existindo. O script detecta
+ * isso e instrui o operador a setar DATABASE_ADMIN_URL.
+ */
+function resolveConnectionString(): { url: string; source: 'admin' | 'app' } {
+  const adminUrl = process.env.DATABASE_ADMIN_URL;
+  if (adminUrl) return { url: adminUrl, source: 'admin' };
+
+  const appUrl = process.env.DATABASE_URL;
+  if (!appUrl) {
+    throw new Error('Nem DATABASE_ADMIN_URL nem DATABASE_URL definidos no ambiente.');
+  }
+  return { url: appUrl, source: 'app' };
+}
+
 async function main(): Promise<void> {
-  const [{ db }, { decryptOptional, encrypt }, { logger }] = await Promise.all([
-    import('../db/client.js'),
+  const [{ decryptOptional, encrypt }, { logger }] = await Promise.all([
     import('../lib/crypto.js'),
     import('../lib/logger.js'),
   ]);
 
-  const client = await db.connect();
+  const { url, source } = resolveConnectionString();
+
+  // Pool direto, sem o proxy ALS de db/client.ts — esse script roda fora
+  // do contexto de request tRPC e precisa enxergar TODAS as clínicas.
+  const pool = new Pool({ connectionString: url, max: 2 });
+
+  const client = await pool.connect();
   let encryptedCount = 0;
   let skippedCipherCount = 0;
+  let totalCount = 0;
 
   try {
     await client.query('BEGIN');
@@ -38,6 +65,23 @@ async function main(): Promise<void> {
        ORDER BY clinic_id, id
        FOR UPDATE`,
     );
+    totalCount = result.rowCount ?? result.rows.length;
+
+    // Detecção de RLS bloqueando: o app user tem RLS ativa e sem GUC de
+    // clinic_id seteado o SELECT retorna 0 mesmo com pacientes existentes.
+    // Como o probe via SELECT também é bloqueado, qualquer scan vazio
+    // rodando como `app` é um falso positivo provável — abortamos com
+    // instrução clara.
+    if (totalCount === 0 && source === 'app') {
+      await client.query('ROLLBACK');
+      logger.error(
+        'Scan retornou 0 linhas usando DATABASE_URL (app user). Como o app user tem RLS ativa, esse resultado pode ser falso. Defina DATABASE_ADMIN_URL apontando pro user admin (BYPASSRLS) e rode novamente. Se realmente não existem pacientes, exporte SKIP_RLS_CHECK=1 para silenciar este aviso.',
+      );
+      if (process.env.SKIP_RLS_CHECK !== '1') {
+        process.exitCode = 1;
+        return;
+      }
+    }
 
     for (const row of result.rows) {
       const decrypted = decryptOptional(row.name);
@@ -65,7 +109,8 @@ async function main(): Promise<void> {
     await client.query('COMMIT');
     logger.info(
       {
-        scanned: result.rowCount ?? result.rows.length,
+        connectionSource: source,
+        scanned: totalCount,
         encrypted: encryptedCount,
         skippedCipherLike: skippedCipherCount,
       },
@@ -77,7 +122,7 @@ async function main(): Promise<void> {
     process.exitCode = 1;
   } finally {
     client.release();
-    await db.end();
+    await pool.end();
   }
 }
 

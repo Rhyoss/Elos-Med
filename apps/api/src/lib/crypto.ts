@@ -1,8 +1,11 @@
 import crypto from 'node:crypto';
 import { env } from '../config/env.js';
+import { logger } from './logger.js';
 
 const ALGORITHM = 'aes-256-gcm' as const;
 const KEY = Buffer.from(env.ENCRYPTION_KEY, 'hex'); // 32 bytes
+
+const CIPHER_FORMAT_RE = /^[A-Za-z0-9+/=_-]+:[A-Za-z0-9+/=_-]+:[A-Za-z0-9+/=_-]+$/;
 
 /**
  * Encrypts a plaintext string using AES-256-GCM.
@@ -39,9 +42,26 @@ export function encryptOptional(value: string | null | undefined): string | null
 
 export function decryptOptional(ciphertext: string | null | undefined): string | null {
   if (ciphertext == null || ciphertext === '') return null;
+
+  // Defesa: se o valor armazenado não respeita o formato `iv:authTag:ciphertext`,
+  // ele é PHI plaintext que vazou pra coluna cifrada (regressão do bug 2026-05-02
+  // "Nome indisponível"). Logamos warn ruidoso em vez de mascarar com null —
+  // assim observabilidade pega antes do usuário final perceber.
+  if (!CIPHER_FORMAT_RE.test(ciphertext)) {
+    logger.warn(
+      { sample: ciphertext.slice(0, 8), length: ciphertext.length },
+      'decryptOptional: valor PHI fora do formato AES-GCM (provável plaintext em coluna cifrada). Rode `pnpm --filter @dermaos/api patient-phi:encrypt-legacy`.',
+    );
+    return null;
+  }
+
   try {
     return decrypt(ciphertext);
-  } catch {
+  } catch (err) {
+    logger.warn(
+      { err: (err as Error).message, sample: ciphertext.slice(0, 8) },
+      'decryptOptional: falha ao decifrar valor PHI bem-formado (chave incorreta? auth tag inválida?).',
+    );
     return null;
   }
 }

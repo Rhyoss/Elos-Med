@@ -40,7 +40,7 @@ function itemTextFields(item: PrescriptionItem): { label: string; field: string;
     case 'manipulada':
       return [
         { label: item.formulation, field: 'formulation', text: item.formulation },
-        ...item.components.map((c) => ({
+        ...(item.components ?? []).map((c) => ({
           label: item.formulation,
           field: 'componente',
           text:  c.substance,
@@ -50,6 +50,8 @@ function itemTextFields(item: PrescriptionItem): { label: string; field: string;
       return [
         { label: item.name, field: 'name', text: item.name },
       ];
+    default:
+      return [];
   }
 }
 

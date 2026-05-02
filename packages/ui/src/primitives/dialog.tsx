@@ -33,8 +33,8 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { a11yTitle?: string }
+>(({ className, children, a11yTitle = 'Diálogo', ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -47,8 +47,12 @@ const DialogContent = React.forwardRef<
         className,
       )}
       style={{ zIndex: 'var(--z-modal)' }}
+      aria-describedby={undefined}
       {...props}
     >
+      <DialogPrimitive.Title style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>
+        {a11yTitle}
+      </DialogPrimitive.Title>
       {children}
       <DialogPrimitive.Close
         className={cn(

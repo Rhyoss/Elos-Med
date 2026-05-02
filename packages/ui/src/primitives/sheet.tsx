@@ -29,6 +29,8 @@ SheetOverlay.displayName = 'SheetOverlay';
 export interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   side?: 'right' | 'left' | 'top' | 'bottom';
+  /** Accessible title — required by Radix Dialog. Provide one even if it's hidden via SheetTitle. If omitted, an a11y fallback is rendered. */
+  a11yTitle?: string;
 }
 
 const sideClasses = {
@@ -48,7 +50,7 @@ const sideStyles: Record<string, React.CSSProperties> = {
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   SheetContentProps
->(({ className, children, side = 'right', ...props }, ref) => (
+>(({ className, children, side = 'right', a11yTitle = 'Painel', ...props }, ref) => (
   <SheetPortal>
     <SheetOverlay />
     <DialogPrimitive.Content
@@ -74,6 +76,9 @@ const SheetContent = React.forwardRef<
       aria-describedby={undefined}
       {...props}
     >
+      <DialogPrimitive.Title style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>
+        {a11yTitle}
+      </DialogPrimitive.Title>
       {children}
       <DialogPrimitive.Close
         aria-label="Fechar painel"
