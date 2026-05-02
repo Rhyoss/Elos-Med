@@ -6,6 +6,7 @@ import { trpc } from '@/lib/trpc-provider';
 
 export interface ImageMeta {
   id:          string;
+  lesionId?:    string | null;
   thumbnailUrl: string | null;
   mediumUrl:    string | null;
   originalUrl:  string | null;
@@ -13,6 +14,9 @@ export interface ImageMeta {
   captureType:  string | null;
   notes:        string | null;
   altText:      string | null;
+  processingStatus?: 'pending' | 'processing' | 'ready' | 'processing_failed' | 'unprocessable';
+  encounterId?: string | null;
+  capturedBy?:  string | null;
 }
 
 interface ImageViewerProps {
