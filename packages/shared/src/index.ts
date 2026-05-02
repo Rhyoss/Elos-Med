@@ -1,5 +1,6 @@
 // Schemas Zod
 export * from './schemas/auth.schema';
+export * from './schemas/document.schema';
 export * from './schemas/patient.schema';
 export * from './schemas/appointment.schema';
 export * from './schemas/encounter.schema';

@@ -15,6 +15,8 @@ import { TabImagens }       from './_components/tab-imagens';
 import { TabDocumentos }    from './_components/tab-documentos';
 import { TabTimeline }      from './_components/tab-timeline';
 import { useNovaConsulta }  from './_components/use-nova-consulta';
+import { NovoDocumentoDialog }       from './_components/novo-documento-dialog';
+import { TermoConsentimentoDialog }  from './_components/termo-consentimento-dialog';
 import css from './_components/prontuario.module.css';
 
 export default function ProntuarioPage({
@@ -24,6 +26,9 @@ export default function ProntuarioPage({
 }) {
   const { id: patientId } = React.use(params);
   const [tab, setTab] = React.useState<ProntuarioTabId>('resumo');
+  const [uploadSignal, setUploadSignal] = React.useState(0);
+  const [showNovoDocumento, setShowNovoDocumento] = React.useState(false);
+  const [showNovoTermo, setShowNovoTermo] = React.useState(false);
   const { startEncounter, isStarting, hasOpenDraft, openDraftId } =
     useNovaConsulta(patientId);
 
@@ -53,10 +58,17 @@ export default function ProntuarioPage({
 
   function handleUploadFotos() {
     setTab('imagens');
+    setUploadSignal((n) => n + 1);
   }
 
   function handleNovoDocumento() {
     setTab('documentos');
+    setShowNovoDocumento(true);
+  }
+
+  function handleNovoTermo() {
+    setTab('documentos');
+    setShowNovoTermo(true);
   }
 
   function handleNovaPrescricao() {
@@ -105,12 +117,28 @@ export default function ProntuarioPage({
             {tab === 'prescricoes'   && <TabPrescricoes   patientId={patientId} onNovaPrescrição={handleNovaPrescricao} />}
             {tab === 'procedimentos' && <TabProcedimentos patientId={patientId} patientName={patientName} />}
             {tab === 'protocolos'    && <TabProtocolos    patientId={patientId} patientName={patientName} />}
-            {tab === 'imagens'       && <TabImagens       patientId={patientId} onUploadFotos={handleUploadFotos} />}
-            {tab === 'documentos'    && <TabDocumentos    patientId={patientId} onNovoDocumento={handleNovoDocumento} />}
+            {tab === 'imagens'       && <TabImagens       patientId={patientId} uploadSignal={uploadSignal} />}
+            {tab === 'documentos'    && <TabDocumentos    patientId={patientId} onNovoDocumento={handleNovoDocumento} onNovoTermo={handleNovoTermo} />}
             {tab === 'timeline'      && <TabTimeline      patientId={patientId} />}
           </div>
         </div>
       </div>
+
+      {/* Document dialogs */}
+      {showNovoDocumento && (
+        <NovoDocumentoDialog
+          patientId={patientId}
+          patientName={patientName}
+          onClose={() => setShowNovoDocumento(false)}
+        />
+      )}
+      {showNovoTermo && (
+        <TermoConsentimentoDialog
+          patientId={patientId}
+          patientName={patientName}
+          onClose={() => setShowNovoTermo(false)}
+        />
+      )}
     </div>
   );
 }

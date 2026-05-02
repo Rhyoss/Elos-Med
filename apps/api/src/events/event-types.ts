@@ -18,6 +18,17 @@ export const DOMAIN_EVENT_TYPES = [
   'encounter.completed',
   'encounter.signed',
 
+  // Documentos clínicos
+  'document.created',
+  'document.updated',
+  'document.signed',
+  'document.revoked',
+
+  // Termos de consentimento
+  'consent_term.created',
+  'consent_term.signed',
+  'consent_term.revoked',
+
   // Prescrições
   'prescription.created',
   'prescription.updated',
@@ -150,6 +161,13 @@ export const EVENT_AGGREGATE_MAP: Record<DomainEventType, string> = {
   'aurora.message_handled':       'conversation',
   'aurora.guardrail_block':       'conversation',
   'aurora.transfer_to_human':     'conversation',
+  'document.created':             'document',
+  'document.updated':             'document',
+  'document.signed':              'document',
+  'document.revoked':             'document',
+  'consent_term.created':         'consent_term',
+  'consent_term.signed':          'consent_term',
+  'consent_term.revoked':         'consent_term',
   'stock.low_alert':              'product',
   'stock.critical_alert':         'product',
   'stock.lot_expiring':           'inventory_lot',
