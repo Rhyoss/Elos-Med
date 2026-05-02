@@ -7,6 +7,12 @@
       "runtimeArgs": ["--filter", "@dermaos/web", "dev"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@dermaos/api", "dev"],
+      "port": 3001
     }
   ]
 }

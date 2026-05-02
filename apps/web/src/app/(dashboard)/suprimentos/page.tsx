@@ -259,70 +259,75 @@ export default function SuprimentosPage() {
         </div>
 
         {/* Toolbar */}
-        <Glass style={{ padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <Input
-              leadingIcon="search"
-              placeholder="Buscar produto (nome, SKU, código de barras)…"
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-            />
-          </div>
+        <Glass style={{ padding: '8px 12px' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Input
+                leadingIcon="search"
+                placeholder="Buscar produto (nome, SKU, código de barras)…"
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+              />
+            </div>
 
-          <div style={{ minWidth: 180 }}>
-            <Select value={filterCat} onChange={(e) => updateParam('category', e.target.value)} aria-label="Categoria">
+            <Select
+              value={filterCat}
+              onChange={(e) => updateParam('category', e.target.value)}
+              aria-label="Categoria"
+              style={{ width: 160, flexShrink: 0 }}
+            >
               <option value="">Todas as categorias</option>
               {(categoriesQuery.data ?? []).map((c) => (
                 <option key={c.id} value={c.id}>{'  '.repeat(c.depth ?? 0)}{c.name}</option>
               ))}
             </Select>
-          </div>
 
-          <div style={{ minWidth: 160 }}>
-            <Select value={filterStatus} onChange={(e) => updateParam('status', e.target.value)} aria-label="Status">
+            <Select
+              value={filterStatus}
+              onChange={(e) => updateParam('status', e.target.value)}
+              aria-label="Status"
+              style={{ width: 140, flexShrink: 0 }}
+            >
               <option value="">Todos os status</option>
               {STOCK_STATUSES.map((s) => (
                 <option key={s} value={s}>{STOCK_STATUS_LABELS[s]}</option>
               ))}
             </Select>
-          </div>
 
-          <div style={{ minWidth: 180 }}>
-            <Select value={filterLoc} onChange={(e) => updateParam('location', e.target.value)} aria-label="Localização">
+            <Select
+              value={filterLoc}
+              onChange={(e) => updateParam('location', e.target.value)}
+              aria-label="Localização"
+              style={{ width: 150, flexShrink: 0 }}
+            >
               <option value="">Todos os locais</option>
               {(locationsQuery.data ?? []).map((l) => (
                 <option key={l.id} value={l.id}>{l.name}</option>
               ))}
             </Select>
-          </div>
 
-          {hasFilters && (
-            <Btn variant="ghost" small icon="x" onClick={() => { setLocalSearch(''); router.replace(pathname); }}>
-              Limpar
-            </Btn>
-          )}
+            {hasFilters && (
+              <Btn variant="ghost" small icon="x" onClick={() => { setLocalSearch(''); router.replace(pathname); }}>
+                Limpar
+              </Btn>
+            )}
 
-          <Btn variant="ghost" small icon="activity" onClick={handleRefresh} aria-label="Atualizar">
-            {''}
-          </Btn>
+            <Btn variant="ghost" small icon="activity" onClick={handleRefresh} aria-label="Atualizar" />
 
-          {canWrite && (
-            <Btn
-              variant="ghost"
-              small
-              icon="plus"
-              onClick={() => setProductModalOpen(true)}
-              title="Cadastrar novo produto"
-            >
-              Novo produto
-            </Btn>
-          )}
+            {canWrite && (
+              <Btn
+                variant="ghost"
+                small
+                icon="plus"
+                onClick={() => setProductModalOpen(true)}
+                title="Cadastrar novo produto"
+              >
+                Novo produto
+              </Btn>
+            )}
 
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 5 }}>
-            <MetalTag>FEFO</MetalTag>
-            <MetalTag>ANVISA</MetalTag>
             {visibleStockValue > 0 && (
-              <MetalTag>
+              <MetalTag style={{ flexShrink: 0 }}>
                 {visibleStockValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
               </MetalTag>
             )}

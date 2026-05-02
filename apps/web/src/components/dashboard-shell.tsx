@@ -69,7 +69,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const { user, clinic, logout } = useAuth();
 
-  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = React.useCallback((collapsed: boolean) => {
+    setSidebarCollapsed(collapsed);
+    localStorage.setItem('sidebar_collapsed', String(collapsed));
+  }, []);
 
   /* ── RBAC ──────────────────────────────────────────────────────── */
   const canOmni = usePermission('omni', 'read');
@@ -290,7 +298,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         onSearchClick={() => setCmdOpen(true)}
         onUserClick={() => router.push('/configuracoes')}
         collapsed={sidebarCollapsed}
-        onCollapsedChange={setSidebarCollapsed}
+        onCollapsedChange={toggleSidebar}
         topBar={{
           notificationCount: unreadCount,
           trail: breadcrumb,

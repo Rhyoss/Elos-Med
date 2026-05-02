@@ -243,7 +243,8 @@ export function MovementModal({
           )}
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4 py-2">
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          <div className="space-y-4 py-4 px-6">
           {/* Type picker — only when not pre-locked by context */}
           {!contextLot && (
             <div className="space-y-1.5">
@@ -327,6 +328,7 @@ export function MovementModal({
               {registerMut.error.message}
             </p>
           )}
+          </div>
 
           <DialogFooter className="gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>

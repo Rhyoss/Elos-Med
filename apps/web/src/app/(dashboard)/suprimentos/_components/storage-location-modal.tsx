@@ -63,7 +63,7 @@ export function StorageLocationModal({ open, onClose, onSaved }: StorageLocation
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-4 px-6">
             {/* Nome */}
             <div className="space-y-1.5">
               <Label htmlFor="sl-name">

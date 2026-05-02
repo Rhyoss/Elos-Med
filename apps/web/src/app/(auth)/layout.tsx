@@ -1,14 +1,34 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { Mono, T } from '@dermaos/ui/ds';
+import { type ReactNode, useEffect, useRef } from 'react';
+import { T } from '@dermaos/ui/ds';
 
-/**
- * AuthLayout — DS Quite Clear chrome para login/forgot/reset.
- * Reproduz o background gradient + ambient orbs do DS Shell para que a
- * tela de autenticação seja visualmente coerente com o app.
- */
 export default function AuthLayout({ children }: { children: ReactNode }) {
+  const orb1Ref = useRef<HTMLDivElement>(null);
+  const orb2Ref = useRef<HTMLDivElement>(null);
+  const orb3Ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let mx = window.innerWidth / 2;
+    let my = window.innerHeight / 2;
+    let raf: number;
+
+    const onMove = (e: MouseEvent) => { mx = e.clientX; my = e.clientY; };
+    window.addEventListener('mousemove', onMove);
+
+    const animate = () => {
+      const cx = mx - window.innerWidth / 2;
+      const cy = my - window.innerHeight / 2;
+      if (orb1Ref.current) orb1Ref.current.style.transform = `translate(${cx * 0.02}px, ${cy * 0.02}px)`;
+      if (orb2Ref.current) orb2Ref.current.style.transform = `translate(${cx * 0.04}px, ${cy * 0.04}px)`;
+      if (orb3Ref.current) orb3Ref.current.style.transform = `translate(${cx * 0.06}px, ${cy * 0.06}px)`;
+      raf = requestAnimationFrame(animate);
+    };
+    raf = requestAnimationFrame(animate);
+
+    return () => { window.removeEventListener('mousemove', onMove); cancelAnimationFrame(raf); };
+  }, []);
+
   return (
     <div
       style={{
@@ -18,103 +38,75 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '24px',
-        background: T.bgGrad,
+        background: 'linear-gradient(155deg, #F6F6F6 0%, #EDEDED 100%)',
         position: 'relative',
+        overflow: 'hidden',
         fontFamily: "'IBM Plex Sans', sans-serif",
         color: T.textPrimary,
       }}
     >
-      {/* Ambient orbs */}
+      {/* Ambient orbs — follow mouse */}
       <div
+        ref={orb1Ref}
         aria-hidden
         style={{
           position: 'absolute',
-          left: -120,
-          top: -80,
+          top: -200,
+          left: -200,
+          width: 600,
+          height: 600,
+          borderRadius: '50%',
+          background: T.primary,
+          filter: 'blur(80px)',
+          opacity: 0.08,
+          pointerEvents: 'none',
+          transition: 'transform 1.2s cubic-bezier(0.25,0.46,0.45,0.94)',
+        }}
+      />
+      <div
+        ref={orb2Ref}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          bottom: -150,
+          right: -150,
+          width: 500,
+          height: 500,
+          borderRadius: '50%',
+          background: T.accent,
+          filter: 'blur(80px)',
+          opacity: 0.08,
+          pointerEvents: 'none',
+          transition: 'transform 1.2s cubic-bezier(0.25,0.46,0.45,0.94)',
+        }}
+      />
+      <div
+        ref={orb3Ref}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
           width: 400,
           height: 400,
           borderRadius: '50%',
-          background: T.bgOrb1,
+          marginTop: -200,
+          marginLeft: -200,
+          background: T.primaryLight,
+          filter: 'blur(80px)',
+          opacity: 0.08,
           pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          right: -80,
-          bottom: -80,
-          width: 340,
-          height: 340,
-          borderRadius: '50%',
-          background: T.bgOrb2,
-          pointerEvents: 'none',
-          zIndex: 0,
+          transition: 'transform 1.2s cubic-bezier(0.25,0.46,0.45,0.94)',
         }}
       />
 
-      {/* Brand mark */}
+      {/* Card slot */}
       <div
         style={{
           position: 'relative',
-          zIndex: 1,
-          marginBottom: 28,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 12,
-        }}
-      >
-        <div
-          aria-hidden
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: T.r.lg,
-            background: T.primaryGrad,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 6px 20px rgba(23,77,56,0.32)',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 26,
-            letterSpacing: '-0.02em',
-          }}
-        >
-          E
-        </div>
-        <span
-          style={{
-            fontSize: 24,
-            fontWeight: 700,
-            color: T.textPrimary,
-            letterSpacing: '-0.02em',
-            lineHeight: 1,
-          }}
-        >
-          ElosMed
-        </span>
-        <Mono size={9} spacing="1.4px" color={T.textMuted}>
-          QUITE CLEAR · CLINICAL ELEGANCE
-        </Mono>
-      </div>
-
-      {/* Glass card slot */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 1,
+          zIndex: 10,
           width: '100%',
-          maxWidth: 420,
-          padding: '32px 32px 28px',
-          borderRadius: T.r.lg,
-          background: T.glass,
-          backdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
-          WebkitBackdropFilter: `blur(${T.glassBlur}px) saturate(170%)`,
-          border: `1px solid ${T.glassBorder}`,
-          boxShadow: T.glassShadow,
+          maxWidth: 440,
         }}
       >
         {children}
@@ -123,7 +115,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <p
         style={{
           position: 'relative',
-          zIndex: 1,
+          zIndex: 10,
           marginTop: 24,
           fontSize: 11,
           color: T.textMuted,
@@ -131,7 +123,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           fontFamily: "'IBM Plex Sans', sans-serif",
         }}
       >
-        © {new Date().getFullYear()} ElosMed · Plataforma para Clínicas Dermatológicas
+        © {new Date().getFullYear()} ElosMed · Plataforma Médica Integrada
       </p>
     </div>
   );

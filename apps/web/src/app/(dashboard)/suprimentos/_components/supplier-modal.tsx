@@ -69,7 +69,7 @@ export function SupplierModal({ open, onClose, onSaved }: SupplierModalProps) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 py-4 px-6 sm:grid-cols-2">
             {/* Razão Social */}
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="sup-name">
