@@ -157,8 +157,23 @@ function EmptyState({
 
 export default function FinanceiroPage() {
   const router = useRouter();
+  const canRead  = usePermission('financial', 'read');
   const canWrite = usePermission('financial', 'write');
   const canExport = usePermission('analytics', 'export');
+
+  if (!canRead) {
+    return (
+      <div style={{ padding: '60px 26px', textAlign: 'center' }}>
+        <Ico name="shield" size={32} color={T.textMuted} />
+        <p style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary, marginTop: 14 }}>
+          Acesso restrito
+        </p>
+        <p style={{ fontSize: 13, color: T.textMuted, marginTop: 4, maxWidth: 340, margin: '4px auto 0' }}>
+          Você não tem permissão para visualizar dados financeiros. Entre em contato com o administrador da clínica.
+        </p>
+      </div>
+    );
+  }
 
   const today = React.useMemo(() => isoToday(), []);
   const monthStart = React.useMemo(() => isoMonthStart(), []);

@@ -71,6 +71,9 @@ const EMPTY_FILTERS: FilterState = {
 export function TabImagens({ patientId, uploadSignal }: TabImagensProps) {
   const canWrite  = usePermission('clinical', 'write');
   const canExport = usePermission('clinical', 'export');
+  // TODO(backend): exclusão de imagem individual depende de endpoint
+  // clinical.lesions.deleteImage (ainda não exposto). Quando disponível,
+  // reintroduzir gate canDelete + ConfirmationDialog com motivo obrigatório.
 
   const [filters, setFilters]               = React.useState<FilterState>(EMPTY_FILTERS);
   const [uploadOpen, setUploadOpen]         = React.useState(false);
@@ -451,6 +454,11 @@ function Grid({
 
 /* ───────────────────────────── Card ─────────────────────────────── */
 
+// TODO: When ImageMeta includes consent fields (e.g. consentStatus, consentTermId),
+// show a consent badge on each card and blur thumbnails when consent is 'pendente'.
+// The consent terms query is already loaded in tab-documentos — consider sharing
+// via prontuário context or a dedicated useConsentStatus(patientId) hook.
+
 function PhotoCard({
   img, region, onOpen, onCompare, canExport,
 }: {
@@ -556,6 +564,8 @@ function PhotoCard({
               Baixar
             </Btn>
           )}
+          {/* TODO(backend): adicionar botão "Excluir" quando clinical.lesions.deleteImage
+              estiver disponível; usar ConfirmationDialog com motivo obrigatório. */}
         </div>
       </div>
     </Glass>

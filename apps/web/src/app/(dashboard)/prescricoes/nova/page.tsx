@@ -29,6 +29,7 @@ import { PrescriptionHistoryPanel } from '../_components/prescription-history-pa
 import { AllergyConfirmDialog } from '../_components/allergy-confirm-dialog';
 import { detectAllergyConflicts } from '../_components/check-allergies';
 import { useAuthStore } from '@/stores/auth-store';
+import { usePermission } from '@/lib/auth';
 import { trpc } from '@/lib/trpc-provider';
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
@@ -85,6 +86,8 @@ export default function NovaPrescricaoPage() {
 
   const sessionUser   = useAuthStore((s) => s.user);
   const sessionClinic = useAuthStore((s) => s.clinic);
+  const canSign       = usePermission('clinical', 'sign');
+  const canWriteClinical = usePermission('clinical', 'write');
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
     staleTime: 5 * 60_000,
@@ -98,6 +101,25 @@ export default function NovaPrescricaoPage() {
   const [pendingSign, setPendingSign] = React.useState(false);
 
   /* ── Guards ─────────────────────────────────────────────────────── */
+  if (!canWriteClinical && !canSign) {
+    return (
+      <div style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+        <Glass style={{ padding: 32, textAlign: 'center', maxWidth: 460 }}>
+          <Ico name="shield" size={26} color={T.textMuted} />
+          <p style={{ marginTop: 8, fontWeight: 600, color: T.textPrimary }}>Acesso restrito</p>
+          <p style={{ color: T.textSecondary, fontSize: 13, marginTop: 4 }}>
+            Apenas profissionais com permissão clínica podem criar prescrições. Entre em contato com o administrador da clínica.
+          </p>
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+            <Link href="/prescricoes">
+              <Btn variant="ghost" small icon="arrowLeft">Voltar para prescrições</Btn>
+            </Link>
+          </div>
+        </Glass>
+      </div>
+    );
+  }
+
   if (!patientId) {
     return (
       <div style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>

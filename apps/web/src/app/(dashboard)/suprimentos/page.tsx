@@ -8,6 +8,7 @@ import {
 } from '@dermaos/ui/ds';
 import { keepPreviousData } from '@tanstack/react-query';
 import { trpc } from '@/lib/trpc-provider';
+import { usePermission } from '@/lib/auth';
 import { useDebounce } from '@/lib/utils';
 import { useRealtime } from '@/hooks/use-realtime';
 import { STOCK_STATUS_LABELS, type StockStatus } from '@dermaos/shared';
@@ -38,6 +39,7 @@ export default function SuprimentosPage() {
   const router   = useRouter();
   const pathname = usePathname();
   const params   = useSearchParams();
+  const canWrite = usePermission('supply', 'write');
 
   const searchQ      = params.get('q')        ?? '';
   const filterCat    = params.get('category') ?? '';
@@ -174,37 +176,45 @@ export default function SuprimentosPage() {
           icon="box"
           actions={
             <>
-              <Btn
-                variant="ghost"
-                small
-                icon="settings"
-                onClick={() => setSupplierModalOpen(true)}
-              >
-                Fornecedores
-              </Btn>
-              <Btn
-                variant="ghost"
-                small
-                icon="layers"
-                onClick={() => setLocationModalOpen(true)}
-              >
-                Locais
-              </Btn>
-              <Btn
-                variant="glass"
-                small
-                icon="edit"
-                onClick={() => setMovementInitial({ type: 'saida' })}
-              >
-                Nova baixa
-              </Btn>
-              <Btn
-                small
-                icon="plus"
-                onClick={() => setMovementInitial({ type: 'entrada' })}
-              >
-                Registrar entrada
-              </Btn>
+              {canWrite && (
+                <Btn
+                  variant="ghost"
+                  small
+                  icon="settings"
+                  onClick={() => setSupplierModalOpen(true)}
+                >
+                  Fornecedores
+                </Btn>
+              )}
+              {canWrite && (
+                <Btn
+                  variant="ghost"
+                  small
+                  icon="layers"
+                  onClick={() => setLocationModalOpen(true)}
+                >
+                  Locais
+                </Btn>
+              )}
+              {canWrite && (
+                <Btn
+                  variant="glass"
+                  small
+                  icon="edit"
+                  onClick={() => setMovementInitial({ type: 'saida' })}
+                >
+                  Nova baixa
+                </Btn>
+              )}
+              {canWrite && (
+                <Btn
+                  small
+                  icon="plus"
+                  onClick={() => setMovementInitial({ type: 'entrada' })}
+                >
+                  Registrar entrada
+                </Btn>
+              )}
             </>
           }
         />
@@ -296,15 +306,17 @@ export default function SuprimentosPage() {
             {''}
           </Btn>
 
-          <Btn
-            variant="ghost"
-            small
-            icon="plus"
-            onClick={() => setProductModalOpen(true)}
-            title="Cadastrar novo produto"
-          >
-            Novo produto
-          </Btn>
+          {canWrite && (
+            <Btn
+              variant="ghost"
+              small
+              icon="plus"
+              onClick={() => setProductModalOpen(true)}
+              title="Cadastrar novo produto"
+            >
+              Novo produto
+            </Btn>
+          )}
 
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 5 }}>
             <MetalTag>FEFO</MetalTag>

@@ -30,10 +30,7 @@ export default function GlobalError({
               Algo deu errado
             </h1>
             <p style={{ color: '#64748b', maxWidth: '30rem' }}>
-              Ocorreu um erro inesperado na aplicação.
-              {error.digest && (
-                <> Código de erro: <code>{error.digest}</code></>
-              )}
+              Ocorreu um erro inesperado na aplicação. Tente novamente ou contate o suporte.
             </p>
           </div>
           <button

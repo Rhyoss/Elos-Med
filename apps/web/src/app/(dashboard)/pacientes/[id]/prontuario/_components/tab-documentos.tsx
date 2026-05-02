@@ -14,6 +14,7 @@ import {
   type ConsentStatus,
 } from '@dermaos/shared';
 import { useToast } from '@dermaos/ui';
+import { usePermission } from '@/lib/auth';
 import type { DocumentPublic, ConsentTermPublic } from '@/lib/hooks/use-documents';
 
 /* ── Props ───────────────────────────────────────────────────────────────── */
@@ -75,11 +76,15 @@ function DocumentRow({
   onSign,
   onRevoke,
   signing,
+  canSign,
+  canDelete,
 }: {
   doc: DocumentPublic;
   onSign: (id: string) => void;
   onRevoke: (id: string) => void;
   signing: boolean;
+  canSign: boolean;
+  canDelete: boolean;
 }) {
   const icon = TYPE_ICON[doc.type] ?? 'file';
   const statusVariant = STATUS_VARIANT[doc.status];
@@ -133,7 +138,7 @@ function DocumentRow({
           <Badge variant={statusVariant} dot={false}>
             {DOCUMENT_STATUS_LABELS[doc.status]}
           </Badge>
-          {doc.status !== 'assinado' && doc.status !== 'revogado' && (
+          {canSign && doc.status !== 'assinado' && doc.status !== 'revogado' && (
             <Btn
               variant="glass"
               small
@@ -145,7 +150,7 @@ function DocumentRow({
               Assinar
             </Btn>
           )}
-          {doc.status !== 'revogado' && (
+          {canDelete && doc.status !== 'revogado' && (
             <Btn
               variant="ghost"
               small
@@ -169,11 +174,15 @@ function ConsentRow({
   onSign,
   onRevoke,
   signing,
+  canSign,
+  canDelete,
 }: {
   term: ConsentTermPublic;
   onSign: (id: string) => void;
   onRevoke: (id: string) => void;
   signing: boolean;
+  canSign: boolean;
+  canDelete: boolean;
 }) {
   const statusVariant = CONSENT_STATUS_VARIANT[term.status];
 
@@ -215,7 +224,7 @@ function ConsentRow({
           <Badge variant={statusVariant} dot={false}>
             {CONSENT_STATUS_LABELS[term.status]}
           </Badge>
-          {term.status === 'pendente' && (
+          {canSign && term.status === 'pendente' && (
             <Btn
               variant="accent"
               small
@@ -227,7 +236,7 @@ function ConsentRow({
               Paciente assinou
             </Btn>
           )}
-          {term.status !== 'revogado' && (
+          {canDelete && term.status !== 'revogado' && (
             <Btn
               variant="ghost"
               small
@@ -248,6 +257,9 @@ function ConsentRow({
 
 export function TabDocumentos({ patientId, onNovoDocumento, onNovoTermo }: TabDocumentosProps) {
   const { toast } = useToast();
+  const canSign   = usePermission('clinical', 'sign');
+  const canWrite  = usePermission('clinical', 'write');
+  const canDelete = usePermission('clinical', 'delete');
 
   const docsQ = trpc.clinical.documents.listByPatient.useQuery(
     { patientId, pageSize: 50 },
@@ -319,10 +331,10 @@ export function TabDocumentos({ patientId, onNovoDocumento, onNovoTermo }: TabDo
           )}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {onNovoTermo && (
+          {canWrite && onNovoTermo && (
             <Btn variant="ghost" small icon="check" onClick={onNovoTermo}>Novo termo</Btn>
           )}
-          {onNovoDocumento && (
+          {canWrite && onNovoDocumento && (
             <Btn variant="glass" small icon="file" onClick={onNovoDocumento}>Novo documento</Btn>
           )}
         </div>
@@ -367,6 +379,8 @@ export function TabDocumentos({ patientId, onNovoDocumento, onNovoTermo }: TabDo
                 onSign={handleSignTerm}
                 onRevoke={handleRevokeTerm}
                 signing={signTermMut.isPending && signTermMut.variables?.id === term.id}
+                canSign={canWrite}
+                canDelete={canDelete}
               />
             ))}
           </div>
@@ -394,6 +408,8 @@ export function TabDocumentos({ patientId, onNovoDocumento, onNovoTermo }: TabDo
                 onSign={handleSignDoc}
                 onRevoke={handleRevokeDoc}
                 signing={signMut.isPending && signMut.variables?.id === doc.id}
+                canSign={canSign}
+                canDelete={canDelete}
               />
             ))}
           </div>
@@ -478,7 +494,7 @@ function RevokeDialog({
             <p style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary }}>
               Revogar {target.type === 'doc' ? 'documento' : 'termo de consentimento'}
             </p>
-            <p style={{ fontSize: 12, color: T.textMuted }}>Motivo obrigatório. Ação auditada.</p>
+            <p style={{ fontSize: 12, color: T.textMuted }}>Motivo obrigatório. Esta ação é irreversível e será registrada no histórico.</p>
           </div>
         </div>
 

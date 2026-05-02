@@ -26,8 +26,8 @@ interface AgendaSidebarProps {
   onDateChange: (d: Date) => void;
   onMonthChange: (delta: number) => void;
   onFiltersChange: (f: Partial<AgendaFilters>) => void;
-  onNewAppointment: () => void;
-  onBlockSlot: () => void;
+  onNewAppointment?: () => void;
+  onBlockSlot?: () => void;
 }
 
 const STATUS_OPTIONS = [
@@ -186,30 +186,36 @@ export function AgendaSidebar({
       {/* Breakdown by type */}
       <DaySummary appointments={appointments} selected={selectedDate} />
 
-      {/* CTA */}
-      <div className="flex flex-col gap-2 mt-auto pt-2">
-        <Btn
-          small
-          icon="plus"
-          onClick={onNewAppointment}
-          style={{ width: '100%' }}
-        >
-          Agendar
-        </Btn>
-        <button
-          type="button"
-          onClick={onBlockSlot}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs transition-colors hover:opacity-80"
-          style={{
-            background: T.glass,
-            border: `1px solid ${T.glassBorder}`,
-            color: T.textSecondary,
-          }}
-        >
-          <Ico name="lock" size={11} color={T.textMuted} />
-          Bloquear horário
-        </button>
-      </div>
+      {/* CTA — gated by RBAC (appointments.write) */}
+      {(onNewAppointment || onBlockSlot) && (
+        <div className="flex flex-col gap-2 mt-auto pt-2">
+          {onNewAppointment && (
+            <Btn
+              small
+              icon="plus"
+              onClick={onNewAppointment}
+              style={{ width: '100%' }}
+            >
+              Agendar
+            </Btn>
+          )}
+          {onBlockSlot && (
+            <button
+              type="button"
+              onClick={onBlockSlot}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs transition-colors hover:opacity-80"
+              style={{
+                background: T.glass,
+                border: `1px solid ${T.glassBorder}`,
+                color: T.textSecondary,
+              }}
+            >
+              <Ico name="lock" size={11} color={T.textMuted} />
+              Bloquear horário
+            </button>
+          )}
+        </div>
+      )}
     </aside>
   );
 }

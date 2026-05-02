@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Badge, Btn, Ico, Mono, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
+import { usePermission } from '@/lib/auth';
 import { buildDisplayId, GENDER_LABELS, STATUS_LABELS, STATUS_BADGE_VARIANT, maskCpf } from '@/lib/adapters/patient-adapter';
 
 interface PatientHeaderProps {
@@ -28,6 +29,9 @@ export function PatientHeader({
   onNovoDocumento,
   onAgendarRetorno,
 }: PatientHeaderProps) {
+  const canWriteClinical = usePermission('clinical', 'write');
+  const canSignClinical  = usePermission('clinical', 'sign');
+
   const { data, isLoading } = trpc.patients.getById.useQuery(
     { id: patientId },
     { staleTime: 30_000, refetchOnWindowFocus: false },
@@ -127,19 +131,19 @@ export function PatientHeader({
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Actions */}
+      {/* Actions — gated by RBAC */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-        {onNovaPrescrição && (
+        {onNovaPrescrição && canSignClinical && (
           <Btn variant="ghost" small icon="file" onClick={onNovaPrescrição}>
             Prescrição
           </Btn>
         )}
-        {onUploadFotos && (
+        {onUploadFotos && canWriteClinical && (
           <Btn variant="ghost" small icon="image" onClick={onUploadFotos}>
             Fotos
           </Btn>
         )}
-        {onNovoDocumento && (
+        {onNovoDocumento && canWriteClinical && (
           <Btn variant="ghost" small icon="file" onClick={onNovoDocumento}>
             Documento
           </Btn>
@@ -152,14 +156,16 @@ export function PatientHeader({
 
         <div style={{ width: 1, height: 28, background: T.divider, margin: '0 4px' }} />
 
-        {hasOpenDraft ? (
-          <Btn small icon="edit" onClick={onContinuarAtendimento}>
-            Continuar Atendimento
-          </Btn>
-        ) : (
-          <Btn small icon="edit" onClick={onNovaConsulta} disabled={isStarting}>
-            {isStarting ? 'Abrindo…' : 'Nova Consulta'}
-          </Btn>
+        {canWriteClinical && (
+          hasOpenDraft ? (
+            <Btn small icon="edit" onClick={onContinuarAtendimento}>
+              Continuar Atendimento
+            </Btn>
+          ) : (
+            <Btn small icon="edit" onClick={onNovaConsulta} disabled={isStarting}>
+              {isStarting ? 'Abrindo…' : 'Nova Consulta'}
+            </Btn>
+          )
         )}
       </div>
     </div>

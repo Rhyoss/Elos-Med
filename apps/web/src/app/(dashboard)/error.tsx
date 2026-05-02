@@ -1,6 +1,8 @@
 'use client';
 
-import { T, Ico } from '@dermaos/ui/ds';
+import * as React from 'react';
+import { T, Ico, Mono } from '@dermaos/ui/ds';
+import { sanitizeErrorMessage } from '@/lib/privacy';
 
 export default function DashboardError({
   error,
@@ -9,6 +11,9 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [showTechnical, setShowTechnical] = React.useState(false);
+  const safeMessage = sanitizeErrorMessage(error);
+
   return (
     <div
       style={{
@@ -55,7 +60,7 @@ export default function DashboardError({
             lineHeight: 1.5,
           }}
         >
-          {error.message || 'Ocorreu um erro inesperado. Tente novamente.'}
+          {safeMessage}
         </p>
       </div>
       <button
@@ -77,6 +82,23 @@ export default function DashboardError({
       >
         Tentar novamente
       </button>
+      {error.digest && (
+        <button
+          type="button"
+          onClick={() => setShowTechnical((v) => !v)}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 11, color: T.textMuted, padding: '2px 4px',
+          }}
+        >
+          {showTechnical ? 'Ocultar detalhes' : 'Detalhes técnicos'}
+        </button>
+      )}
+      {showTechnical && error.digest && (
+        <Mono size={10} color={T.textMuted}>
+          Código: {error.digest}
+        </Mono>
+      )}
     </div>
   );
 }

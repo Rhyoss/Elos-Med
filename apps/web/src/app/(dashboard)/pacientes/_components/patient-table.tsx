@@ -12,6 +12,7 @@ import {
   STATUS_BADGE_VARIANT,
   GENDER_LABELS,
 } from '@/lib/adapters/patient-adapter';
+import { maskEmail } from '@/lib/privacy';
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -254,7 +255,7 @@ export function PatientTable({
                       </div>
                       {p.email && (
                         <div style={{ fontSize: 11, color: T.textMuted, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
-                          {p.email}
+                          {maskEmail(p.email)}
                         </div>
                       )}
                     </td>

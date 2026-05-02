@@ -14,6 +14,8 @@ import { cn, useToast } from '@dermaos/ui';
 import { Glass, Btn, Ico, Mono, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
 import { useRealtime } from '@/hooks/use-realtime';
+import { usePermission } from '@/lib/auth';
+import { sanitizeErrorMessage } from '@/lib/privacy';
 import {
   startOfDay,
   startOfWeek,
@@ -72,6 +74,8 @@ export default function AgendaPage() {
     d.setHours(0, 0, 0, 0);
     return d;
   });
+  const canSchedule = usePermission('appointments', 'write');
+
   const [filters, setFilters] = React.useState<AgendaFilters>({
     providerId: 'all',
     status: 'all',
@@ -454,10 +458,12 @@ export default function AgendaPage() {
               </select>
             )}
 
-            {/* New appointment */}
-            <Btn small icon="plus" onClick={openNewAppointment}>
-              Agendar
-            </Btn>
+            {/* New appointment — gated by RBAC */}
+            {canSchedule && (
+              <Btn small icon="plus" onClick={openNewAppointment}>
+                Agendar
+              </Btn>
+            )}
           </div>
         </header>
 
@@ -481,8 +487,8 @@ export default function AgendaPage() {
             onFiltersChange={(partial) =>
               setFilters((f) => ({ ...f, ...partial }))
             }
-            onNewAppointment={openNewAppointment}
-            onBlockSlot={() => setBlockOpen(true)}
+            onNewAppointment={canSchedule ? openNewAppointment : undefined}
+            onBlockSlot={canSchedule ? () => setBlockOpen(true) : undefined}
           />
 
           {/* Center: views */}
@@ -513,7 +519,9 @@ export default function AgendaPage() {
                       Erro ao carregar agenda
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>
-                      {dayQuery.error?.message ?? 'Verifique sua conexão.'}
+                      {dayQuery.error
+                        ? sanitizeErrorMessage(dayQuery.error)
+                        : 'Verifique sua conexão.'}
                     </p>
                   </div>
                   <Btn variant="ghost" small onClick={() => void dayQuery.refetch()}>
@@ -573,7 +581,7 @@ export default function AgendaPage() {
                 const ap = dayAppointments.find((a) => a.id === id);
                 if (ap) handleCardClick(ap);
               }}
-              onNewAppointment={() => {
+              onNewAppointment={canSchedule ? () => {
                 if (nextFree) {
                   setNewSlotStart(nextFree.date);
                   setNewSlotProvider(providerId);
@@ -581,7 +589,7 @@ export default function AgendaPage() {
                 } else {
                   openNewAppointment();
                 }
-              }}
+              } : undefined}
             />
           )}
         </div>

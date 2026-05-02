@@ -3,7 +3,9 @@
 import * as React from 'react';
 import { Glass, Ico, Mono, Badge, Skeleton, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
+import { usePermission } from '@/lib/auth';
 import { maskPhone, GENDER_LABELS } from '@/lib/adapters/patient-adapter';
+import { maskEmail } from '@/lib/privacy';
 
 interface PatientContextSidebarProps {
   patientId: string;
@@ -44,6 +46,8 @@ function InfoRow({ label, value, mono }: { label: string; value: string | null; 
 }
 
 export function PatientContextSidebar({ patientId }: PatientContextSidebarProps) {
+  const canReadClinical = usePermission('clinical', 'read');
+
   const { data, isLoading } = trpc.patients.getById.useQuery(
     { id: patientId },
     { staleTime: 30_000, refetchOnWindowFocus: false },
@@ -82,7 +86,7 @@ export function PatientContextSidebar({ patientId }: PatientContextSidebarProps)
           {p.phoneSecondary && (
             <InfoRow label="Secundário" value={maskPhone(p.phoneSecondary)} mono />
           )}
-          <InfoRow label="Email" value={p.email ?? null} />
+          <InfoRow label="Email" value={maskEmail(p.email) ?? null} />
         </Glass>
       </SideSection>
 
@@ -114,8 +118,8 @@ export function PatientContextSidebar({ patientId }: PatientContextSidebarProps)
         </SideSection>
       )}
 
-      {/* Medicamentos em uso */}
-      {p.activeMedications.length > 0 && (
+      {/* Medicamentos em uso — requer acesso clínico */}
+      {canReadClinical && p.activeMedications.length > 0 && (
         <SideSection title="MEDICAMENTOS EM USO">
           <Glass style={{ padding: '12px 14px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -133,8 +137,8 @@ export function PatientContextSidebar({ patientId }: PatientContextSidebarProps)
         </SideSection>
       )}
 
-      {/* Condições crônicas */}
-      {p.chronicConditions.length > 0 && (
+      {/* Condições crônicas — requer acesso clínico */}
+      {canReadClinical && p.chronicConditions.length > 0 && (
         <SideSection title="CONDIÇÕES CRÔNICAS">
           <Glass style={{ padding: '12px 14px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

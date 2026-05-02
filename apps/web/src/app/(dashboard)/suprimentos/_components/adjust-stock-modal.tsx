@@ -6,6 +6,7 @@ import {
   Button, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
   Textarea,
 } from '@dermaos/ui';
+import { Mono, T } from '@dermaos/ui/ds';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -163,6 +164,15 @@ export function AdjustStockModal({ product, onClose, onSaved }: AdjustStockModal
                 className="resize-none"
                 maxLength={500}
               />
+            </div>
+
+            <div style={{
+              padding: '8px 10px', borderRadius: '6px',
+              background: T.primaryBg, border: `1px solid ${T.primaryBorder}`,
+            }}>
+              <Mono size={9} color={T.primary}>
+                AÇÃO AUDITADA — MOTIVO OBRIGATÓRIO PARA RASTREABILIDADE
+              </Mono>
             </div>
 
             {adjustMutation.isError && (

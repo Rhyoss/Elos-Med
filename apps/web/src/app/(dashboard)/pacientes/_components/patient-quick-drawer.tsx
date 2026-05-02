@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Glass, Btn, Mono, Badge, Ico, Skeleton, T } from '@dermaos/ui/ds';
 import { trpc } from '@/lib/trpc-provider';
+import { usePermission } from '@/lib/auth';
+import { maskEmail } from '@/lib/privacy';
 import {
   adaptPatientPublic,
   STATUS_LABELS,
@@ -70,6 +72,8 @@ export interface PatientQuickDrawerProps {
 
 export function PatientQuickDrawer({ listPatient, onClose }: PatientQuickDrawerProps) {
   const router = useRouter();
+  const canReadClinical = usePermission('clinical', 'read');
+  const canWritePatient = usePermission('patients', 'write');
 
   // Fetch full patient data for the drawer
   const { data, isLoading } = trpc.patients.getById.useQuery(
@@ -220,8 +224,8 @@ export function PatientQuickDrawer({ listPatient, onClose }: PatientQuickDrawerP
           </div>
         )}
 
-        {/* Condições crônicas */}
-        {patient.chronicConditions.length > 0 && (
+        {/* Condições crônicas — requer acesso clínico */}
+        {canReadClinical && patient.chronicConditions.length > 0 && (
           <div style={{ marginBottom: 14 }}>
             <DetailField
               label="Condições crônicas"
@@ -239,8 +243,8 @@ export function PatientQuickDrawer({ listPatient, onClose }: PatientQuickDrawerP
           </div>
         )}
 
-        {/* Medicamentos em uso */}
-        {patient.activeMedications.length > 0 && (
+        {/* Medicamentos em uso — requer acesso clínico */}
+        {canReadClinical && patient.activeMedications.length > 0 && (
           <div style={{ marginBottom: 14 }}>
             <DetailField
               label="Medicamentos em uso"
@@ -274,7 +278,7 @@ export function PatientQuickDrawer({ listPatient, onClose }: PatientQuickDrawerP
             <DetailField
               label="E-mail"
               icon="mail"
-              value={patient.email}
+              value={maskEmail(patient.email) ?? '—'}
             />
           )}
           <DetailField
@@ -356,14 +360,16 @@ export function PatientQuickDrawer({ listPatient, onClose }: PatientQuickDrawerP
               Agendar
             </Btn>
           </Link>
-          <Link
-            href={`/pacientes/${patient.id}/prontuario`}
-            style={{ textDecoration: 'none', flex: 1 }}
-          >
-            <Btn variant="ghost" small icon="edit" style={{ width: '100%', justifyContent: 'center' }}>
-              Editar
-            </Btn>
-          </Link>
+          {canWritePatient && (
+            <Link
+              href={`/pacientes/${patient.id}/prontuario`}
+              style={{ textDecoration: 'none', flex: 1 }}
+            >
+              <Btn variant="ghost" small icon="edit" style={{ width: '100%', justifyContent: 'center' }}>
+                Editar
+              </Btn>
+            </Link>
+          )}
         </div>
         {/* TODO: "Enviar mensagem" — requer integration com messaging */}
         {/* TODO: "Adicionar alerta" — requer endpoint alerts.create */}

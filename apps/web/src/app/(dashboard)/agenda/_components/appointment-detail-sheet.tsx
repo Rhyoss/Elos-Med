@@ -227,9 +227,17 @@ export function AppointmentDetailSheet({ appointment, open, onOpenChange, onMuta
         <p style={{ fontSize: 16, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>
           Cancelar agendamento
         </p>
-        <p style={{ fontSize: 12, color: T.textMuted, marginBottom: 14 }}>
+        <p style={{ fontSize: 12, color: T.textMuted, marginBottom: 6 }}>
           Informe o motivo do cancelamento. O paciente poderá ser notificado.
         </p>
+        <div style={{
+          padding: '6px 10px', borderRadius: T.r.sm, marginBottom: 10,
+          background: T.primaryBg, border: `1px solid ${T.primaryBorder}`,
+        }}>
+          <Mono size={9} color={T.primary}>
+            AÇÃO AUDITADA — O MOTIVO SERÁ REGISTRADO NO HISTÓRICO
+          </Mono>
+        </div>
         <textarea
           value={cancelReason}
           onChange={(e) => setCancelReason(e.target.value)}
