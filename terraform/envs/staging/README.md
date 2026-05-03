@@ -22,23 +22,62 @@ terraform apply
 
 ## Sequência de provisionamento do Redis (Memorystore)
 
-A primeira vez que o Redis é provisionado em staging, siga **na ordem**:
+> **Nota:** atualmente a infra de staging foi bootstrap via `gcloud` (script
+> [`scripts/provision-staging.sh`](../../../scripts/provision-staging.sh)) e o
+> state Terraform está vazio. Por isso, o caminho atual usa `gcloud` direto.
+> Quando todo o state for importado para Terraform, é só trocar `--source=gcloud`
+> por `--source=terraform` no comando do passo 2.
+
+### Caminho atual (gcloud direto)
 
 ```bash
-# 1. Aplica o módulo cache (e tudo que depende dele).
-#    Cria a instância Memorystore com auth + transit encryption (TLS).
-terraform apply -target=module.cache
-# ou apenas: terraform apply
+# 1. Habilita API e cria a instância Memorystore Basic 1GB com AUTH + TLS.
+#    Async: ~5-10 min até state=READY.
+gcloud services enable redis.googleapis.com --project=elos-med
 
-# 2. Popular o secret `redis-url` no Secret Manager com a URL completa
-#    (rediss://:<auth>@<host>:<port>). O script lê o output `redis_url`
-#    sensitive do Terraform e envia direto para o gcloud — nunca grava
-#    em disco e nunca aparece em logs.
-bash ../../../scripts/seed-redis-url.sh staging
+gcloud redis instances create staging-elosmed-redis \
+  --project=elos-med \
+  --region=southamerica-east1 \
+  --tier=basic \
+  --size=1 \
+  --redis-version=redis_7_2 \
+  --network=projects/elos-med/global/networks/staging-elosmed-vpc \
+  --connect-mode=PRIVATE_SERVICE_ACCESS \
+  --enable-auth \
+  --transit-encryption-mode=server-authentication \
+  --redis-config=maxmemory-policy=allkeys-lru \
+  --maintenance-window-day=sunday \
+  --maintenance-window-hour=4 \
+  --labels=env=staging,app=elosmed \
+  --async
 
-# 3. Redeploy dos serviços para carregarem a nova versão do secret
-#    (api e worker são os consumidores).
+# Cria o container do secret (uma vez só)
+gcloud secrets create redis-url \
+  --project=elos-med \
+  --replication-policy=user-managed \
+  --locations=southamerica-east1 \
+  --labels=env=staging,app=elosmed
+
+# 2. Espera ficar READY e popula o secret `redis-url`.
+#    Lê host/port/auth via gcloud e envia direto pro Secret Manager.
+until [[ "$(gcloud redis instances describe staging-elosmed-redis \
+    --region=southamerica-east1 --project=elos-med \
+    --format='value(state)')" == "READY" ]]; do sleep 30; done
+
+bash ../../../scripts/seed-redis-url.sh staging elos-med --source=gcloud
+
+# 3. Redeploy dos serviços para carregarem o secret (api e worker).
 git push origin main          # ou workflow_dispatch em "Deploy"
+```
+
+### Caminho futuro (Terraform)
+
+Quando o state estiver completo:
+
+```bash
+terraform apply -target=module.cache
+bash ../../../scripts/seed-redis-url.sh staging elos-med --source=terraform
+git push origin main
 ```
 
 ### Por quê secret único `redis-url`?
