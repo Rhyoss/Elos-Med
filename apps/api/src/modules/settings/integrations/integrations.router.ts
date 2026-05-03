@@ -12,6 +12,7 @@ import {
   testConnection,
   getWebhookConfig,
   regenerateWebhookSecret,
+  disconnectChannel,
 } from './integrations.service.js';
 import { env } from '../../../config/env.js';
 
@@ -48,5 +49,12 @@ export const integrationsSettingsRouter = router({
     .input(regenerateWebhookSecretSchema)
     .mutation(async ({ ctx, input }) =>
       regenerateWebhookSecret(ctx.clinicId!, ctx.user!.sub, input.channel),
+    ),
+
+  disconnect: protectedProcedure
+    .use(ownerOnly)
+    .input(testConnectionSchema)
+    .mutation(async ({ ctx, input }) =>
+      disconnectChannel(ctx.clinicId!, ctx.user!.sub, input.channel),
     ),
 });

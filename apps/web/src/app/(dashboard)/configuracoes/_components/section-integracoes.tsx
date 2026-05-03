@@ -37,7 +37,7 @@ export function SectionIntegracoes() {
   const integrationsQuery = trpc.settings.integrations.list.useQuery(undefined, { staleTime: 60_000 });
 
   const updateCredential = trpc.settings.integrations.updateCredential.useMutation({
-    onSuccess: () => { void integrationsQuery.refetch(); setConfigChannel(null); setTokenInput(''); },
+    onSuccess: () => { void integrationsQuery.refetch(); setConfigChannel(null); setFields({}); },
   });
   const testConnection = trpc.settings.integrations.testConnection.useMutation({
     onSuccess: () => integrationsQuery.refetch(),
@@ -50,14 +50,55 @@ export function SectionIntegracoes() {
   });
 
   const [configChannel, setConfigChannel] = React.useState<Channel | null>(null);
-  const [tokenInput, setTokenInput] = React.useState('');
+  const [fields, setFields] = React.useState<Record<string, string>>({});
   const [regeneratingChannel, setRegeneratingChannel] = React.useState<Channel | null>(null);
   const [newSecret, setNewSecret] = React.useState<string | null>(null);
   const [testingChannel, setTestingChannel] = React.useState<Channel | null>(null);
 
+  function setField(key: string, value: string) {
+    setFields((s) => ({ ...s, [key]: value }));
+  }
+
+  function buildPayload(): Parameters<typeof updateCredential.mutate>[0] | null {
+    if (!configChannel) return null;
+    switch (configChannel) {
+      case 'whatsapp':
+        if (!fields['phoneNumberId'] || !fields['accessToken'] || !fields['appSecret'] || !fields['verifyToken']) return null;
+        return {
+          channel:        'whatsapp',
+          phoneNumberId:  fields['phoneNumberId'],
+          accessToken:    fields['accessToken'],
+          appSecret:      fields['appSecret'],
+          verifyToken:    fields['verifyToken'],
+        };
+      case 'instagram':
+        if (!fields['pageId'] || !fields['accessToken'] || !fields['appSecret'] || !fields['verifyToken']) return null;
+        return {
+          channel:      'instagram',
+          pageId:       fields['pageId'],
+          accessToken:  fields['accessToken'],
+          appSecret:    fields['appSecret'],
+          verifyToken:  fields['verifyToken'],
+        };
+      case 'telegram':
+        if (!fields['botToken']) return null;
+        return { channel: 'telegram', botToken: fields['botToken'] };
+      case 'email':
+        if (!fields['host'] || !fields['user'] || !fields['pass']) return null;
+        return {
+          channel: 'email',
+          host:    fields['host'],
+          port:    Number(fields['port'] ?? 587),
+          user:    fields['user'],
+          pass:    fields['pass'],
+        };
+    }
+  }
+
   function handleSaveToken() {
-    if (!configChannel || tokenInput.length < 8) return;
-    updateCredential.mutate({ channel: configChannel, token: tokenInput });
+    const payload = buildPayload();
+    if (!payload) return;
+    updateCredential.mutate(payload);
   }
 
   function handleTest(channel: Channel) {
@@ -127,7 +168,7 @@ export function SectionIntegracoes() {
               </div>
               {isOwner && (
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <Btn small variant="ghost" icon="settings" onClick={() => { setConfigChannel(intg.channel); setTokenInput(''); }}>
+                  <Btn small variant="ghost" icon="settings" onClick={() => { setConfigChannel(intg.channel); setFields({}); }}>
                     Configurar
                   </Btn>
                   <Btn
@@ -173,16 +214,60 @@ export function SectionIntegracoes() {
                 {updateCredential.error.message}
               </div>
             )}
-            <Field label="Token de acesso" required>
-              <Input
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                placeholder="Cole o token aqui"
-                type="password"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-              />
-            </Field>
-            <Mono size={10} color={T.textMuted}>Mínimo 8 caracteres. O token será verificado antes de salvar.</Mono>
+            {configChannel === 'whatsapp' && (
+              <>
+                <Field label="Phone Number ID" required>
+                  <Input value={fields['phoneNumberId'] ?? ''} onChange={(e) => setField('phoneNumberId', e.target.value)} placeholder="ex: 100000000000001" />
+                </Field>
+                <Field label="Access Token (permanente)" required>
+                  <Input value={fields['accessToken'] ?? ''} onChange={(e) => setField('accessToken', e.target.value)} placeholder="EAA..." type="password" style={{ fontFamily: "'IBM Plex Mono', monospace" }} />
+                </Field>
+                <Field label="App Secret (HMAC dos webhooks)" required>
+                  <Input value={fields['appSecret'] ?? ''} onChange={(e) => setField('appSecret', e.target.value)} type="password" style={{ fontFamily: "'IBM Plex Mono', monospace" }} />
+                </Field>
+                <Field label="Verify Token (handshake GET)" required>
+                  <Input value={fields['verifyToken'] ?? ''} onChange={(e) => setField('verifyToken', e.target.value)} placeholder="Token aleatório" />
+                </Field>
+                <Mono size={10} color={T.textMuted}>Os campos sensíveis são cifrados em AES-256-GCM antes de persistir.</Mono>
+              </>
+            )}
+            {configChannel === 'instagram' && (
+              <>
+                <Field label="Page ID" required>
+                  <Input value={fields['pageId'] ?? ''} onChange={(e) => setField('pageId', e.target.value)} />
+                </Field>
+                <Field label="Access Token" required>
+                  <Input value={fields['accessToken'] ?? ''} onChange={(e) => setField('accessToken', e.target.value)} type="password" />
+                </Field>
+                <Field label="App Secret" required>
+                  <Input value={fields['appSecret'] ?? ''} onChange={(e) => setField('appSecret', e.target.value)} type="password" />
+                </Field>
+                <Field label="Verify Token" required>
+                  <Input value={fields['verifyToken'] ?? ''} onChange={(e) => setField('verifyToken', e.target.value)} />
+                </Field>
+              </>
+            )}
+            {configChannel === 'telegram' && (
+              <Field label="Bot Token" required>
+                <Input value={fields['botToken'] ?? ''} onChange={(e) => setField('botToken', e.target.value)} placeholder="123456:AAEhBP..." type="password" style={{ fontFamily: "'IBM Plex Mono', monospace" }} />
+              </Field>
+            )}
+            {configChannel === 'email' && (
+              <>
+                <Field label="Host SMTP" required>
+                  <Input value={fields['host'] ?? ''} onChange={(e) => setField('host', e.target.value)} placeholder="smtp.gmail.com" />
+                </Field>
+                <Field label="Porta">
+                  <Input value={fields['port'] ?? '587'} onChange={(e) => setField('port', e.target.value)} placeholder="587" />
+                </Field>
+                <Field label="Usuário" required>
+                  <Input value={fields['user'] ?? ''} onChange={(e) => setField('user', e.target.value)} placeholder="user@dominio.com" />
+                </Field>
+                <Field label="Senha" required>
+                  <Input value={fields['pass'] ?? ''} onChange={(e) => setField('pass', e.target.value)} type="password" />
+                </Field>
+              </>
+            )}
 
             <div style={{ borderTop: `1px solid ${T.divider}`, paddingTop: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -206,9 +291,9 @@ export function SectionIntegracoes() {
             <Button
               onClick={handleSaveToken}
               isLoading={updateCredential.isPending}
-              disabled={tokenInput.length < 8}
+              disabled={!buildPayload()}
             >
-              Salvar token
+              Salvar credenciais
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -135,10 +135,44 @@ export const deleteSettingsServiceSchema = z.object({ id: z.string().uuid() });
 export const CHANNELS = ['whatsapp', 'instagram', 'telegram', 'email'] as const;
 export type Channel = (typeof CHANNELS)[number];
 
-export const updateCredentialSchema = z.object({
-  channel: z.enum(CHANNELS),
-  token:   z.string().min(8, 'Token muito curto (mín. 8 caracteres).').max(512),
-});
+/**
+ * Schema das credenciais por canal. Cada canal tem campos específicos:
+ * — WhatsApp Cloud API exige phoneNumberId (routing) + accessToken +
+ *   appSecret (HMAC) + verifyToken (handshake).
+ * — Telegram só precisa do botToken.
+ * — Email exige host/port/user/pass do SMTP.
+ *
+ * `token` é mantido por compatibilidade com a UI antiga (section-integracoes
+ * grava 1 token genérico); para WhatsApp/Instagram, o backend usa os campos
+ * específicos quando presentes.
+ */
+export const updateCredentialSchema = z.discriminatedUnion('channel', [
+  z.object({
+    channel:        z.literal('whatsapp'),
+    phoneNumberId:  z.string().min(5).max(50),
+    accessToken:    z.string().min(8).max(2048),
+    appSecret:      z.string().min(8).max(512),
+    verifyToken:    z.string().min(8).max(256),
+  }),
+  z.object({
+    channel:        z.literal('instagram'),
+    pageId:         z.string().min(5).max(50),
+    accessToken:    z.string().min(8).max(2048),
+    appSecret:      z.string().min(8).max(512),
+    verifyToken:    z.string().min(8).max(256),
+  }),
+  z.object({
+    channel:        z.literal('telegram'),
+    botToken:       z.string().min(20).max(512),
+  }),
+  z.object({
+    channel:        z.literal('email'),
+    host:           z.string().min(1).max(200),
+    port:           z.coerce.number().int().min(1).max(65535).default(587),
+    user:           z.string().min(1).max(200),
+    pass:           z.string().min(1).max(512),
+  }),
+]);
 export type UpdateCredentialInput = z.infer<typeof updateCredentialSchema>;
 
 export const testConnectionSchema = z.object({

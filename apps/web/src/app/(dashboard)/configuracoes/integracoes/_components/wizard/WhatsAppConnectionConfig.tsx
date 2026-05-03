@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Glass, Btn, Ico, Mono, Input, Toggle, T } from '@dermaos/ui/ds';
+import { Glass, Btn, Ico, Mono, Input, Toggle, T, Field } from '@dermaos/ui/ds';
 import type { ConnectionMethodId } from '../../_lib/wizard-config';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -36,8 +36,11 @@ export function WhatsAppConnectionConfig({
   credentials,
   onCredentialChange,
 }: WhatsAppConnectionConfigProps) {
-  if (connectionMethod === 'embedded_signup') {
-    return <EmbeddedSignupPanel credentials={credentials} onCredentialChange={onCredentialChange} />;
+  // Embedded Signup ainda não tem o redirect OAuth implementado, então tanto
+  // ele quanto manual_config caem no mesmo formulário simplificado de 4
+  // campos — os únicos exigidos pelo backend (`updateCredential`).
+  if (connectionMethod === 'embedded_signup' || connectionMethod === 'manual_config') {
+    return <ManualWhatsAppForm credentials={credentials} onCredentialChange={onCredentialChange} />;
   }
 
   if (connectionMethod === 'manual_link') {
@@ -45,6 +48,71 @@ export function WhatsAppConnectionConfig({
   }
 
   return null;
+}
+
+// ── Formulário manual (4 campos exigidos pelo backend) ────────────
+
+function ManualWhatsAppForm({
+  credentials,
+  onCredentialChange,
+}: {
+  credentials: Record<string, string>;
+  onCredentialChange: (key: string, value: string) => void;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Glass style={{ padding: '16px 18px' }}>
+        <p style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.55 }}>
+          Cole as credenciais do <strong>Meta Business Manager</strong> →
+          WhatsApp → Configuração → API. Os campos sensíveis são cifrados em
+          AES-256-GCM antes de persistir.
+        </p>
+      </Glass>
+
+      <Field label="Phone Number ID" required>
+        <Input
+          value={credentials['phoneNumberId'] ?? ''}
+          onChange={(e) => onCredentialChange('phoneNumberId', e.target.value)}
+          placeholder="ex: 100200300400500"
+        />
+      </Field>
+
+      <Field label="Access Token (permanente)" required>
+        <Input
+          type="password"
+          value={credentials['accessToken'] ?? ''}
+          onChange={(e) => onCredentialChange('accessToken', e.target.value)}
+          placeholder="EAA..."
+          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        />
+      </Field>
+
+      <Field label="App Secret (HMAC dos webhooks)" required>
+        <Input
+          type="password"
+          value={credentials['appSecret'] ?? ''}
+          onChange={(e) => onCredentialChange('appSecret', e.target.value)}
+          placeholder="Secret do app Meta"
+          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        />
+      </Field>
+
+      <Field label="Verify Token (handshake GET)" required>
+        <Input
+          value={credentials['verifyToken'] ?? ''}
+          onChange={(e) => onCredentialChange('verifyToken', e.target.value)}
+          placeholder="Você define este valor no painel Meta"
+        />
+      </Field>
+
+      <Mono size={10} color={T.textMuted}>
+        Onde encontrar: Phone Number ID e Access Token ficam em
+        Meta for Developers → Sua App → WhatsApp → API Setup. App Secret em
+        App → Configurações → Básico. Verify Token é definido por você no
+        painel de Webhooks.
+      </Mono>
+    </div>
+  );
 }
 
 // ── Embedded Signup Panel ──────────────────────────────────────────

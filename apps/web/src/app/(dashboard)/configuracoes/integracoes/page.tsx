@@ -45,8 +45,18 @@ export default function IntegracoesPage() {
   const canOmni  = usePermission('omni', 'read');
   const isOwner  = user?.role === 'owner';
 
+  /**
+   * Botão do card:
+   *  • Conectado → abre o painel de detalhe (Editar credenciais / Testar / Desconectar).
+   *  • Demais (disconnected/pending/error) → abre o wizard de conexão.
+   */
   function handleConnect(ch: ChannelViewModel) {
     if (!isOwner) return;
+    if (ch.status === 'connected') {
+      setDetailChannel(ch);
+      setDetailOpen(true);
+      return;
+    }
     setWizardChannel(ch);
     setWizardOpen(true);
   }

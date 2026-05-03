@@ -3,8 +3,10 @@
 import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Glass, Btn, Ico, Mono, T } from '@dermaos/ui/ds';
+import { trpc } from '@/lib/trpc-provider';
 import type { ChannelViewModel } from '../_lib/channel-adapter';
 import { CHANNEL_DEFINITIONS, type ChannelType } from '../_lib/channel-adapter';
+import type { Channel as BackendChannel, UpdateCredentialInput } from '@dermaos/shared';
 import {
   WIZARD_STEPS,
   CHANNEL_WIZARD_CONFIGS,
@@ -94,6 +96,63 @@ export function ChannelConnectionWizard({
   const stepIndex = WIZARD_STEPS.findIndex((s) => s.id === currentStep);
   const currentStepDef = WIZARD_STEPS[stepIndex];
 
+  const utils = trpc.useUtils();
+  const updateCredentialMut = trpc.settings.integrations.updateCredential.useMutation();
+  const testConnectionMut = trpc.settings.integrations.testConnection.useMutation();
+
+  /** Mapeia tipo da UI → enum do backend (apenas 4 são suportados). */
+  const backendChannel: BackendChannel | null = (() => {
+    switch (state.channelType) {
+      case 'whatsapp':  return 'whatsapp';
+      case 'instagram': return 'instagram';
+      case 'sms':       return 'telegram';
+      case 'email':     return 'email';
+      default:          return null;
+    }
+  })();
+
+  /**
+   * Para canais com integração real no backend (whatsapp/instagram/telegram/email)
+   * usamos os campos planos exigidos pela mutation `updateCredential` em vez
+   * dos campos do wizard-config.ts.
+   */
+  function backendPayload(): UpdateCredentialInput | null {
+    if (!backendChannel) return null;
+    const c = state.credentials;
+    switch (backendChannel) {
+      case 'whatsapp':
+        if (!c['phoneNumberId'] || !c['accessToken'] || !c['appSecret'] || !c['verifyToken']) return null;
+        return {
+          channel:        'whatsapp',
+          phoneNumberId:  c['phoneNumberId'],
+          accessToken:    c['accessToken'],
+          appSecret:      c['appSecret'],
+          verifyToken:    c['verifyToken'],
+        };
+      case 'instagram':
+        if (!c['pageId'] || !c['accessToken'] || !c['appSecret'] || !c['verifyToken']) return null;
+        return {
+          channel:      'instagram',
+          pageId:       c['pageId'],
+          accessToken:  c['accessToken'],
+          appSecret:    c['appSecret'],
+          verifyToken:  c['verifyToken'],
+        };
+      case 'telegram':
+        if (!c['botToken']) return null;
+        return { channel: 'telegram', botToken: c['botToken'] };
+      case 'email':
+        if (!c['host'] || !c['user'] || !c['pass']) return null;
+        return {
+          channel: 'email',
+          host:    c['host'],
+          port:    Number(c['port'] ?? 587),
+          user:    c['user'],
+          pass:    c['pass'],
+        };
+    }
+  }
+
   function canAdvance(): boolean {
     switch (currentStep) {
       case 'channel':
@@ -102,6 +161,10 @@ export function ChannelConnectionWizard({
         return state.connectionMethod !== null;
       case 'credentials': {
         if (!config || !state.connectionMethod) return false;
+        // Para canais com backend real, valida pelos campos da mutation.
+        if (backendChannel && state.connectionMethod !== 'manual_link') {
+          return backendPayload() !== null;
+        }
         const fields = config.credentialFields[state.connectionMethod];
         return fields.every((f) => !f.required || state.credentials[f.key]?.trim());
       }
@@ -146,6 +209,18 @@ export function ChannelConnectionWizard({
 
   function validateCredentials(): boolean {
     if (!config || !state.connectionMethod) return false;
+    // Para canais com backend real, valida pelos campos da mutation (a UI
+    // específica do canal renderiza apenas esses campos — não há sentido em
+    // exigir os campos extras do wizard-config.ts).
+    if (backendChannel && state.connectionMethod !== 'manual_link') {
+      const ok = backendPayload() !== null;
+      if (!ok) {
+        setState((s) => ({ ...s, credentialErrors: { _form: 'Preencha todos os campos obrigatórios.' } }));
+      } else {
+        setState((s) => ({ ...s, credentialErrors: {} }));
+      }
+      return ok;
+    }
     const fields = config.credentialFields[state.connectionMethod];
     const errors: Record<string, string> = {};
     for (const f of fields) {
@@ -158,63 +233,92 @@ export function ChannelConnectionWizard({
   }
 
   function handleTest() {
+    // Modo `manual_link` (apenas link wa.me/) — não há API a testar.
+    if (state.connectionMethod === 'manual_link') {
+      const phone = state.credentials['link_phone']?.trim();
+      setState((s) => ({
+        ...s,
+        testResult: {
+          success: !!phone,
+          message: phone
+            ? `Link wa.me/${phone.replace(/\D/g, '')} gerado. Este modo não testa conexão de API.`
+            : 'Informe o número do WhatsApp.',
+          details: phone ? 'Modo manual — sem verificação de API' : undefined,
+        },
+        status: phone ? 'ready' : 'error',
+      }));
+      return;
+    }
+
+    // Validação local para canais sem backend real (BSP, custom, etc).
+    if (!backendChannel) {
+      const hasCredentials = Object.values(state.credentials).some((v) => v.trim());
+      setState((s) => ({
+        ...s,
+        testResult: {
+          success: hasCredentials,
+          message: hasCredentials
+            ? 'Credenciais preenchidas. Integração com este provedor ainda não tem teste automatizado no backend.'
+            : 'Nenhuma credencial foi fornecida.',
+        },
+        status: hasCredentials ? 'ready' : 'error',
+      }));
+      return;
+    }
+
+    // Para canais com backend real: salva → testa → mostra o resultado real.
+    const payload = backendPayload();
+    if (!payload) {
+      setState((s) => ({
+        ...s,
+        testResult: { success: false, message: 'Preencha todos os campos obrigatórios.' },
+        status: 'error',
+      }));
+      return;
+    }
+
     setState((s) => ({ ...s, isTesting: true, testResult: null, status: 'validating' }));
 
-    // TODO: Replace with real mutation: trpc.settings.integrations.testConnection
-    // Currently no generic test endpoint exists for all channel types.
-    setTimeout(() => {
-      if (state.connectionMethod === 'manual_link') {
-        const phone = state.credentials['link_phone']?.trim();
+    void (async () => {
+      const startedAt = Date.now();
+      try {
+        await updateCredentialMut.mutateAsync(payload);
+        const result = await testConnectionMut.mutateAsync({ channel: backendChannel });
+        await Promise.all([
+          utils.settings.integrations.list.invalidate(),
+          utils.omni.listChannels.invalidate(),
+        ]);
         setState((s) => ({
           ...s,
           isTesting: false,
           testResult: {
-            success: !!phone,
-            message: phone
-              ? `Link wa.me/${phone.replace(/\D/g, '')} gerado. Este modo não testa conexão de API.`
-              : 'Informe o número do WhatsApp.',
-            details: phone ? 'Modo manual — sem verificação de API' : undefined,
+            success: result.connected,
+            message: result.connected
+              ? 'Credenciais salvas e conexão validada com sucesso.'
+              : (result.error ?? 'Falha na verificação.'),
+            latencyMs: Date.now() - startedAt,
           },
-          status: phone ? 'ready' : 'error',
+          status: result.connected ? 'ready' : 'error',
         }));
-        return;
-      }
-
-      const hasCredentials = Object.values(state.credentials).some((v) => v.trim());
-      if (hasCredentials) {
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Falha ao salvar/testar.';
         setState((s) => ({
           ...s,
           isTesting: false,
-          testResult: {
-            success: true,
-            message: 'Conexão simulada com sucesso. Integração real pendente de implementação no backend.',
-            latencyMs: 142,
-            details: 'Test mode — backend integration pending',
-          },
-          status: 'ready',
-        }));
-      } else {
-        setState((s) => ({
-          ...s,
-          isTesting: false,
-          testResult: {
-            success: false,
-            message: 'Nenhuma credencial foi fornecida.',
-          },
+          testResult: { success: false, message },
           status: 'error',
         }));
       }
-    }, 1800);
+    })();
   }
 
   function handleActivate() {
+    // O salvamento real acontece em handleTest. Aqui apenas marcamos
+    // 'activated' para o fluxo do wizard.
     setState((s) => ({ ...s, isActivating: true }));
-
-    // TODO: Replace with real mutation: trpc.omni.createChannel / trpc.settings.integrations.updateCredential
-    // No generic activation endpoint exists yet for all channel types.
     setTimeout(() => {
       setState((s) => ({ ...s, isActivating: false, status: 'activated' }));
-    }, 1200);
+    }, 300);
   }
 
   function handleSelectChannel(type: ChannelType) {
@@ -515,12 +619,17 @@ export function ChannelConnectionWizard({
                     onCredentialChange={handleCredentialChange}
                   />
                 )}
-                <CredentialForm
-                  fields={config.credentialFields[state.connectionMethod]}
-                  values={state.credentials}
-                  onChange={handleCredentialChange}
-                  errors={state.credentialErrors}
-                />
+                {/* Para canais com backend real, o componente específico já
+                    renderiza o formulário com os campos certos. Para os demais
+                    (BSP, custom, webchat etc.) usamos o form genérico. */}
+                {!backendChannel && (
+                  <CredentialForm
+                    fields={config.credentialFields[state.connectionMethod]}
+                    values={state.credentials}
+                    onChange={handleCredentialChange}
+                    errors={state.credentialErrors}
+                  />
+                )}
               </div>
             )}
 

@@ -2,9 +2,24 @@
 
 import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { Glass, Btn, Ico, Mono, Badge, Skeleton, type IcoName } from '@dermaos/ui/ds';
+import { Glass, Btn, Ico, Mono, Badge, Skeleton, Field, Input, type IcoName } from '@dermaos/ui/ds';
 import { T } from '@dermaos/ui/ds';
+import { trpc } from '@/lib/trpc-provider';
 import type { ChannelViewModel, ChannelType } from '../_lib/channel-adapter';
+import type { Channel as BackendChannel } from '@dermaos/shared';
+
+/** Mapeia o tipo de canal da UI para o enum backend (settings.integrations).
+ * Apenas WhatsApp/Instagram/Telegram/Email são suportados pelo backend; os
+ * demais retornam null e fazem o painel de Conexão exibir um placeholder. */
+function toBackendChannel(t: ChannelType): BackendChannel | null {
+  switch (t) {
+    case 'whatsapp':  return 'whatsapp';
+    case 'instagram': return 'instagram';
+    case 'sms':       return 'telegram';
+    case 'email':     return 'email';
+    default:          return null;
+  }
+}
 import { ProviderStatusBadge } from './ProviderStatusBadge';
 import { ChannelHealthDetail, type ChannelHealthData } from './ChannelHealthDetail';
 import { ChannelTemplatesPanel, type ChannelTemplate } from './ChannelTemplatesPanel';
@@ -404,6 +419,98 @@ function ResumoTab({ channel, health }: { channel: ChannelViewModel; health: Cha
 }
 
 function ConexaoTab({ channel, isOwner }: { channel: ChannelViewModel; isOwner?: boolean }) {
+  const backendChannel = toBackendChannel(channel.type);
+  const utils = trpc.useUtils();
+  const [editing, setEditing] = React.useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = React.useState(false);
+  const [feedback, setFeedback] = React.useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [fields, setFields] = React.useState<Record<string, string>>({});
+
+  function setField(k: string, v: string) { setFields((s) => ({ ...s, [k]: v })); }
+
+  function buildPayload(): Parameters<typeof updateMut.mutate>[0] | null {
+    if (!backendChannel) return null;
+    switch (backendChannel) {
+      case 'whatsapp':
+        if (!fields['phoneNumberId'] || !fields['accessToken'] || !fields['appSecret'] || !fields['verifyToken']) return null;
+        return {
+          channel:        'whatsapp',
+          phoneNumberId:  fields['phoneNumberId'],
+          accessToken:    fields['accessToken'],
+          appSecret:      fields['appSecret'],
+          verifyToken:    fields['verifyToken'],
+        };
+      case 'instagram':
+        if (!fields['pageId'] || !fields['accessToken'] || !fields['appSecret'] || !fields['verifyToken']) return null;
+        return {
+          channel:      'instagram',
+          pageId:       fields['pageId'],
+          accessToken:  fields['accessToken'],
+          appSecret:    fields['appSecret'],
+          verifyToken:  fields['verifyToken'],
+        };
+      case 'telegram':
+        if (!fields['botToken']) return null;
+        return { channel: 'telegram', botToken: fields['botToken'] };
+      case 'email':
+        if (!fields['host'] || !fields['user'] || !fields['pass']) return null;
+        return {
+          channel: 'email',
+          host:    fields['host'],
+          port:    Number(fields['port'] ?? 587),
+          user:    fields['user'],
+          pass:    fields['pass'],
+        };
+    }
+  }
+
+  const updateMut = trpc.settings.integrations.updateCredential.useMutation({
+    onSuccess: async () => {
+      setFeedback({ kind: 'ok', msg: 'Credenciais salvas e cifradas com AES-256-GCM.' });
+      setEditing(false);
+      setFields({});
+      await Promise.all([
+        utils.settings.integrations.list.invalidate(),
+        utils.omni.listChannels.invalidate(),
+      ]);
+    },
+    onError: (err) => setFeedback({ kind: 'err', msg: err.message }),
+  });
+
+  const testMut = trpc.settings.integrations.testConnection.useMutation({
+    onSuccess: async (data) => {
+      setFeedback(
+        data.connected
+          ? { kind: 'ok', msg: 'Conexão validada com sucesso.' }
+          : { kind: 'err', msg: data.error ?? 'Falha na verificação.' },
+      );
+      await utils.settings.integrations.list.invalidate();
+    },
+    onError: (err) => setFeedback({ kind: 'err', msg: err.message }),
+  });
+
+  const disconnectMut = trpc.settings.integrations.disconnect.useMutation({
+    onSuccess: async () => {
+      setFeedback({ kind: 'ok', msg: 'Canal desconectado. Credenciais apagadas.' });
+      setConfirmDisconnect(false);
+      await Promise.all([
+        utils.settings.integrations.list.invalidate(),
+        utils.omni.listChannels.invalidate(),
+      ]);
+    },
+    onError: (err) => setFeedback({ kind: 'err', msg: err.message }),
+  });
+
+  if (!backendChannel) {
+    return (
+      <Glass style={{ padding: '18px 20px' }}>
+        <p style={{ fontSize: 14, color: T.textSecondary }}>
+          A integração com {channel.label} ainda não tem provedor configurado no backend.
+        </p>
+      </Glass>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <Glass style={{ padding: '18px 20px' }}>
@@ -417,16 +524,185 @@ function ConexaoTab({ channel, isOwner }: { channel: ChannelViewModel; isOwner?:
           <InfoRow label="Status" value={channel.status} />
           <InfoRow label="Provider" value={channel.provider} />
           {channel.tokenPreview && (
-            <InfoRow label="Token (preview)" value={channel.tokenPreview} mono />
+            <InfoRow label="Token (preview)" value={`••••${channel.tokenPreview}`} mono />
           )}
           {channel.omniChannelId && (
             <InfoRow label="Channel ID" value={channel.omniChannelId} mono />
           )}
+          {channel.lastSyncAt && (
+            <InfoRow
+              label="Última verificação"
+              value={new Date(channel.lastSyncAt).toLocaleString('pt-BR')}
+            />
+          )}
+          {channel.lastError && (
+            <InfoRow label="Último erro" value={channel.lastError} />
+          )}
         </div>
-        {isOwner && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <Btn small variant="glass" icon="edit">Editar credenciais</Btn>
-            <Btn small variant="glass" icon="zap">Testar conexão</Btn>
+
+        {feedback && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: '8px 12px',
+              borderRadius: T.r.sm,
+              fontSize: 13,
+              background: feedback.kind === 'ok' ? T.successBg : T.dangerBg,
+              border: `1px solid ${feedback.kind === 'ok' ? T.successBorder : T.dangerBorder}`,
+              color: feedback.kind === 'ok' ? T.success : T.danger,
+            }}
+          >
+            {feedback.msg}
+          </div>
+        )}
+
+        {isOwner && !editing && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+            <Btn
+              small
+              variant="glass"
+              icon="edit"
+              onClick={() => { setEditing(true); setFeedback(null); }}
+            >
+              Editar credenciais
+            </Btn>
+            <Btn
+              small
+              variant="glass"
+              icon="zap"
+              loading={testMut.isPending}
+              onClick={() => { setFeedback(null); testMut.mutate({ channel: backendChannel }); }}
+              disabled={!channel.tokenPreview}
+            >
+              Testar conexão
+            </Btn>
+            {channel.status === 'connected' && (
+              <Btn
+                small
+                variant="danger"
+                icon="lock"
+                onClick={() => { setFeedback(null); setConfirmDisconnect(true); }}
+              >
+                Desconectar
+              </Btn>
+            )}
+          </div>
+        )}
+
+        {isOwner && editing && (
+          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {backendChannel === 'whatsapp' && (
+              <>
+                <Field label="Phone Number ID" required>
+                  <Input value={fields['phoneNumberId'] ?? ''} onChange={(e) => setField('phoneNumberId', e.target.value)} placeholder="ex: 100000000000001" />
+                </Field>
+                <Field label="Access Token (permanente)" required>
+                  <Input type="password" value={fields['accessToken'] ?? ''} onChange={(e) => setField('accessToken', e.target.value)} placeholder="EAA..." style={{ fontFamily: "'IBM Plex Mono', monospace" }} />
+                </Field>
+                <Field label="App Secret (HMAC dos webhooks)" required>
+                  <Input type="password" value={fields['appSecret'] ?? ''} onChange={(e) => setField('appSecret', e.target.value)} style={{ fontFamily: "'IBM Plex Mono', monospace" }} />
+                </Field>
+                <Field label="Verify Token (handshake GET)" required>
+                  <Input value={fields['verifyToken'] ?? ''} onChange={(e) => setField('verifyToken', e.target.value)} placeholder="Token aleatório que você define no painel Meta" />
+                </Field>
+              </>
+            )}
+            {backendChannel === 'instagram' && (
+              <>
+                <Field label="Page ID" required>
+                  <Input value={fields['pageId'] ?? ''} onChange={(e) => setField('pageId', e.target.value)} />
+                </Field>
+                <Field label="Access Token" required>
+                  <Input type="password" value={fields['accessToken'] ?? ''} onChange={(e) => setField('accessToken', e.target.value)} />
+                </Field>
+                <Field label="App Secret" required>
+                  <Input type="password" value={fields['appSecret'] ?? ''} onChange={(e) => setField('appSecret', e.target.value)} />
+                </Field>
+                <Field label="Verify Token" required>
+                  <Input value={fields['verifyToken'] ?? ''} onChange={(e) => setField('verifyToken', e.target.value)} />
+                </Field>
+              </>
+            )}
+            {backendChannel === 'telegram' && (
+              <Field label="Bot Token" required>
+                <Input type="password" value={fields['botToken'] ?? ''} onChange={(e) => setField('botToken', e.target.value)} placeholder="123456:AAEhBP..." style={{ fontFamily: "'IBM Plex Mono', monospace" }} />
+              </Field>
+            )}
+            {backendChannel === 'email' && (
+              <>
+                <Field label="Host SMTP" required>
+                  <Input value={fields['host'] ?? ''} onChange={(e) => setField('host', e.target.value)} placeholder="smtp.gmail.com" />
+                </Field>
+                <Field label="Porta">
+                  <Input value={fields['port'] ?? '587'} onChange={(e) => setField('port', e.target.value)} placeholder="587" />
+                </Field>
+                <Field label="Usuário" required>
+                  <Input value={fields['user'] ?? ''} onChange={(e) => setField('user', e.target.value)} placeholder="user@dominio.com" />
+                </Field>
+                <Field label="Senha" required>
+                  <Input type="password" value={fields['pass'] ?? ''} onChange={(e) => setField('pass', e.target.value)} />
+                </Field>
+              </>
+            )}
+            <Mono size={10} color={T.textMuted}>
+              Os campos sensíveis são cifrados em AES-256-GCM antes de persistir e nunca são exibidos em texto claro depois.
+            </Mono>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn
+                small
+                variant="primary"
+                icon="check"
+                loading={updateMut.isPending}
+                disabled={!buildPayload()}
+                onClick={() => {
+                  const payload = buildPayload();
+                  if (payload) updateMut.mutate(payload);
+                }}
+              >
+                Salvar credenciais
+              </Btn>
+              <Btn
+                small
+                variant="glass"
+                onClick={() => { setEditing(false); setFields({}); setFeedback(null); }}
+              >
+                Cancelar
+              </Btn>
+            </div>
+          </div>
+        )}
+
+        {isOwner && confirmDisconnect && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: '14px 16px',
+              borderRadius: T.r.md,
+              background: T.dangerBg,
+              border: `1px solid ${T.dangerBorder}`,
+            }}
+          >
+            <p style={{ fontSize: 14, fontWeight: 600, color: T.danger, marginBottom: 4 }}>
+              Desconectar {channel.label}?
+            </p>
+            <p style={{ fontSize: 12, color: T.textSecondary, marginBottom: 12 }}>
+              As credenciais cifradas serão apagadas e novas mensagens entrantes
+              serão rejeitadas. O histórico de conversas é preservado.
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn
+                small
+                variant="danger"
+                icon="lock"
+                loading={disconnectMut.isPending}
+                onClick={() => disconnectMut.mutate({ channel: backendChannel })}
+              >
+                Confirmar desconexão
+              </Btn>
+              <Btn small variant="glass" onClick={() => setConfirmDisconnect(false)}>
+                Cancelar
+              </Btn>
+            </div>
           </div>
         )}
       </Glass>
