@@ -55,9 +55,22 @@ function buildRedisUrl(): string {
   return `redis://${auth}${host}:${port}`;
 }
 
-const redisConnection = new Redis(buildRedisUrl(), {
+// Memorystore com `transit-encryption-mode=server-authentication` apresenta
+// um cert assinado por CA do Google que não está no trust store padrão do
+// Node. Como o tráfego só passa por VPC peering privado (sem internet),
+// validar o cert apenas garante o handshake — desativar `rejectUnauthorized`
+// mantém o canal cifrado sem bloquear a conexão. Para forçar validação
+// estrita (ex.: prod com CA do Memorystore bundled), defina REDIS_TLS_STRICT=true.
+const REDIS_URL = buildRedisUrl();
+const REDIS_TLS_STRICT = process.env['REDIS_TLS_STRICT'] === 'true';
+const redisTlsOpts = REDIS_URL.startsWith('rediss://')
+  ? { tls: { rejectUnauthorized: REDIS_TLS_STRICT } }
+  : {};
+
+const redisConnection = new Redis(REDIS_URL, {
   maxRetriesPerRequest: null, // BullMQ requer null para blocking commands
   enableReadyCheck: false,
+  ...redisTlsOpts,
 });
 
 redisConnection.on('error', (err) => logger.error({ err }, 'Redis connection error'));

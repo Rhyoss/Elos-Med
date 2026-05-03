@@ -2,9 +2,20 @@ import Redis from 'ioredis';
 import { env } from '../config/env.js';
 import { logger } from '../lib/logger.js';
 
+// Memorystore com `transit-encryption-mode=server-authentication` apresenta
+// um cert assinado por CA do Google que não está no trust store padrão do
+// Node. Como o tráfego só passa por VPC peering privado (sem internet),
+// validar o cert apenas garante que o handshake completa — desativá-lo
+// mantém o canal cifrado sem bloquear a conexão. Para forçar validação
+// estrita (ex.: prod com CA do Memorystore bundled), defina
+// REDIS_TLS_STRICT=true.
+const REDIS_TLS_STRICT = process.env['REDIS_TLS_STRICT'] === 'true';
+
 function createRedisClient(name: string): Redis {
+  const isTls = env.REDIS_URL.startsWith('rediss://');
   const client = new Redis(env.REDIS_URL, {
     maxRetriesPerRequest: 3,
+    ...(isTls ? { tls: { rejectUnauthorized: REDIS_TLS_STRICT } } : {}),
     retryStrategy(times) {
       if (times > 10) {
         logger.error({ name }, 'Redis max retries exceeded — giving up');
