@@ -36,7 +36,9 @@ async function withClinicContext<T>(
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    await client.query('SET LOCAL app.current_clinic_id = $1', [clinicId]);
+    // `SET LOCAL` não aceita parâmetros no protocolo. Usamos `set_config`
+    // com `is_local=true` para o mesmo efeito (GUC válido até COMMIT).
+    await client.query('SELECT set_config($1, $2, true)', ['app.current_clinic_id', clinicId]);
     const out = await cb(client);
     await client.query('COMMIT');
     return out;
@@ -310,7 +312,7 @@ async function loadRoutingInfo(
               ch.ai_agent_id,
               ct.opted_in_at,
               ct.opted_out_at,
-              cl.operating_hours,
+              cl.business_hours AS operating_hours,
               cl.timezone
          FROM omni.conversations cv
          JOIN omni.contacts      ct ON ct.id = cv.contact_id

@@ -52,7 +52,7 @@ async function loadClinicVars(
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    await client.query('SET LOCAL app.current_clinic_id = $1', [clinicId]);
+    await client.query("SELECT set_config('app.current_clinic_id', $1, true)", [clinicId]);
     const r = await client.query<{ name: string; address: string | null }>(
       `SELECT name, address FROM shared.clinics WHERE id = $1`,
       [clinicId],
@@ -83,7 +83,7 @@ async function alreadyAnswered(
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    await client.query('SET LOCAL app.current_clinic_id = $1', [clinicId]);
+    await client.query("SELECT set_config('app.current_clinic_id', $1, true)", [clinicId]);
     const r = await client.query<{ id: string }>(
       `SELECT id FROM omni.messages
         WHERE clinic_id = $1

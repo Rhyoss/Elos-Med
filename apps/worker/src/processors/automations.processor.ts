@@ -68,7 +68,7 @@ async function withClinicTx<T>(
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    await client.query('SET LOCAL app.current_clinic_id = $1', [clinicId]);
+    await client.query("SELECT set_config('app.current_clinic_id', $1, true)", [clinicId]);
     const out = await cb(client);
     await client.query('COMMIT');
     return out;

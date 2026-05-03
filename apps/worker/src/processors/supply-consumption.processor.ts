@@ -33,7 +33,7 @@ interface Deps {
   logger: pino.Logger;
 }
 
-const CLINIC_CTX_SQL = `SET LOCAL app.current_clinic_id = $1`;
+const CLINIC_CTX_SQL = `SELECT set_config('app.current_clinic_id', $1, true)`;
 
 async function withClinicTx<T>(
   db: Pool,
