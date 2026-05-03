@@ -18,8 +18,8 @@ export const isPatientAuthenticated = t.middleware(async ({ ctx, next }) => {
   let patient: PatientJwt | null = null;
   try {
     const verifier = (ctx.req.server as unknown as {
-      patient: { verify: <T>(t: string) => T };
-    }).patient;
+      jwt: { patient: { verify: <T>(t: string) => T } };
+    }).jwt.patient;
     const cookieToken = ctx.req.cookies['patient_access_token'];
     if (cookieToken) {
       patient = verifier.verify<PatientJwt>(cookieToken);

@@ -56,9 +56,10 @@ export function initSocketGateway(app: FastifyInstance): SocketIOServer {
 
       // SEC-06/21: usa o namespace `access` — tokens com aud=patient
       // (Patient Portal) NÃO conseguem entrar nas salas de staff.
+      // @fastify/jwt expõe o namespace em `fastify.jwt[namespace]`.
       const payload = (app as unknown as {
-        access: { verify: <T>(t: string) => T };
-      }).access.verify<{ sub: string; clinicId: string; role: string }>(token);
+        jwt: { access: { verify: <T>(t: string) => T } };
+      }).jwt.access.verify<{ sub: string; clinicId: string; role: string }>(token);
       const data: AuthedSocketData = {
         userId:   payload.sub,
         clinicId: payload.clinicId,
