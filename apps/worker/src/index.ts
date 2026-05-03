@@ -21,6 +21,24 @@ const logger = pino({
     : {}),
 });
 
+// ─── Health check HTTP server (Cloud Run requires a listening port) ─────────
+// Must start BEFORE Redis/DB connections to pass Cloud Run's startup probe.
+
+const workers: Worker[] = [];
+const PORT = parseInt(process.env['PORT'] ?? '8080', 10);
+const healthServer = http.createServer((req, res) => {
+  if (req.url === '/health' || req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', workers: workers.length }));
+  } else {
+    res.writeHead(404);
+    res.end();
+  }
+});
+healthServer.listen(PORT, '0.0.0.0', () => {
+  logger.info({ port: PORT }, 'Worker health server listening');
+});
+
 function buildRedisUrl(): string {
   if (process.env['REDIS_URL']) return process.env['REDIS_URL'];
   const host = process.env['REDIS_HOST'] ?? 'localhost';
@@ -85,8 +103,6 @@ const pubRedis = redisConnection.duplicate({ maxRetriesPerRequest: 3 });
 pubRedis.on('error', (err) => logger.error({ err }, 'Worker pub Redis error'));
 
 // ─── Workers ───────────────────────────────────────────────────────────────
-
-const workers: Worker[] = [];
 
 function registerWorker<T = unknown>(
   queueName: string,
@@ -340,21 +356,6 @@ registerWorker(QUEUE_NAMES.ANALYTICS, async (job) => {
   // TODO no próximo prompt: AnalyticsAggregator
 }, 2);
 
-// ─── Health check HTTP server (Cloud Run requires a listening port) ─────────
-
-const PORT = parseInt(process.env['PORT'] ?? '8080', 10);
-const healthServer = http.createServer((req, res) => {
-  if (req.url === '/health' || req.url === '/') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', workers: workers.length }));
-  } else {
-    res.writeHead(404);
-    res.end();
-  }
-});
-healthServer.listen(PORT, '0.0.0.0', () => {
-  logger.info({ port: PORT }, 'Worker health server listening');
-});
 
 // ─── Graceful shutdown ─────────────────────────────────────────────────────
 
