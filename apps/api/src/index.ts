@@ -13,7 +13,6 @@ import { redis, connectRedis, checkRedisHealth } from './db/redis.js';
 import { appRouter, type AppRouter } from './trpc/router.js';
 import { createContext } from './trpc/context.js';
 import { initSocketGateway } from './lib/socket.js';
-import { ensureClinicalImagesBucket, ensurePrescriptionsBucket, ensureProductImagesBucket } from './lib/minio.js';
 import { registerLesionUploadRoute } from './modules/clinical/lesions/upload.route.js';
 import { registerProductPhotoUploadRoute } from './modules/supply/product-photo.upload.route.js';
 import { ensureProductCollection } from './lib/typesense.js';
@@ -223,9 +222,6 @@ async function bootstrap() {
   // ─── Start ─────────────────────────────────────────────────────────────────
 
   await connectRedis();
-  await ensureClinicalImagesBucket();
-  await ensurePrescriptionsBucket();
-  await ensureProductImagesBucket();
   await ensureProductCollection();
 
   await app.listen({ port: env.PORT, host: '0.0.0.0' });

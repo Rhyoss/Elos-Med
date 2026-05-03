@@ -2,7 +2,7 @@ import { TRPCError } from '@trpc/server';
 import { createHash, randomUUID } from 'node:crypto';
 import PDFDocument from 'pdfkit';
 import { withClinicContext, db } from '../../db/client.js';
-import { REPORTS_BUCKET, ensureReportsBucket, putObjectBuffer, presignGet } from '../../lib/minio.js';
+import { REPORTS_BUCKET, putObjectBuffer, presignGet } from '../../lib/storage.js';
 import { logger } from '../../lib/logger.js';
 import { decryptOptional } from '../../lib/crypto.js';
 import type {
@@ -392,7 +392,6 @@ export async function generateRecallReport(
   if (!ctx.canRecall) {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Geração de relatório exige permissão traceability.recall.' });
   }
-  await ensureReportsBucket();
   const clinic = await loadClinicInfo(ctx.clinicId);
 
   // Carrega dados imprimíveis

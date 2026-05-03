@@ -1,0 +1,332 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options: [staging, prod]
+        default: staging
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: elos-med
+  REGION: southamerica-east1
+  REGISTRY: southamerica-east1-docker.pkg.dev/elos-med/elosmed-docker
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Build: compila e pusha imagens para Artifact Registry
+  # ─────────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: env
+        name: Resolve environment
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "env=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "env=staging" >> "$GITHUB_OUTPUT"
+          fi
+
+      - id: meta
+        name: Image tag
+        run: echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - id: auth
+        name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/api:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/api:${{ steps.env.outputs.env }}-latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Build & push Web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/web:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/web:${{ steps.env.outputs.env }}-latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Build & push Worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/worker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/worker:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/worker:${{ steps.env.outputs.env }}-latest
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
+
+      - name: Build & push AI
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/ai/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/ai:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/ai:${{ steps.env.outputs.env }}-latest
+          cache-from: type=gha,scope=ai
+          cache-to: type=gha,mode=max,scope=ai
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Deploy: gcloud run deploy para cada serviço
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy (${{ needs.build.outputs.image_tag }})
+    runs-on: ubuntu-latest
+    needs: [build]
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api, web, worker, ai]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: env
+        name: Resolve environment
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENV="${{ github.event.inputs.environment }}"
+          else
+            ENV="staging"
+          fi
+          echo "env=$ENV" >> "$GITHUB_OUTPUT"
+          echo "prefix=${ENV}-elosmed" >> "$GITHUB_OUTPUT"
+
+      - id: auth
+        name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - id: config
+        name: Resolve service config
+        run: |
+          SERVICE="${{ matrix.service }}"
+          ENV="${{ steps.env.outputs.env }}"
+          PREFIX="${{ steps.env.outputs.prefix }}"
+          TAG="${{ needs.build.outputs.image_tag }}"
+          IMAGE="${{ env.REGISTRY }}/${SERVICE}:${TAG}"
+
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "service_name=${PREFIX}-${SERVICE}" >> "$GITHUB_OUTPUT"
+
+          # Ingress
+          case "$SERVICE" in
+            api|web) echo "ingress=all" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "ingress=internal" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+          # Port
+          case "$SERVICE" in
+            api)    echo "port=4000" >> "$GITHUB_OUTPUT" ;;
+            web)    echo "port=3000" >> "$GITHUB_OUTPUT" ;;
+            worker) echo "port=8080" >> "$GITHUB_OUTPUT" ;;
+            ai)     echo "port=8000" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+          # Min instances
+          if [[ "$ENV" == "prod" ]]; then
+            case "$SERVICE" in
+              api|web|worker) echo "min_instances=1" >> "$GITHUB_OUTPUT" ;;
+              *)              echo "min_instances=0" >> "$GITHUB_OUTPUT" ;;
+            esac
+          else
+            case "$SERVICE" in
+              worker) echo "min_instances=1" >> "$GITHUB_OUTPUT" ;;
+              *)      echo "min_instances=0" >> "$GITHUB_OUTPUT" ;;
+            esac
+          fi
+
+          # Max instances
+          if [[ "$ENV" == "prod" ]]; then
+            case "$SERVICE" in
+              api|web) echo "max_instances=30" >> "$GITHUB_OUTPUT" ;;
+              ai)      echo "max_instances=10" >> "$GITHUB_OUTPUT" ;;
+              *)       echo "max_instances=5" >> "$GITHUB_OUTPUT" ;;
+            esac
+          else
+            echo "max_instances=3" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Cloud SQL (api + worker need it)
+          case "$SERVICE" in
+            api|worker) echo "cloudsql=${{ env.PROJECT_ID }}:${{ env.REGION }}:${PREFIX}-db" >> "$GITHUB_OUTPUT" ;;
+            *)          echo "cloudsql=" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+          # Secrets from Secret Manager (ENV_VAR=secret-id:version)
+          CLOUDSQL_SOCKET="/cloudsql/${{ env.PROJECT_ID }}:${{ env.REGION }}:${PREFIX}-db"
+          case "$SERVICE" in
+            api)
+              echo "secrets=JWT_SECRET=jwt-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,COOKIE_SECRET=cookie-secret:latest,ENCRYPTION_KEY=encryption-key:latest,SEARCH_INDEX_KEY=search-index-key:latest,AI_SERVICE_KEY=ai-service-key:latest,POSTGRES_APP_PASSWORD=postgres-app-password:latest,REDIS_PASSWORD=redis-password:latest" >> "$GITHUB_OUTPUT"
+              echo "extra_envs=API_PORT=4000,POSTGRES_DB=dermaos,POSTGRES_APP_USER=dermaos_app,POSTGRES_HOST=${CLOUDSQL_SOCKET},POSTGRES_PORT=5432,REDIS_PORT=6379,APP_URL=https://app.elosmed.com.br,CORS_ORIGINS=https://app.elosmed.com.br,RATE_LIMIT_MAX=200,RATE_LIMIT_WINDOW_MS=60000" >> "$GITHUB_OUTPUT"
+              ;;
+            web)
+              echo "secrets=JWT_SECRET=jwt-secret:latest,COOKIE_SECRET=cookie-secret:latest" >> "$GITHUB_OUTPUT"
+              echo "extra_envs=WEB_PORT=3000,NEXT_PUBLIC_API_URL=https://api.elosmed.com.br,NEXT_PUBLIC_WS_URL=wss://api.elosmed.com.br,NEXT_PUBLIC_STORAGE_URL=https://storage.googleapis.com,NEXT_PUBLIC_APP_NAME=ElosMed,NEXT_PUBLIC_APP_VERSION=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+              ;;
+            worker)
+              echo "secrets=JWT_SECRET=jwt-secret:latest,ENCRYPTION_KEY=encryption-key:latest,SEARCH_INDEX_KEY=search-index-key:latest,AI_SERVICE_KEY=ai-service-key:latest,POSTGRES_WORKER_PASSWORD=postgres-worker-password:latest,REDIS_PASSWORD=redis-password:latest" >> "$GITHUB_OUTPUT"
+              echo "extra_envs=POSTGRES_DB=dermaos,POSTGRES_WORKER_USER=dermaos_worker,POSTGRES_HOST=${CLOUDSQL_SOCKET},POSTGRES_PORT=5432,REDIS_PORT=6379" >> "$GITHUB_OUTPUT"
+              ;;
+            ai)
+              echo "secrets=AI_SERVICE_KEY=ai-service-key:latest" >> "$GITHUB_OUTPUT"
+              echo "extra_envs=AI_PORT=8000" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Deploy to Cloud Run
+        run: |
+          ARGS=(
+            --project "${{ env.PROJECT_ID }}"
+            --region "${{ env.REGION }}"
+            --image "${{ steps.config.outputs.image }}"
+            --platform managed
+            --ingress "${{ steps.config.outputs.ingress }}"
+            --port "${{ steps.config.outputs.port }}"
+            --min-instances "${{ steps.config.outputs.min_instances }}"
+            --max-instances "${{ steps.config.outputs.max_instances }}"
+            --memory 512Mi
+            --cpu 1
+            --timeout 300
+            --set-env-vars "NODE_ENV=production,GCS_BUCKET_PREFIX=${{ steps.env.outputs.prefix }},GCS_PROJECT_ID=${{ env.PROJECT_ID }},${{ steps.config.outputs.extra_envs }}"
+            --set-secrets "${{ steps.config.outputs.secrets }}"
+            --vpc-connector "${{ steps.env.outputs.prefix }}-connector"
+            --vpc-egress private-ranges-only
+            --service-account "${{ steps.env.outputs.prefix }}-${{ matrix.service }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
+            --no-allow-unauthenticated
+          )
+
+          # Cloud SQL connection
+          if [[ -n "${{ steps.config.outputs.cloudsql }}" ]]; then
+            ARGS+=(--add-cloudsql-instances "${{ steps.config.outputs.cloudsql }}")
+          fi
+
+          # Public access for api/web
+          if [[ "${{ matrix.service }}" == "api" || "${{ matrix.service }}" == "web" ]]; then
+            ARGS+=(--allow-unauthenticated)
+          fi
+
+          gcloud run deploy "${{ steps.config.outputs.service_name }}" "${ARGS[@]}"
+
+      - name: Verify deployment
+        run: |
+          gcloud run services describe "${{ steps.config.outputs.service_name }}" \
+            --project "${{ env.PROJECT_ID }}" \
+            --region "${{ env.REGION }}" \
+            --format "value(status.url)"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Migrate: roda migrations após deploy do API
+  # ─────────────────────────────────────────────────────────────────────────────
+  migrate:
+    name: Run migrations
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - id: env
+        name: Resolve environment
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENV="${{ github.event.inputs.environment }}"
+          else
+            ENV="staging"
+          fi
+          echo "env=$ENV" >> "$GITHUB_OUTPUT"
+          echo "prefix=${ENV}-elosmed" >> "$GITHUB_OUTPUT"
+
+      - id: auth
+        name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy migration job
+        run: |
+          PREFIX="${{ steps.env.outputs.prefix }}"
+          CLOUDSQL="${{ env.PROJECT_ID }}:${{ env.REGION }}:${PREFIX}-db"
+          SOCKET="/cloudsql/${CLOUDSQL}"
+
+          gcloud run jobs deploy "${PREFIX}-migrate" \
+            --project "${{ env.PROJECT_ID }}" \
+            --region "${{ env.REGION }}" \
+            --image "${{ env.REGISTRY }}/api:${{ needs.build.outputs.image_tag }}" \
+            --service-account "${PREFIX}-api@${{ env.PROJECT_ID }}.iam.gserviceaccount.com" \
+            --vpc-connector "${PREFIX}-connector" \
+            --vpc-egress private-ranges-only \
+            --add-cloudsql-instances "${CLOUDSQL}" \
+            --set-env-vars "NODE_ENV=production,POSTGRES_DB=dermaos,POSTGRES_ADMIN_USER=dermaos_admin,POSTGRES_HOST=${SOCKET},POSTGRES_PORT=5432" \
+            --set-secrets "POSTGRES_ADMIN_PASSWORD=postgres-admin-password:latest" \
+            --command "node" \
+            --args "dist/db/migrate.js" \
+            --max-retries 0 \
+            --task-timeout 300s
+
+      - name: Execute migration job
+        run: |
+          gcloud run jobs execute "${{ steps.env.outputs.prefix }}-migrate" \
+            --project "${{ env.PROJECT_ID }}" \
+            --region "${{ env.REGION }}" \
+            --wait

@@ -7,7 +7,7 @@ import {
 } from '@dermaos/shared';
 import type { JwtUser } from '../auth/auth.types.js';
 import { validateImageUpload, sanitizeFilename } from '../../lib/image-validation.js';
-import { putObjectBuffer, PRODUCT_IMAGES_BUCKET } from '../../lib/minio.js';
+import { putObjectBuffer, PRODUCT_IMAGES_BUCKET } from '../../lib/storage.js';
 import { logger } from '../../lib/logger.js';
 
 const PRODUCT_PHOTO_MAX_BYTES = 5 * 1024 * 1024; // 5 MB

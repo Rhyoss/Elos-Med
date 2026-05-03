@@ -18,8 +18,7 @@ import {
   checkSkuAvailability,
   searchProducts,
 } from './products.service.js';
-import { presignGet } from '../../lib/minio.js';
-import { PRODUCT_IMAGES_BUCKET } from '../../lib/minio.js';
+import { presignGet, PRODUCT_IMAGES_BUCKET } from '../../lib/storage.js';
 
 const PHOTO_URL_TTL_SECONDS = 3600; // 1 hora
 

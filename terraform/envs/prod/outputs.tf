@@ -23,5 +23,5 @@ output "cloud_run_urls" {
 }
 
 output "artifact_registry" {
-  value = module.registry.repository_url
+  value = local.artifact_registry_url
 }

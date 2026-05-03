@@ -22,7 +22,8 @@ RUN pnpm build
 # ─── Runner ─────────────────────────────────────────────────────────────────
 FROM node:22-alpine AS runner
 
-RUN addgroup --system --gid 1001 dermaos && \
+RUN apk add --no-cache tini && \
+    addgroup --system --gid 1001 dermaos && \
     adduser --system --uid 1001 --ingroup dermaos dermaos
 
 WORKDIR /app
@@ -37,5 +38,9 @@ COPY --from=builder /app/apps/worker/dist ./dist
 USER dermaos
 
 ENV NODE_ENV=production
+ENV PORT=8080
 
+EXPOSE ${PORT}
+
+ENTRYPOINT ["tini", "--"]
 CMD ["node", "dist/index.js"]

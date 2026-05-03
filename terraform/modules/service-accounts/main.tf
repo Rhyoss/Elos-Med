@@ -1,5 +1,5 @@
 locals {
-  prefix = var.env
+  prefix = "${var.env}-elosmed"
 
   # Cada serviço Cloud Run roda como uma SA dedicada (least privilege).
   service_accounts = {
@@ -15,7 +15,7 @@ resource "google_service_account" "services" {
   for_each = local.service_accounts
 
   project      = var.project_id
-  account_id   = "${local.prefix}-${each.key}-sa"
+  account_id   = "${local.prefix}-${each.key}"
   display_name = "ELOS MED ${each.key} (${var.env})"
   description  = each.value
 }

@@ -14,12 +14,10 @@ module "secrets" {
   env        = var.env
 }
 
-module "registry" {
-  source = "../../modules/registry"
-
-  project_id = var.project_id
-  region     = var.region
-  env        = var.env
+# Registry is shared (created by staging env). Reference it directly.
+locals {
+  registry_repository_id  = "elosmed-docker"
+  artifact_registry_url   = "${var.region}-docker.pkg.dev/${var.project_id}/elosmed-docker"
 }
 
 module "storage" {
@@ -83,7 +81,7 @@ module "workload_identity" {
   github_owner           = var.github_owner
   github_repo            = var.github_repo
   allowed_branches       = ["main"] # deploy de prod via tag/manual no workflow
-  registry_repository_id = module.registry.repository_id
+  registry_repository_id = local.registry_repository_id
   service_account_emails = module.service_accounts.emails
 }
 

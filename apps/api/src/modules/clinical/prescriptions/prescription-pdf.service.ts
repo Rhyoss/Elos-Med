@@ -6,7 +6,7 @@ import {
   PRESCRIPTIONS_BUCKET,
   presignGet,
   putObjectBuffer,
-} from '../../../lib/minio.js';
+} from '../../../lib/storage.js';
 import {
   PRESCRIPTION_TYPE_LABELS,
   type PrescriptionItem,

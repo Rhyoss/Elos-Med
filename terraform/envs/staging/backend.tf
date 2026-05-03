@@ -13,7 +13,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "elosmed-staging-tfstate"
+    bucket = "elos-med-tfstate"
     prefix = "envs/staging"
   }
 }

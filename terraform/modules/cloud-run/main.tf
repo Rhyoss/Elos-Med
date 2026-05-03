@@ -1,5 +1,5 @@
 locals {
-  prefix = var.env
+  prefix = "${var.env}-elosmed"
 
   services = {
     api = {

@@ -1,7 +1,8 @@
 # DermaOS / ELOS MED — Terraform (GCP)
 
 Infraestrutura como código para os ambientes `staging` e `prod` em GCP
-(`southamerica-east1`).
+(`southamerica-east1`), ambos dentro do projeto único **`elos-med`**.
+Os recursos são isolados por prefixo (`staging-*` / `prod-*`).
 
 ## Pré-requisitos (uma única vez)
 
@@ -37,8 +38,9 @@ terraform/
 ## Convenções
 
 - **Region:** `southamerica-east1` (São Paulo) — LGPD + latência.
-- **State:** GCS, versionado, retention 30 dias, bucket separado por env.
-- **Naming:** `<env>-<recurso>` (ex.: `staging-cloudsql-main`).
+- **State:** GCS `elos-med-tfstate`, versionado, prefixo separado por env.
+- **Projeto único:** `elos-med` (conta `alex@elostec.com.br`).
+- **Naming:** `<env>-elosmed-<recurso>` (ex.: `staging-elosmed-db`).
 - **Tags/Labels:** `env=staging|prod`, `app=elosmed`, `owner=platform`.
 - **Princípio do menor privilégio:** uma SA por serviço, IAM granular.
 

@@ -1,23 +1,14 @@
-import { Client as MinioClient } from 'minio';
+import { Storage } from '@google-cloud/storage';
 import { Pool } from 'pg';
 import sharp from 'sharp';
 import type { Job } from 'bullmq';
 import type pino from 'pino';
 
-const BUCKET = 'clinical-images';
+const BUCKET_PREFIX = process.env['GCS_BUCKET_PREFIX'] ?? '';
+const BUCKET = BUCKET_PREFIX ? `${BUCKET_PREFIX}-clinical-images` : 'clinical-images';
 
-const MINIO_ENDPOINT  = process.env['MINIO_ENDPOINT']   ?? 'minio';
-const MINIO_PORT      = Number(process.env['MINIO_PORT'] ?? 9000);
-const MINIO_USE_SSL   = process.env['MINIO_USE_SSL']    === 'true';
-const MINIO_ACCESS    = process.env['MINIO_ACCESS_KEY'] ?? '';
-const MINIO_SECRET    = process.env['MINIO_SECRET_KEY'] ?? '';
-
-const minio = new MinioClient({
-  endPoint: MINIO_ENDPOINT,
-  port:     MINIO_PORT,
-  useSSL:   MINIO_USE_SSL,
-  accessKey: MINIO_ACCESS,
-  secretKey: MINIO_SECRET,
+const storage = new Storage({
+  ...(process.env['GCS_PROJECT_ID'] && { projectId: process.env['GCS_PROJECT_ID'] }),
 });
 
 const db = new Pool({
@@ -34,20 +25,19 @@ export interface LesionImageJobData {
 }
 
 async function objectToBuffer(key: string): Promise<Buffer> {
-  const stream = await minio.getObject(BUCKET, key);
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk as Buffer);
-  }
-  return Buffer.concat(chunks);
+  const [contents] = await storage.bucket(BUCKET).file(key).download();
+  return contents;
 }
 
 async function putBuffer(key: string, buffer: Buffer, contentType: string): Promise<void> {
-  await minio.putObject(BUCKET, key, buffer, buffer.length, { 'Content-Type': contentType });
+  await storage.bucket(BUCKET).file(key).save(buffer, {
+    contentType,
+    resumable: false,
+    metadata: { contentType },
+  });
 }
 
 function derivedKey(originalKey: string, variant: 'medium' | 'thumbnail', ext: string): string {
-  // originalKey: {clinic}/{lesion}/{imageId}/original{ext}
   const parts = originalKey.split('/');
   parts[parts.length - 1] = `${variant}${ext}`;
   return parts.join('/');
@@ -69,24 +59,22 @@ export function buildLesionImageProcessor(logger: pino.Logger) {
     try {
       original = await objectToBuffer(objectKey);
     } catch (err) {
-      logger.error({ err, objectKey }, 'Failed to load original from MinIO');
+      logger.error({ err, objectKey }, 'Failed to load original from storage');
       await db.query(
         `UPDATE clinical.lesion_images
             SET processing_status = 'processing_failed',
                 processing_error = $3,
                 is_corrupted = TRUE
           WHERE id = $1 AND clinic_id = $2`,
-        [imageId, clinicId, 'minio_unavailable'],
+        [imageId, clinicId, 'storage_unavailable'],
       );
-      throw err; // BullMQ retry exponencial
+      throw err;
     }
 
     try {
-      // preserva orientação (EXIF), remove geolocalização via withMetadata({exif: {}})
       const pipeline = sharp(original, { failOn: 'none' }).rotate();
       const meta     = await pipeline.metadata();
 
-      // Converte HEIC para JPEG (Sharp requer libvips com suporte a HEIF; fallback para JPEG)
       const outFormat: 'jpeg' | 'png' | 'webp' =
         mimeType === 'image/png'  ? 'png' :
         mimeType === 'image/webp' ? 'webp' : 'jpeg';
@@ -101,7 +89,7 @@ export function buildLesionImageProcessor(logger: pino.Logger) {
         return sharp(original, { failOn: 'none' })
           .rotate()
           .resize({ width: size, height: size, fit: 'inside', withoutEnlargement: true })
-          .withMetadata({ exif: {} }) // strip GPS + outros EXIF sensíveis
+          .withMetadata({ exif: {} })
           .toFormat(outFormat, { quality: 85 })
           .toBuffer();
       }
@@ -133,7 +121,6 @@ export function buildLesionImageProcessor(logger: pino.Logger) {
       logger.info({ imageId, width: meta.width, height: meta.height }, 'Lesion image ready');
     } catch (err) {
       logger.warn({ err, imageId }, 'Sharp processing failed — marking unprocessable');
-      // Não é falha transitória: não dispara retry. Marca como unprocessable para UI oferecer retry manual.
       await db.query(
         `UPDATE clinical.lesion_images
             SET processing_status = 'unprocessable',
@@ -142,7 +129,6 @@ export function buildLesionImageProcessor(logger: pino.Logger) {
           WHERE id = $1 AND clinic_id = $2`,
         [imageId, clinicId, (err as Error).message.slice(0, 500)],
       );
-      // Não relança: falha de processamento não deve ficar retry loop
     }
   };
 }

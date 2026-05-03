@@ -7,7 +7,7 @@ import {
   putObjectBuffer,
   presignGet,
   removeObject,
-} from '../../../lib/minio.js';
+} from '../../../lib/storage.js';
 import { validateImageUpload, sanitizeFilename } from '../../../lib/image-validation.js';
 import { lesionImageQueue, QUEUE_NAMES } from '../../../jobs/queues.js';
 import { emitToClinic } from '../../../lib/socket.js';

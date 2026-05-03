@@ -168,6 +168,8 @@ CREATE TABLE shared.patients (
   portal_enabled              BOOLEAN NOT NULL DEFAULT false,
   portal_email                TEXT,
   portal_password_hash        TEXT,                         -- argon2id — separado do email_encrypted
+  -- Anotações internas (não visíveis ao paciente)
+  internal_notes              TEXT,
   -- Status e métricas
   status                      shared.patient_status NOT NULL DEFAULT 'active',
   total_visits                INT NOT NULL DEFAULT 0,

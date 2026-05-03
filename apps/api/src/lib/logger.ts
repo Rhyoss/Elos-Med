@@ -85,6 +85,15 @@ const REDACT_PATHS: string[] = [
   'body.entry',
 ];
 
+const PINO_TO_CLOUD_SEVERITY: Record<string, string> = {
+  trace: 'DEBUG',
+  debug: 'DEBUG',
+  info: 'INFO',
+  warn: 'WARNING',
+  error: 'ERROR',
+  fatal: 'CRITICAL',
+};
+
 export const logger = pino({
   level: env.LOG_LEVEL,
   redact: {
@@ -104,10 +113,10 @@ export const logger = pino({
         },
       }
     : {
-        // Structured JSON em produção para ingestão em log aggregator
         formatters: {
-          level: (label) => ({ level: label }),
+          level: (label) => ({ severity: PINO_TO_CLOUD_SEVERITY[label] ?? 'DEFAULT' }),
         },
+        messageKey: 'message',
         timestamp: pino.stdTimeFunctions.isoTime,
       }),
 });

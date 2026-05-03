@@ -70,7 +70,7 @@ resource "google_service_networking_connection" "psa" {
 # Serverless VPC Connector — Cloud Run -> VPC (Cloud SQL, Memorystore, AI interno).
 resource "google_vpc_access_connector" "main" {
   project        = var.project_id
-  name           = "${var.env}-elos-conn"
+  name           = "${local.prefix}-connector"
   region         = var.region
   network        = google_compute_network.main.name
   ip_cidr_range  = var.connector_cidr

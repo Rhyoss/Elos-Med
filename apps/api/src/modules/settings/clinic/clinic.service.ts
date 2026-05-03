@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { TRPCError } from '@trpc/server';
 import { withClinicContext, db } from '../../../db/client.js';
 import { detectMimeFromBytes } from '../../../lib/image-validation.js';
-import { putObjectBuffer, CLINIC_ASSETS_BUCKET } from '../../../lib/minio.js';
+import { putObjectBuffer, CLINIC_ASSETS_BUCKET } from '../../../lib/storage.js';
 import { logger } from '../../../lib/logger.js';
 import type { UpdateClinicInput, UpdateBusinessHoursInput, UpdateTimezoneInput } from '@dermaos/shared';
 

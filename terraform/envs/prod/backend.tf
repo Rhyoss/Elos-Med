@@ -13,7 +13,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "elosmed-prod-tfstate"
+    bucket = "elos-med-tfstate"
     prefix = "envs/prod"
   }
 }

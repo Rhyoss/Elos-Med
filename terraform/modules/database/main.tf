@@ -12,6 +12,7 @@ resource "google_sql_database_instance" "main" {
   name             = "${local.prefix}-db"
   region           = var.region
   database_version = "POSTGRES_16"
+  edition          = "ENTERPRISE"
 
   deletion_protection = var.deletion_protection
 

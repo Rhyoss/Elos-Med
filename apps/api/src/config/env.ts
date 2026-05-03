@@ -12,15 +12,9 @@ const envSchema = z.object({
   // Redis
   REDIS_URL: z.string().url(),
 
-  // MinIO / Object Storage
-  MINIO_ENDPOINT: z.string().min(1),
-  MINIO_PORT: z.coerce.number().int().positive().default(9000),
-  MINIO_USE_SSL: z
-    .string()
-    .transform((v) => v === 'true')
-    .default('false'),
-  MINIO_ACCESS_KEY: z.string().min(1),
-  MINIO_SECRET_KEY: z.string().min(1),
+  // Google Cloud Storage
+  GCS_PROJECT_ID: z.string().optional(),
+  GCS_BUCKET_PREFIX: z.string().default(''),
 
   // Typesense
   TYPESENSE_HOST: z.string().min(1),

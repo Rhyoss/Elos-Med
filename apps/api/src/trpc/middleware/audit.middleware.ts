@@ -51,9 +51,13 @@ export const auditMutation = t.middleware(async ({ ctx, path, type, input, next 
   const userId   = ctx.user.sub;
   const ip       = ctx.req.ip;
   const ua       = ctx.req.headers['user-agent'];
-  const aggregate = path.split('.')[0] ?? 'unknown';
+  const pathParts = path.split('.');
+  const aggregate = pathParts[0] ?? 'unknown';
+  const lastPart = pathParts[pathParts.length - 1] ?? 'unknown';
+  const actionSnake = lastPart.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
   const maskedInput = maskSensitive(input);
-  const eventType = path.replace(/\./g, '_').replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+  // chk_event_type exige formato `aggregate.action` (snake_case dos dois lados).
+  const eventType = `${aggregate}.${actionSnake}`;
 
   setImmediate(async () => {
     try {
@@ -101,13 +105,18 @@ export const auditPHIAccess = t.middleware(async ({ ctx, path, next }) => {
 
   if (!ctx.user || !ctx.clinicId) return result;
 
+  // chk_access_action restringe action a um enum fechado. Se a operação
+  // falhou, não houve acesso PHI — pulamos o log e deixamos o erro principal
+  // ser capturado pelo onError do tRPC.
+  if (!result.ok) return result;
+
   // SEC-02: capturar antes do setImmediate.
   const clinicId    = ctx.clinicId;
   const userId      = ctx.user.sub;
   const ip          = ctx.req.ip;
   const ua          = ctx.req.headers['user-agent'] ?? null;
   const resourceType = path.split('.')[0] ?? 'unknown';
-  const action      = result.ok ? 'read' : 'error';
+  const action      = 'read';
 
   setImmediate(async () => {
     try {

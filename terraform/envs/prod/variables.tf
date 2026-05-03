@@ -1,6 +1,6 @@
 variable "project_id" {
   type    = string
-  default = "elosmed-prod"
+  default = "elos-med"
 }
 
 variable "region" {
