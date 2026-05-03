@@ -63,12 +63,13 @@ async function setupTenant(label: 'A' | 'B'): Promise<Tenant> {
   const slug = `smoke-${label.toLowerCase()}-${rand}`;
   const name = `Smoke Clinic ${label} ${rand}`;
 
-  const [{ id: clinicId }] = await adminQuery<{ id: string }>(
+  const rows = await adminQuery<{ id: string }>(
     `INSERT INTO shared.clinics (slug, name, is_active)
      VALUES ($1, $2, TRUE)
      RETURNING id`,
     [slug, name],
   );
+  const clinicId = rows[0]!.id;
 
   // Cria um paciente seed em cada tenant (encriptado, valores mínimos)
   // — usamos a app role com escopo correto para garantir o caminho real.

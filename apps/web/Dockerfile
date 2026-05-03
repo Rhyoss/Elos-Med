@@ -13,7 +13,7 @@ COPY apps/web/package.json ./apps/web/
 RUN pnpm install --frozen-lockfile
 
 COPY packages/shared/src ./packages/shared/src
-COPY packages/shared/tsconfig.json ./packages/shared/
+COPY packages/shared/tsconfig.json packages/shared/tsconfig.build.json ./packages/shared/
 COPY packages/ui/src ./packages/ui/src
 COPY packages/ui/tsconfig.json ./packages/ui/
 COPY apps/web/src ./apps/web/src

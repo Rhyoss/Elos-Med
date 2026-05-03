@@ -11,9 +11,13 @@ COPY apps/api/package.json ./apps/api/
 RUN pnpm install --frozen-lockfile --filter @dermaos/api...
 
 COPY packages/shared/src ./packages/shared/src
-COPY packages/shared/tsconfig.json ./packages/shared/
+COPY packages/shared/tsconfig.json packages/shared/tsconfig.build.json ./packages/shared/
 COPY apps/api/src ./apps/api/src
-COPY apps/api/tsconfig.json ./apps/api/
+COPY apps/api/tsconfig.json apps/api/tsconfig.build.json ./apps/api/
+
+WORKDIR /app/packages/shared
+RUN pnpm build && \
+    node -e "const p=require('./package.json'); p.main='./dist/index.js'; p.types='./dist/index.d.ts'; p.exports={'.':'./dist/index.js'}; require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
 
 WORKDIR /app/apps/api
 RUN pnpm build

@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {}
+  },
+  "include": ["src/**/*", "../api/src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -7,14 +7,21 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/shared/package.json ./packages/shared/
+COPY apps/api/package.json ./apps/api/
 COPY apps/worker/package.json ./apps/worker/
 
 RUN pnpm install --frozen-lockfile
 
 COPY packages/shared/src ./packages/shared/src
-COPY packages/shared/tsconfig.json ./packages/shared/
+COPY packages/shared/tsconfig.json packages/shared/tsconfig.build.json ./packages/shared/
+COPY apps/api/src ./apps/api/src
+COPY apps/api/tsconfig.json ./apps/api/
 COPY apps/worker/src ./apps/worker/src
-COPY apps/worker/tsconfig.json ./apps/worker/
+COPY apps/worker/tsconfig.json apps/worker/tsconfig.build.json ./apps/worker/
+
+WORKDIR /app/packages/shared
+RUN pnpm build && \
+    node -e "const p=require('./package.json'); p.main='./dist/index.js'; p.types='./dist/index.d.ts'; p.exports={'.':'./dist/index.js'}; require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
 
 WORKDIR /app/apps/worker
 RUN pnpm build
