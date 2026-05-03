@@ -3,6 +3,7 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   // App Router é o padrão no Next.js 15
   reactStrictMode: true,
+  output: 'standalone',
 
   typescript: {
     ignoreBuildErrors: true,

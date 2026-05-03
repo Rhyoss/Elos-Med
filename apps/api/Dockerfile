@@ -34,9 +34,11 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 COPY --from=builder /app/apps/api/package.json ./
-RUN pnpm install --prod --frozen-lockfile 2>/dev/null || pnpm install --prod
+RUN node -e "const p=require('./package.json'); delete p.dependencies['@dermaos/shared']; require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))" && \
+    pnpm install --prod --no-frozen-lockfile
 
 COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/packages/shared/package.json ./node_modules/@dermaos/shared/package.json
 COPY --from=builder /app/packages/shared/dist ./node_modules/@dermaos/shared/dist
 
 USER dermaos
