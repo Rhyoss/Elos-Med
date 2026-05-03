@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: 'standalone',
 
+  // Socket.io usa `/api/realtime/?EIO=4&...` (com barra final). Sem este flag,
+  // Next.js faz 308 → `/api/realtime?...` antes de aplicar o rewrite, e a
+  // negociação do socket falha. Mantemos o controle de trailing-slash com a
+  // origem (Fastify/Socket.io).
+  skipTrailingSlashRedirect: true,
+
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -36,8 +42,14 @@ const nextConfig: NextConfig = {
         destination: `${apiBase}/api/trpc/:path*`,
       },
       {
-        source: '/api/socket.io/:path*',
-        destination: `${apiBase}/socket.io/:path*`,
+        // Socket.io negocia em `/api/realtime/` (com barra). Match explícito
+        // garante que a barra é preservada ao proxiar pra Fastify.
+        source: '/api/realtime/',
+        destination: `${apiBase}/api/realtime/`,
+      },
+      {
+        source: '/api/realtime/:path*',
+        destination: `${apiBase}/api/realtime/:path*`,
       },
     ];
   },
