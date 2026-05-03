@@ -6,20 +6,28 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
-  // Database
-  DATABASE_URL: z.string().url().startsWith('postgresql://'),
+  // Database — accepts full URL or constructed from POSTGRES_* parts
+  DATABASE_URL: z.string().min(1).optional(),
+  POSTGRES_HOST: z.string().optional(),
+  POSTGRES_PORT: z.coerce.number().int().positive().default(5432),
+  POSTGRES_DB: z.string().default('dermaos'),
+  POSTGRES_APP_USER: z.string().default('dermaos_app'),
+  POSTGRES_APP_PASSWORD: z.string().optional(),
 
   // Redis
-  REDIS_URL: z.string().url(),
+  REDIS_URL: z.string().optional(),
+  REDIS_HOST: z.string().default('localhost'),
+  REDIS_PORT: z.coerce.number().int().positive().default(6379),
+  REDIS_PASSWORD: z.string().optional(),
 
   // Google Cloud Storage
   GCS_PROJECT_ID: z.string().optional(),
   GCS_BUCKET_PREFIX: z.string().default(''),
 
   // Typesense
-  TYPESENSE_HOST: z.string().min(1),
+  TYPESENSE_HOST: z.string().default('localhost'),
   TYPESENSE_PORT: z.coerce.number().int().positive().default(8108),
-  TYPESENSE_API_KEY: z.string().min(1),
+  TYPESENSE_API_KEY: z.string().default(''),
 
   // Ollama (IA local para dados PHI)
   OLLAMA_BASE_URL: z.string().url().default('http://localhost:11434'),
@@ -84,7 +92,25 @@ function parseEnv() {
     throw new Error('COOKIE_SECRET deve ser distinto dos JWT secrets (SEC-07)');
   }
 
-  return data;
+  // Construct DATABASE_URL from parts if not provided directly
+  if (!data.DATABASE_URL) {
+    const host = data.POSTGRES_HOST;
+    const password = data.POSTGRES_APP_PASSWORD;
+    if (!host || !password) {
+      throw new Error('Either DATABASE_URL or POSTGRES_HOST + POSTGRES_APP_PASSWORD must be set');
+    }
+    (data as Record<string, unknown>).DATABASE_URL =
+      `postgresql://${data.POSTGRES_APP_USER}:${encodeURIComponent(password)}@${host}:${data.POSTGRES_PORT}/${data.POSTGRES_DB}`;
+  }
+
+  // Construct REDIS_URL from parts if not provided directly
+  if (!data.REDIS_URL) {
+    const auth = data.REDIS_PASSWORD ? `:${encodeURIComponent(data.REDIS_PASSWORD)}@` : '';
+    (data as Record<string, unknown>).REDIS_URL =
+      `redis://${auth}${data.REDIS_HOST}:${data.REDIS_PORT}`;
+  }
+
+  return data as typeof data & { DATABASE_URL: string; REDIS_URL: string };
 }
 
 // Singleton — parse once at startup

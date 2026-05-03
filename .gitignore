@@ -88,3 +88,5 @@ _archive-legacy-workspace-*/node_modules/
 _archive-legacy-workspace-*/.next/
 _archive-legacy-workspace-*/.turbo/
 _archive-legacy-workspace-*/dist/
+packages/shared/dist/
+apps/api/dist/

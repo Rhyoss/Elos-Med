@@ -221,19 +221,29 @@ async function bootstrap() {
 
   // ─── Start ─────────────────────────────────────────────────────────────────
 
-  await connectRedis();
-  await ensureProductCollection();
+  try {
+    await connectRedis();
+  } catch (err) {
+    logger.warn({ err }, 'Redis unavailable at startup — features depending on cache/pubsub will be degraded');
+  }
+
+  try {
+    await ensureProductCollection();
+  } catch (err) {
+    logger.warn({ err }, 'Typesense unavailable at startup — search will be degraded');
+  }
 
   await app.listen({ port: env.PORT, host: '0.0.0.0' });
 
   // Inicializa Socket.io DEPOIS do listen — precisa do http.Server pronto
   initSocketGateway(app);
 
-  // Relay de eventos vindos do worker (mensagens recebidas via webhook)
-  await subscribeOmniRealtime();
-
-  // Relay de alertas de estoque/validade emitidos pelo worker diário
-  await subscribeSupplyRealtime();
+  try {
+    await subscribeOmniRealtime();
+    await subscribeSupplyRealtime();
+  } catch (err) {
+    logger.warn({ err }, 'Realtime subscriptions failed — notifications will be degraded');
+  }
 
   logger.info({ port: env.PORT, env: env.NODE_ENV }, 'DermaOS API running');
 }

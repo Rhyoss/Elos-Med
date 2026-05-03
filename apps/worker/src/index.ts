@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import http from 'node:http';
 import { Worker, Queue, type Processor } from 'bullmq';
 import Redis from 'ioredis';
 import { Pool } from 'pg';
@@ -20,7 +21,16 @@ const logger = pino({
     : {}),
 });
 
-const redisConnection = new Redis(process.env['REDIS_URL'] ?? 'redis://localhost:6379', {
+function buildRedisUrl(): string {
+  if (process.env['REDIS_URL']) return process.env['REDIS_URL'];
+  const host = process.env['REDIS_HOST'] ?? 'localhost';
+  const port = process.env['REDIS_PORT'] ?? '6379';
+  const password = process.env['REDIS_PASSWORD'];
+  const auth = password ? `:${encodeURIComponent(password)}@` : '';
+  return `redis://${auth}${host}:${port}`;
+}
+
+const redisConnection = new Redis(buildRedisUrl(), {
   maxRetriesPerRequest: null, // BullMQ requer null para blocking commands
   enableReadyCheck: false,
 });
@@ -51,8 +61,19 @@ export const QUEUE_NAMES = {
 } as const;
 
 // Pool de DB dedicado ao worker (ideal para jobs persistentes — não depende da API).
+function buildDatabaseUrl(): string {
+  if (process.env['DATABASE_URL']) return process.env['DATABASE_URL'];
+  const host = process.env['POSTGRES_HOST'];
+  const password = process.env['POSTGRES_WORKER_PASSWORD'];
+  const user = process.env['POSTGRES_WORKER_USER'] ?? 'dermaos_worker';
+  const db = process.env['POSTGRES_DB'] ?? 'dermaos';
+  const port = process.env['POSTGRES_PORT'] ?? '5432';
+  if (!host || !password) throw new Error('DATABASE_URL or POSTGRES_HOST + POSTGRES_WORKER_PASSWORD required');
+  return `postgresql://${user}:${encodeURIComponent(password)}@${host}:${port}/${db}`;
+}
+
 const workerDb = new Pool({
-  connectionString: process.env['DATABASE_URL'],
+  connectionString: buildDatabaseUrl(),
   max: 10,
   idleTimeoutMillis: 30_000,
 });
@@ -319,11 +340,28 @@ registerWorker(QUEUE_NAMES.ANALYTICS, async (job) => {
   // TODO no próximo prompt: AnalyticsAggregator
 }, 2);
 
+// ─── Health check HTTP server (Cloud Run requires a listening port) ─────────
+
+const PORT = parseInt(process.env['PORT'] ?? '8080', 10);
+const healthServer = http.createServer((req, res) => {
+  if (req.url === '/health' || req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', workers: workers.length }));
+  } else {
+    res.writeHead(404);
+    res.end();
+  }
+});
+healthServer.listen(PORT, '0.0.0.0', () => {
+  logger.info({ port: PORT }, 'Worker health server listening');
+});
+
 // ─── Graceful shutdown ─────────────────────────────────────────────────────
 
 async function shutdown(signal: string) {
   logger.info({ signal }, 'Worker shutting down');
 
+  healthServer.close();
   await Promise.all(workers.map((w) => w.close()));
   await Promise.all([
     auroraReasoningQueue.close().catch(() => undefined),
