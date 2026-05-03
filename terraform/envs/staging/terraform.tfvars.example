@@ -1,0 +1,3 @@
+# Copie para terraform.tfvars e ajuste.
+github_owner = "alexbcarvalho"
+github_repo  = "elos-med"

@@ -1,0 +1,17 @@
+# Terraform state — fica no GCS
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Variáveis sensíveis
+terraform.tfvars
+*.auto.tfvars
+
+# Plans
+plan.out
+*.tfplan
+
+# Crash logs
+crash.log
+crash.*.log
