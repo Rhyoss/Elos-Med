@@ -316,7 +316,7 @@ jobs:
             --service-account "${PREFIX}-api@${{ env.PROJECT_ID }}.iam.gserviceaccount.com" \
             --vpc-connector "${PREFIX}-connector" \
             --vpc-egress private-ranges-only \
-            --add-cloudsql-instances "${CLOUDSQL}" \
+            --set-cloudsql-instances "${CLOUDSQL}" \
             --set-env-vars "NODE_ENV=production,POSTGRES_DB=dermaos,POSTGRES_ADMIN_USER=dermaos_admin,POSTGRES_HOST=${SOCKET},POSTGRES_PORT=5432" \
             --set-secrets "POSTGRES_ADMIN_PASSWORD=postgres-admin-password:latest" \
             --command "node" \
