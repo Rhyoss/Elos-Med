@@ -286,7 +286,7 @@ async function handleWhatsAppWebhook(req: FastifyRequest, reply: FastifyReply): 
       };
 
       enqueuePromises.push(
-        omniInboundQueue.add('inbound', job, { jobId: `wa:${msg.id}` }),
+        omniInboundQueue.add('inbound', job, { jobId: `wa-${msg.id}` }),
       );
     }
 
@@ -302,7 +302,7 @@ async function handleWhatsAppWebhook(req: FastifyRequest, reply: FastifyReply): 
             clinicId: channel.clinic_id,
             payload:  status,
           },
-          { jobId: `wa-status:${status.id}:${status.status}` },
+          { jobId: `wa-status-${status.id}-${status.status}` },
         ),
       );
     }
@@ -396,7 +396,7 @@ async function handleInstagramWebhook(req: FastifyRequest, reply: FastifyReply):
         raw:               m as unknown as Record<string, unknown>,
       };
 
-      promises.push(omniInboundQueue.add('inbound', job, { jobId: `ig:${messageId}` }));
+      promises.push(omniInboundQueue.add('inbound', job, { jobId: `ig-${messageId}` }));
     }
   }
 
@@ -486,7 +486,7 @@ async function handleTelegramWebhook(req: FastifyRequest, reply: FastifyReply): 
 
   try {
     await Promise.race([
-      omniInboundQueue.add('inbound', job, { jobId: `tg:${m.message_id}` }),
+      omniInboundQueue.add('inbound', job, { jobId: `tg-${m.message_id}` }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('enqueue_timeout')), 2_500)),
     ]);
   } catch (err) {
@@ -548,7 +548,7 @@ async function handleEmailWebhook(req: FastifyRequest, reply: FastifyReply): Pro
 
   try {
     await Promise.race([
-      omniInboundQueue.add('inbound', job, { jobId: `em:${messageId}` }),
+      omniInboundQueue.add('inbound', job, { jobId: `em-${messageId}` }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('enqueue_timeout')), 2_500)),
     ]);
   } catch (err) {
