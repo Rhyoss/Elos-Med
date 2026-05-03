@@ -20,6 +20,7 @@ variable "secret_ids" {
     "postgres-worker-password",
     "postgres-readonly-password",
     "redis-password",
+    "redis-url",
     "jwt-secret",
     "jwt-refresh-secret",
     "patient-jwt-secret",

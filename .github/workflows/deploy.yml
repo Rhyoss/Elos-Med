@@ -212,16 +212,20 @@ jobs:
           CLOUDSQL_SOCKET="/cloudsql/${{ env.PROJECT_ID }}:${{ env.REGION }}:${PREFIX}-db"
           case "$SERVICE" in
             api)
-              echo "secrets=JWT_SECRET=jwt-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,COOKIE_SECRET=cookie-secret:latest,ENCRYPTION_KEY=encryption-key:latest,SEARCH_INDEX_KEY=search-index-key:latest,AI_SERVICE_KEY=ai-service-key:latest,POSTGRES_APP_PASSWORD=postgres-app-password:latest,REDIS_PASSWORD=redis-password:latest" >> "$GITHUB_OUTPUT"
-              echo "extra_envs=POSTGRES_DB=dermaos,POSTGRES_APP_USER=dermaos_app,POSTGRES_HOST=${CLOUDSQL_SOCKET},POSTGRES_PORT=5432,REDIS_HOST=localhost,REDIS_PORT=6379,APP_URL=https://app.elosmed.com.br,CORS_ORIGINS=https://app.elosmed.com.br,RATE_LIMIT_MAX=200,RATE_LIMIT_WINDOW_MS=60000" >> "$GITHUB_OUTPUT"
+              # REDIS_URL = rediss://:<auth>@<host>:<port> (TLS forçado)
+              # Host, port e senha vivem juntos no secret `redis-url` —
+              # endpoint nunca aparece em logs do CI nem no painel da revisão.
+              echo "secrets=JWT_SECRET=jwt-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,COOKIE_SECRET=cookie-secret:latest,ENCRYPTION_KEY=encryption-key:latest,SEARCH_INDEX_KEY=search-index-key:latest,AI_SERVICE_KEY=ai-service-key:latest,POSTGRES_APP_PASSWORD=postgres-app-password:latest,REDIS_URL=redis-url:latest" >> "$GITHUB_OUTPUT"
+              echo "extra_envs=POSTGRES_DB=dermaos,POSTGRES_APP_USER=dermaos_app,POSTGRES_HOST=${CLOUDSQL_SOCKET},POSTGRES_PORT=5432,APP_URL=https://app.elosmed.com.br,CORS_ORIGINS=https://app.elosmed.com.br,RATE_LIMIT_MAX=200,RATE_LIMIT_WINDOW_MS=60000" >> "$GITHUB_OUTPUT"
               ;;
             web)
               echo "secrets=JWT_SECRET=jwt-secret:latest,COOKIE_SECRET=cookie-secret:latest" >> "$GITHUB_OUTPUT"
               echo "extra_envs=NEXT_PUBLIC_API_URL=https://api.elosmed.com.br,NEXT_PUBLIC_WS_URL=wss://api.elosmed.com.br,NEXT_PUBLIC_STORAGE_URL=https://storage.googleapis.com,NEXT_PUBLIC_APP_NAME=ElosMed,NEXT_PUBLIC_APP_VERSION=${{ github.sha }}" >> "$GITHUB_OUTPUT"
               ;;
             worker)
-              echo "secrets=JWT_SECRET=jwt-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,COOKIE_SECRET=cookie-secret:latest,ENCRYPTION_KEY=encryption-key:latest,SEARCH_INDEX_KEY=search-index-key:latest,AI_SERVICE_KEY=ai-service-key:latest,POSTGRES_APP_PASSWORD=postgres-app-password:latest,POSTGRES_WORKER_PASSWORD=postgres-worker-password:latest,REDIS_PASSWORD=redis-password:latest" >> "$GITHUB_OUTPUT"
-              echo "extra_envs=POSTGRES_DB=dermaos,POSTGRES_APP_USER=dermaos_app,POSTGRES_WORKER_USER=dermaos_worker,POSTGRES_HOST=${CLOUDSQL_SOCKET},POSTGRES_PORT=5432,REDIS_HOST=localhost,REDIS_PORT=6379,APP_URL=https://app.elosmed.com.br,CORS_ORIGINS=https://app.elosmed.com.br" >> "$GITHUB_OUTPUT"
+              # REDIS_URL = rediss://:<auth>@<host>:<port> (TLS forçado, único secret)
+              echo "secrets=JWT_SECRET=jwt-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,COOKIE_SECRET=cookie-secret:latest,ENCRYPTION_KEY=encryption-key:latest,SEARCH_INDEX_KEY=search-index-key:latest,AI_SERVICE_KEY=ai-service-key:latest,POSTGRES_APP_PASSWORD=postgres-app-password:latest,POSTGRES_WORKER_PASSWORD=postgres-worker-password:latest,REDIS_URL=redis-url:latest" >> "$GITHUB_OUTPUT"
+              echo "extra_envs=POSTGRES_DB=dermaos,POSTGRES_APP_USER=dermaos_app,POSTGRES_WORKER_USER=dermaos_worker,POSTGRES_HOST=${CLOUDSQL_SOCKET},POSTGRES_PORT=5432,APP_URL=https://app.elosmed.com.br,CORS_ORIGINS=https://app.elosmed.com.br" >> "$GITHUB_OUTPUT"
               ;;
             ai)
               echo "secrets=AI_SERVICE_KEY=ai-service-key:latest" >> "$GITHUB_OUTPUT"

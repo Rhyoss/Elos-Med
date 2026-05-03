@@ -41,6 +41,13 @@ healthServer.listen(PORT, '0.0.0.0', () => {
 
 function buildRedisUrl(): string {
   if (process.env['REDIS_URL']) return process.env['REDIS_URL'];
+  // Produção exige REDIS_URL (rediss://...) vinda do Secret Manager.
+  // Recusar fallback evita conectar sem TLS contra o Memorystore.
+  if (process.env['NODE_ENV'] === 'production') {
+    throw new Error(
+      'REDIS_URL é obrigatório em produção (esperado rediss://...). Verifique o secret redis-url.',
+    );
+  }
   const host = process.env['REDIS_HOST'] ?? 'localhost';
   const port = process.env['REDIS_PORT'] ?? '6379';
   const password = process.env['REDIS_PASSWORD'];

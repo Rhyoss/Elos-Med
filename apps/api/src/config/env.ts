@@ -103,8 +103,16 @@ function parseEnv() {
       `postgresql://${data.POSTGRES_APP_USER}:${encodeURIComponent(password)}@${host}:${data.POSTGRES_PORT}/${data.POSTGRES_DB}`;
   }
 
-  // Construct REDIS_URL from parts if not provided directly
+  // Em produção, REDIS_URL deve vir do Secret Manager (`redis-url`) já com
+  // esquema `rediss://` para forçar TLS contra o Memorystore (transit
+  // encryption SERVER_AUTHENTICATION). Recusar fallback inseguro evita que
+  // um deploy mal configurado abra Redis em texto puro.
   if (!data.REDIS_URL) {
+    if (data.NODE_ENV === 'production') {
+      throw new Error(
+        'REDIS_URL é obrigatório em produção (esperado rediss://...). Verifique o secret redis-url.',
+      );
+    }
     const auth = data.REDIS_PASSWORD ? `:${encodeURIComponent(data.REDIS_PASSWORD)}@` : '';
     (data as Record<string, unknown>).REDIS_URL =
       `redis://${auth}${data.REDIS_HOST}:${data.REDIS_PORT}`;
