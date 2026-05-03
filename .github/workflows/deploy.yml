@@ -277,6 +277,7 @@ jobs:
     name: Run migrations
     runs-on: ubuntu-latest
     needs: [build, deploy]
+    if: false # Disabled until src/db/migrate.ts is implemented
     permissions:
       contents: read
       id-token: write
