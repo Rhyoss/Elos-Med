@@ -53,4 +53,4 @@ ENV PORT=8080
 EXPOSE ${PORT}
 
 ENTRYPOINT ["tini", "--"]
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/worker/src/index.js"]

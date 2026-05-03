@@ -90,3 +90,4 @@ _archive-legacy-workspace-*/.turbo/
 _archive-legacy-workspace-*/dist/
 packages/shared/dist/
 apps/api/dist/
+apps/worker/dist/

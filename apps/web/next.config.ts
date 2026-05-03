@@ -1,4 +1,8 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { NextConfig } from 'next';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   // App Router é o padrão no Next.js 15
@@ -77,7 +81,9 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  experimental: {},
+  experimental: {
+    outputFileTracingRoot: path.join(__dirname, '../../'),
+  },
 };
 
 export default nextConfig;
