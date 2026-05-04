@@ -115,8 +115,26 @@ async function main(): Promise<void> {
 
     if (existingUser.rowCount && existingUser.rows[0]) {
       const u = existingUser.rows[0];
-      console.log(`✓ Usuário '${adminEmail}' já existe (id=${u.id}, clinic=${u.clinic_id})`);
-      console.log('  (não alterando senha — re-rode com SEED_ADMIN_PASSWORD para resetar)');
+      const clinicInfo = await client.query<{ slug: string; name: string }>(
+        'SELECT slug, name FROM shared.clinics WHERE id = $1', [u.clinic_id],
+      );
+      const c = clinicInfo.rows[0];
+      console.log(`✓ Usuário '${adminEmail}' já existe (id=${u.id})`);
+      console.log(`  → clínica: ${c?.name ?? '???'} (slug=${c?.slug ?? '???'}, id=${u.clinic_id})`);
+
+      if (adminPasswordEnv) {
+        const newHash = await argon2.hash(adminPasswordEnv, ARGON2_OPTIONS);
+        await client.query(
+          `UPDATE shared.users SET password_hash = $1, password_changed_at = NOW(),
+                                   failed_login_attempts = 0, locked_until = NULL,
+                                   password_version = COALESCE(password_version, 1) + 1
+            WHERE id = $2`,
+          [newHash, u.id],
+        );
+        console.log(`✓ Senha resetada para o valor fornecido em SEED_ADMIN_PASSWORD`);
+      } else {
+        console.log('  (re-rode com SEED_ADMIN_PASSWORD=<nova-senha> para resetar)');
+      }
     } else {
       const password = adminPasswordEnv ?? generatePassword();
       const passwordHash = await argon2.hash(password, ARGON2_OPTIONS);
