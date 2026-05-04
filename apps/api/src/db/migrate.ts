@@ -92,6 +92,7 @@ async function main(): Promise<void> {
   console.log(`Connecting to ${config.database} as ${config.user}...`);
 
   const client = new Client(config);
+  client.on('notice', (msg) => console.log(`  [PG] ${msg.severity}: ${msg.message}`));
   await client.connect();
   console.log('Connected.\n');
 
