@@ -36,6 +36,10 @@ BEGIN
   END IF;
 END $$;
 
+-- Permite que dermaos_admin execute ALTER FUNCTION ... OWNER TO dermaos_authn
+-- (SET ROLE requer membership). Sem isso, 100_security_definer_functions.sql falha.
+GRANT dermaos_authn TO dermaos_admin WITH ADMIN OPTION;
+
 -- ─── Roles da aplicação — reforçar atributos mínimos ──────────────────────────
 -- Em Cloud SQL, as roles de app são criadas com senha via gcloud/Terraform.
 -- Aqui apenas garantimos que existem (sem senha — idempotente).
