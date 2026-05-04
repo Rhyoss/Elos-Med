@@ -165,8 +165,11 @@ jobs:
           echo "service_name=${PREFIX}-${SERVICE}" >> "$GITHUB_OUTPUT"
 
           # Ingress
+          # api/web: internal-and-cloud-load-balancing — aceita tráfego do LB e VPC,
+          # bloqueia acesso direto à URL *.run.app pela internet.
+          # Requisito: LB provisionado via scripts/provision-lb.sh
           case "$SERVICE" in
-            api|web) echo "ingress=all" >> "$GITHUB_OUTPUT" ;;
+            api|web) echo "ingress=internal-and-cloud-load-balancing" >> "$GITHUB_OUTPUT" ;;
             *)       echo "ingress=internal" >> "$GITHUB_OUTPUT" ;;
           esac
 
@@ -215,7 +218,8 @@ jobs:
               # REDIS_URL = rediss://:<auth>@<host>:<port> (TLS forçado)
               # Host, port e senha vivem juntos no secret `redis-url` —
               # endpoint nunca aparece em logs do CI nem no painel da revisão.
-              echo "secrets=JWT_SECRET=jwt-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,COOKIE_SECRET=cookie-secret:latest,ENCRYPTION_KEY=encryption-key:latest,SEARCH_INDEX_KEY=search-index-key:latest,AI_SERVICE_KEY=ai-service-key:latest,POSTGRES_APP_PASSWORD=postgres-app-password:latest,REDIS_URL=redis-url:latest" >> "$GITHUB_OUTPUT"
+              # OLLAMA_BASE_URL = http://<private-ip>:11434 (VM na VPC, acesso via connector)
+              echo "secrets=JWT_SECRET=jwt-secret:latest,JWT_REFRESH_SECRET=jwt-refresh-secret:latest,COOKIE_SECRET=cookie-secret:latest,ENCRYPTION_KEY=encryption-key:latest,SEARCH_INDEX_KEY=search-index-key:latest,AI_SERVICE_KEY=ai-service-key:latest,POSTGRES_APP_PASSWORD=postgres-app-password:latest,REDIS_URL=redis-url:latest,OLLAMA_BASE_URL=ollama-base-url:latest" >> "$GITHUB_OUTPUT"
               echo "extra_envs=POSTGRES_DB=dermaos,POSTGRES_APP_USER=dermaos_app,POSTGRES_HOST=${CLOUDSQL_SOCKET},POSTGRES_PORT=5432,APP_URL=https://app.elosmed.com.br,CORS_ORIGINS=https://app.elosmed.com.br,RATE_LIMIT_MAX=200,RATE_LIMIT_WINDOW_MS=60000" >> "$GITHUB_OUTPUT"
               ;;
             web)
