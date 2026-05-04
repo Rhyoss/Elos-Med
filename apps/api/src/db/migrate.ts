@@ -65,13 +65,108 @@ function getSqlFiles(): string[] {
     .sort();
 }
 
+function splitSql(sql: string): string[] {
+  const stmts: string[] = [];
+  let cur = '';
+  let inDollarQuote = false;
+  let dollarTag = '';
+  let inSingleQuote = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+  let i = 0;
+
+  while (i < sql.length) {
+    const ch = sql[i];
+    const next = sql[i + 1] ?? '';
+
+    if (inLineComment) {
+      cur += ch;
+      if (ch === '\n') inLineComment = false;
+      i++;
+      continue;
+    }
+
+    if (inBlockComment) {
+      cur += ch;
+      if (ch === '*' && next === '/') { cur += next; i += 2; inBlockComment = false; continue; }
+      i++;
+      continue;
+    }
+
+    if (inSingleQuote) {
+      cur += ch;
+      if (ch === "'" && next === "'") { cur += next; i += 2; continue; }
+      if (ch === "'") inSingleQuote = false;
+      i++;
+      continue;
+    }
+
+    if (inDollarQuote) {
+      if (ch === '$') {
+        // look for end of dollar tag
+        let j = i + 1;
+        while (j < sql.length && sql[j] !== '$') j++;
+        if (j < sql.length) {
+          const tag = sql.slice(i, j + 1);
+          cur += tag;
+          i = j + 1;
+          if (tag === dollarTag) { inDollarQuote = false; dollarTag = ''; }
+          continue;
+        }
+      }
+      cur += ch;
+      i++;
+      continue;
+    }
+
+    // normal context
+    if (ch === '-' && next === '-') { inLineComment = true; cur += ch; i++; continue; }
+    if (ch === '/' && next === '*') { inBlockComment = true; cur += ch; i++; continue; }
+    if (ch === "'") { inSingleQuote = true; cur += ch; i++; continue; }
+
+    if (ch === '$') {
+      let j = i + 1;
+      while (j < sql.length && sql[j] !== '$') j++;
+      if (j < sql.length) {
+        const tag = sql.slice(i, j + 1);
+        cur += tag;
+        i = j + 1;
+        inDollarQuote = true;
+        dollarTag = tag;
+        continue;
+      }
+    }
+
+    if (ch === ';') {
+      cur += ch;
+      const t = cur.trim();
+      if (t && t !== ';') stmts.push(t);
+      cur = '';
+      i++;
+      continue;
+    }
+
+    cur += ch;
+    i++;
+  }
+  const t = cur.trim();
+  if (t) stmts.push(t);
+  return stmts;
+}
+
 async function applyMigration(client: Client, file: string): Promise<void> {
   const filePath = path.join(MIGRATIONS_DIR, file);
   const sql = fs.readFileSync(filePath, 'utf-8');
+  const stmts = splitSql(sql);
 
   await client.query('BEGIN');
   try {
-    await client.query(sql);
+    for (let idx = 0; idx < stmts.length; idx++) {
+      const stmt = stmts[idx]!;
+      const preview = stmt.replace(/\s+/g, ' ').slice(0, 120);
+      console.log(`    [sql ${idx + 1}/${stmts.length}] ${preview}`);
+      await client.query(stmt);
+    }
     await client.query(
       'INSERT INTO public.schema_migrations (name) VALUES ($1)',
       [file],
