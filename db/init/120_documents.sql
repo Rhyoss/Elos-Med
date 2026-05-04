@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS clinical.consent_terms (
 
   -- Vínculos ao que é consentido
   procedure_id      UUID          REFERENCES clinical.protocol_sessions (id) ON DELETE SET NULL,
-  lesion_photo_id   UUID          REFERENCES clinical.lesion_photos (id) ON DELETE SET NULL,
+  lesion_photo_id   UUID          REFERENCES clinical.lesion_images (id) ON DELETE SET NULL,
 
   status            clinical.consent_status NOT NULL DEFAULT 'pendente',
   description       TEXT,                               -- texto do termo
