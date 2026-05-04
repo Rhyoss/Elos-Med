@@ -44,33 +44,38 @@ SA_NAME="${PREFIX}-ollama"
 SA_EMAIL="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
 
 # ── Configuração por tier ─────────────────────────────────────────────────────
+# Nota: nvidia-l4 / g2 NÃO estão disponíveis em southamerica-east1.
+# Ambos os tiers usam T4 (disponível nas 3 zonas de SA-East1);
+# a diferença está no modelo: 8B (rápido) vs 14B (maior qualidade em PT-BR).
 case "${TIER}" in
   1)
     MACHINE_TYPE="n1-standard-4"   # 4 vCPU, 15 GB RAM
     GPU_TYPE="nvidia-tesla-t4"     # 16 GB VRAM
     GPU_COUNT=1
-    DEFAULT_MODEL="llama3.1:8b"
+    DEFAULT_MODEL="llama3.1:8b"   # Q4_K_M ≈ 5 GB VRAM
     DISK_SIZE=80
     COST_EST="~R\$1.400/mês on-demand | ~R\$450/mês spot"
     ;;
   2)
-    MACHINE_TYPE="g2-standard-4"   # 4 vCPU, 16 GB RAM
-    GPU_TYPE="nvidia-l4"           # 24 GB VRAM
+    MACHINE_TYPE="n1-standard-4"   # 4 vCPU, 15 GB RAM (modelo vai todo p/ VRAM)
+    GPU_TYPE="nvidia-tesla-t4"     # 16 GB VRAM — phi3:14b Q4_K_M ocupa 8.5 GB
     GPU_COUNT=1
-    DEFAULT_MODEL="phi3:14b"
+    DEFAULT_MODEL="phi3:14b"       # Q4_K_M ≈ 8.5 GB VRAM (cabe no T4)
     DISK_SIZE=120
-    COST_EST="~R\$3.700/mês on-demand | ~R\$1.100/mês spot"
+    COST_EST="~R\$1.600/mês on-demand | ~R\$500/mês spot"
     ;;
   *)
-    echo "✗ Tier inválido. Use 1 (T4) ou 2 (L4)." >&2
-    echo "  Para 70B parameters: use Claude API (LGPD: dados não-PHI)." >&2
+    echo "✗ Tier inválido. Use 1 (T4+8B) ou 2 (T4+phi3:14B)." >&2
+    echo "  Para 70B: nvidia-l4/a100 indisponíveis em southamerica-east1." >&2
+    echo "  Use Claude API para consultas não-PHI de alta qualidade." >&2
     exit 1
     ;;
 esac
 
 MODEL="${MODEL_OVERRIDE:-${DEFAULT_MODEL}}"
-# Zona com disponibilidade confirmada de T4/L4 em southamerica-east1
-ZONE="${REGION}-b"
+# southamerica-east1-c: zona com T4 Spot disponível (confirmado 2026-05-04)
+# -b exausta; -c e -a foram bloqueadas por quota (agora resolvida)
+ZONE="${REGION}-c"
 
 # Imagem com CUDA 12.1 pré-instalado (evita 20 min de setup no primeiro boot)
 IMAGE_PROJECT="deeplearning-platform-release"
