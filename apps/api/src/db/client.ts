@@ -26,8 +26,22 @@ export function getScopedClient(): PoolClient | null {
   return clientStorage.getStore() ?? null;
 }
 
+// Cloud SQL Unix socket (/cloudsql/...) tem `:` no path e quebra URLs.
+// Usamos config-objeto do pg, que aceita socket nativamente quando host começa
+// com `/`. Para conexão TCP comum, mantemos `connectionString`.
+function buildPoolConfig() {
+  if (env.DATABASE_URL) return { connectionString: env.DATABASE_URL };
+  return {
+    host:     env.POSTGRES_HOST!,
+    port:     env.POSTGRES_PORT,
+    user:     env.POSTGRES_APP_USER,
+    password: env.POSTGRES_APP_PASSWORD!,
+    database: env.POSTGRES_DB,
+  };
+}
+
 const realPool = new Pool({
-  connectionString: env.DATABASE_URL,
+  ...buildPoolConfig(),
   max: 20,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,

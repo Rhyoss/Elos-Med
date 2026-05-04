@@ -99,24 +99,37 @@ export const QUEUE_NAMES = {
 } as const;
 
 // Pool de DB dedicado ao worker (ideal para jobs persistentes — não depende da API).
-function buildDatabaseUrl(): string {
-  if (process.env['DATABASE_URL']) return process.env['DATABASE_URL'];
+// Cloud SQL usa Unix socket (/cloudsql/PROJECT:REGION:INSTANCE). URL com host
+// contendo `:` quebra o parser do pg → cai em localhost:5432. Por isso usamos
+// a config-objeto do pg, que aceita socket nativamente quando host começa com `/`.
+function buildDbPoolConfig() {
+  if (process.env['DATABASE_URL']) {
+    return { connectionString: process.env['DATABASE_URL'] };
+  }
   const host = process.env['POSTGRES_HOST'];
   const password = process.env['POSTGRES_WORKER_PASSWORD'];
   const user = process.env['POSTGRES_WORKER_USER'] ?? 'dermaos_worker';
-  const db = process.env['POSTGRES_DB'] ?? 'dermaos';
-  const port = process.env['POSTGRES_PORT'] ?? '5432';
-  if (!host || !password) throw new Error('DATABASE_URL or POSTGRES_HOST + POSTGRES_WORKER_PASSWORD required');
-  return `postgresql://${user}:${encodeURIComponent(password)}@${host}:${port}/${db}`;
+  const database = process.env['POSTGRES_DB'] ?? 'dermaos';
+  const port = parseInt(process.env['POSTGRES_PORT'] ?? '5432', 10);
+  if (!host || !password) {
+    throw new Error('DATABASE_URL or POSTGRES_HOST + POSTGRES_WORKER_PASSWORD required');
+  }
+  return { host, port, user, password, database };
 }
 
+const dbConfig = buildDbPoolConfig();
+const dbHost = 'host' in dbConfig
+  ? dbConfig.host
+  : new URL(dbConfig.connectionString).hostname || new URL(dbConfig.connectionString).pathname;
+logger.info({ host: dbHost }, 'Worker DB connecting');
+
 const workerDb = new Pool({
-  connectionString: buildDatabaseUrl(),
+  ...dbConfig,
   max: 10,
   idleTimeoutMillis: 30_000,
 });
 
-workerDb.on('error', (err) => logger.error({ err }, 'Worker pg pool error'));
+workerDb.on('error', (err) => logger.error({ err, host: dbHost }, 'Worker pg pool error'));
 
 // Cliente Redis separado para PUBLISH (pub/sub não pode misturar com blocking commands).
 const pubRedis = redisConnection.duplicate({ maxRetriesPerRequest: 3 });
@@ -128,12 +141,16 @@ function registerWorker<T = unknown>(
   queueName: string,
   processor: Processor<T>,
   concurrency = 5,
+  opts?: { lockDuration?: number },
 ) {
+  const lockDuration = opts?.lockDuration ?? 60_000;
   const worker = new Worker(queueName, processor, {
     connection: redisConnection.duplicate(),
     concurrency,
-    removeOnComplete: { count: 1000, age: 86_400 },  // mantém 24h de logs
-    removeOnFail: { count: 5000, age: 7 * 86_400 },   // mantém 7 dias de falhas
+    lockDuration,
+    lockRenewTime: lockDuration / 2,
+    removeOnComplete: { count: 1000, age: 86_400 },
+    removeOnFail: { count: 5000, age: 7 * 86_400 },
   });
 
   worker.on('completed', (job) => {
@@ -142,6 +159,10 @@ function registerWorker<T = unknown>(
 
   worker.on('failed', (job, err) => {
     logger.error({ queue: queueName, jobId: job?.id, err }, 'Job failed');
+  });
+
+  worker.on('stalled', (jobId) => {
+    logger.warn({ queue: queueName, jobId }, 'Job stalled — lock lost before completion');
   });
 
   worker.on('error', (err) => {
@@ -234,6 +255,7 @@ registerWorker(
     auroraUserId:      AURORA_USER_ID,
   }),
   5,
+  { lockDuration: 180_000 },
 );
 
 // Aurora embeddings — Ollama `nomic-embed-text` → pgvector (Fase 4 §1.3).
@@ -245,6 +267,7 @@ registerWorker(
     ollamaBaseUrl: OLLAMA_BASE_URL,
   }),
   3,
+  { lockDuration: 120_000 },
 );
 
 // Outbound — apenas HTTP, paralelismo mais alto é barato.
@@ -333,7 +356,8 @@ registerWorker(
 registerWorker(
   QUEUE_NAMES.SUPPLY_STOCK_DAILY,
   buildSupplyAlertsProcessor({ db: workerDb, redis: pubRedis, logger }),
-  1, // varredura global — concurrency 1 é suficiente
+  1,
+  { lockDuration: 120_000 },
 );
 
 // Agenda o sweep diário (24h) — idempotente por jobId fixo.

@@ -17,7 +17,7 @@ resource "google_redis_instance" "main" {
   transit_encryption_mode = "SERVER_AUTHENTICATION"
 
   redis_configs = {
-    maxmemory-policy = "allkeys-lru"
+    maxmemory-policy = "noeviction"
   }
 
   maintenance_policy {

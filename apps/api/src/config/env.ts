@@ -92,15 +92,15 @@ function parseEnv() {
     throw new Error('COOKIE_SECRET deve ser distinto dos JWT secrets (SEC-07)');
   }
 
-  // Construct DATABASE_URL from parts if not provided directly
+  // Validate that we can build a DB connection. Cloud SQL Unix sockets
+  // (/cloudsql/PROJECT:REGION:INSTANCE) don't fit URL syntax safely — the
+  // pg client handles them via the object-form config (see db/client.ts).
   if (!data.DATABASE_URL) {
     const host = data.POSTGRES_HOST;
     const password = data.POSTGRES_APP_PASSWORD;
     if (!host || !password) {
       throw new Error('Either DATABASE_URL or POSTGRES_HOST + POSTGRES_APP_PASSWORD must be set');
     }
-    (data as Record<string, unknown>).DATABASE_URL =
-      `postgresql://${data.POSTGRES_APP_USER}:${encodeURIComponent(password)}@${host}:${data.POSTGRES_PORT}/${data.POSTGRES_DB}`;
   }
 
   // Em produção, REDIS_URL deve vir do Secret Manager (`redis-url`) já com
@@ -118,7 +118,7 @@ function parseEnv() {
       `redis://${auth}${data.REDIS_HOST}:${data.REDIS_PORT}`;
   }
 
-  return data as typeof data & { DATABASE_URL: string; REDIS_URL: string };
+  return data as typeof data & { DATABASE_URL?: string; REDIS_URL: string };
 }
 
 // Singleton — parse once at startup
