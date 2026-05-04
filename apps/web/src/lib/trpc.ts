@@ -3,9 +3,10 @@ import { dermaosTransformer } from '@dermaos/shared';
 import type { AppRouter } from '@dermaos/api/trpc/router';
 
 const getBaseUrl = () => {
-  if (typeof window !== 'undefined') return ''; // Browser: URL relativa
+  // NEXT_PUBLIC_* is inlined at build time; must take precedence over browser check
   if (process.env['NEXT_PUBLIC_API_URL']) return process.env['NEXT_PUBLIC_API_URL'];
-  return 'http://api:3001'; // SSR dentro do Docker
+  if (typeof window !== 'undefined') return ''; // browser dev fallback (local Docker)
+  return 'http://api:3001'; // SSR Docker
 };
 
 export const trpcClient = createTRPCClient<AppRouter>({

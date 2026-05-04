@@ -26,6 +26,16 @@ WORKDIR /app/apps/web
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# NEXT_PUBLIC_* vars must be inlined at build time; pass via --build-arg to override
+ARG NEXT_PUBLIC_API_URL=https://api.elosmed.com.br
+ARG NEXT_PUBLIC_WS_URL=wss://api.elosmed.com.br
+ARG NEXT_PUBLIC_STORAGE_URL=https://storage.googleapis.com
+ARG NEXT_PUBLIC_APP_NAME=ElosMed
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_STORAGE_URL=$NEXT_PUBLIC_STORAGE_URL
+ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
+
 RUN pnpm build
 
 # ─── Runner ─────────────────────────────────────────────────────────────────
