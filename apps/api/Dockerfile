@@ -41,6 +41,9 @@ COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/packages/shared/package.json ./node_modules/@dermaos/shared/package.json
 COPY --from=builder /app/packages/shared/dist ./node_modules/@dermaos/shared/dist
 
+# SQL migrations — lidas por dist/db/migrate.js em tempo de execução
+COPY db/init/*.sql ./db/init/
+
 USER dermaos
 
 ENV NODE_ENV=production
