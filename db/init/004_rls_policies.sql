@@ -34,10 +34,17 @@ BEGIN
   FOREACH app_role IN ARRAY ARRAY['dermaos_app', 'dermaos_worker', 'dermaos_readonly']
   LOOP
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = app_role) THEN
-      EXECUTE format(
-        'ALTER ROLE %I NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE',
-        app_role
-      );
+      BEGIN
+        EXECUTE format(
+          'ALTER ROLE %I NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE',
+          app_role
+        );
+      EXCEPTION WHEN insufficient_privilege THEN
+        -- Cloud SQL: dermaos_admin não tem CREATEROLE sobre roles criadas por
+        -- postgres/cloudsqlsuperuser. As roles já foram endurecidas por
+        -- 000_app_roles.sh — este bloco é só defensivo para dev local.
+        RAISE NOTICE 'Skipping ALTER ROLE % — insufficient_privilege (Cloud SQL expected)', app_role;
+      END;
     END IF;
   END LOOP;
 
