@@ -174,6 +174,9 @@ Environment="OLLAMA_MAX_LOADED_MODELS=1"
 EOF
 
 mkdir -p /opt/ollama/models
+# Ollama installer cria a role 'ollama'; o serviço systemd roda como ela.
+# Sem chown a service falha em loop com "mkdir blobs: permission denied".
+chown -R ollama:ollama /opt/ollama
 systemctl daemon-reload
 systemctl enable ollama
 systemctl restart ollama
