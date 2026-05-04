@@ -154,7 +154,9 @@ async function printDiagnostics(client: Client): Promise<void> {
     ['omni', 'channels'],
   ];
   console.log('  dermaos_authn table privileges:');
-  for (const [schema, table] of tables) {
+  for (const pair of tables) {
+    const schema = pair[0]!;
+    const table = pair[1]!;
     const { rows: privs } = await client.query<{ select: boolean; update: boolean }>(
       `SELECT has_table_privilege('dermaos_authn', $1, 'SELECT') AS select,
               has_table_privilege('dermaos_authn', $1, 'UPDATE') AS update`,
