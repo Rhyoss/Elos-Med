@@ -83,6 +83,90 @@ async function applyMigration(client: Client, file: string): Promise<void> {
   }
 }
 
+async function printDiagnostics(client: Client): Promise<void> {
+  console.log('\n── DIAGNOSTICS ────────────────────────────────');
+
+  // Current user and PG version
+  const { rows: info } = await client.query<{ current_user: string; version: string }>(
+    'SELECT current_user, version()',
+  );
+  console.log(`  current_user : ${info[0]?.current_user}`);
+  console.log(`  pg_version   : ${info[0]?.version}`);
+
+  // Schema owners
+  const { rows: schemas } = await client.query<{ nspname: string; owner: string }>(
+    `SELECT nspname, pg_get_userbyid(nspowner) AS owner
+       FROM pg_namespace
+      WHERE nspname IN ('shared','clinical','omni','supply','financial','analytics','audit','public')
+      ORDER BY nspname`,
+  );
+  console.log('  Schema owners:');
+  for (const r of schemas) console.log(`    ${r.nspname.padEnd(12)} owner=${r.owner}`);
+
+  // Role attributes for key roles
+  const { rows: roles } = await client.query<{
+    rolname: string; rolsuper: boolean; rolbypassrls: boolean; rolcanlogin: boolean;
+  }>(
+    `SELECT rolname, rolsuper, rolbypassrls, rolcanlogin
+       FROM pg_roles
+      WHERE rolname IN ('dermaos_admin','dermaos_authn','dermaos_app','dermaos_worker')
+      ORDER BY rolname`,
+  );
+  console.log('  Role attributes:');
+  for (const r of roles) {
+    console.log(`    ${r.rolname.padEnd(20)} super=${r.rolsuper} bypassrls=${r.rolbypassrls} canlogin=${r.rolcanlogin}`);
+  }
+
+  // dermaos_admin membership in dermaos_authn
+  const { rows: membership } = await client.query<{ is_member: boolean }>(
+    `SELECT pg_has_role('dermaos_admin', 'dermaos_authn', 'MEMBER') AS is_member`,
+  );
+  console.log(`  dermaos_admin member of dermaos_authn: ${membership[0]?.is_member}`);
+
+  // Schema privileges for dermaos_admin
+  const schemaNames = ['shared', 'omni', 'clinical', 'supply', 'financial', 'analytics', 'audit'];
+  console.log('  dermaos_admin schema privileges:');
+  for (const s of schemaNames) {
+    const { rows: privs } = await client.query<{ usage: boolean; create: boolean }>(
+      `SELECT has_schema_privilege('dermaos_admin', $1, 'USAGE') AS usage,
+              has_schema_privilege('dermaos_admin', $1, 'CREATE') AS create`,
+      [s],
+    );
+    const p = privs[0];
+    if (p) console.log(`    ${s.padEnd(12)} usage=${p.usage} create=${p.create}`);
+  }
+
+  // dermaos_authn schema privileges
+  console.log('  dermaos_authn schema privileges:');
+  for (const s of ['shared', 'omni']) {
+    const { rows: privs } = await client.query<{ usage: boolean }>(
+      `SELECT has_schema_privilege('dermaos_authn', $1, 'USAGE') AS usage`,
+      [s],
+    );
+    const p = privs[0];
+    if (p) console.log(`    ${s.padEnd(12)} usage=${p.usage}`);
+  }
+
+  // Table privileges for dermaos_authn
+  const tables = [
+    ['shared', 'users'],
+    ['shared', 'clinics'],
+    ['omni', 'channels'],
+  ];
+  console.log('  dermaos_authn table privileges:');
+  for (const [schema, table] of tables) {
+    const { rows: privs } = await client.query<{ select: boolean; update: boolean }>(
+      `SELECT has_table_privilege('dermaos_authn', $1, 'SELECT') AS select,
+              has_table_privilege('dermaos_authn', $1, 'UPDATE') AS update`,
+      [`${schema}.${table}`],
+    );
+    const p = privs[0];
+    if (p) console.log(`    ${schema}.${table.padEnd(10)} select=${p.select} update=${p.update}`);
+  }
+
+  console.log('── END DIAGNOSTICS ────────────────────────────\n');
+}
+
 async function main(): Promise<void> {
   console.log('═══════════════════════════════════════');
   console.log(' DermaOS — Migration Runner');
@@ -97,6 +181,7 @@ async function main(): Promise<void> {
   console.log('Connected.\n');
 
   try {
+    await printDiagnostics(client);
     await ensureMigrationsTable(client);
     const applied = await getApplied(client);
     const files = getSqlFiles();
