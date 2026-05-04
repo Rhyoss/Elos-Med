@@ -41,13 +41,15 @@ BEGIN
 END $$;
 
 -- 4. Conceder schema access a dermaos_authn (necessário para funções SD em 100)
+-- CREATE é necessário: ALTER FUNCTION ... OWNER TO dermaos_authn requer que
+-- dermaos_authn tenha CREATE no schema onde a função reside (PG docs).
 DO $$
 BEGIN
-  GRANT USAGE ON SCHEMA shared TO dermaos_authn;
-  GRANT USAGE ON SCHEMA omni   TO dermaos_authn;
-  RAISE NOTICE 'GRANT USAGE ON SCHEMA shared, omni TO dermaos_authn: OK';
+  GRANT USAGE, CREATE ON SCHEMA shared TO dermaos_authn;
+  GRANT USAGE, CREATE ON SCHEMA omni   TO dermaos_authn;
+  RAISE NOTICE 'GRANT USAGE,CREATE ON SCHEMA shared, omni TO dermaos_authn: OK';
 EXCEPTION WHEN OTHERS THEN
-  RAISE WARNING 'GRANT USAGE ON SCHEMA failed: % — as funções SECURITY DEFINER podem não funcionar', SQLERRM;
+  RAISE WARNING 'GRANT USAGE,CREATE ON SCHEMA failed: % — as funções SECURITY DEFINER podem não funcionar', SQLERRM;
 END $$;
 
 -- 5. Conceder acesso a tabelas específicas para dermaos_authn

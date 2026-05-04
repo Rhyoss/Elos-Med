@@ -25,8 +25,8 @@
 -- insuficiente (Cloud SQL pode requerer intervenção manual).
 DO $$
 BEGIN
-  GRANT USAGE ON SCHEMA shared TO dermaos_authn;
-  GRANT USAGE ON SCHEMA omni   TO dermaos_authn;
+  GRANT USAGE,  CREATE ON SCHEMA shared TO dermaos_authn;
+  GRANT USAGE,  CREATE ON SCHEMA omni   TO dermaos_authn;
   GRANT SELECT, UPDATE ON shared.users   TO dermaos_authn;
   GRANT SELECT          ON shared.clinics TO dermaos_authn;
   GRANT SELECT          ON omni.channels  TO dermaos_authn;
