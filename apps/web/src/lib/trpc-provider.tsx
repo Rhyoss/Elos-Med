@@ -48,6 +48,8 @@ function getQueryClient() {
   return browserQueryClient;
 }
 
+const API_URL = (process.env['NEXT_PUBLIC_API_URL'] ?? '') + '/api/trpc';
+
 export function TrpcProvider({ children }: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
   const [trpcClientInstance] = useState(() =>
@@ -56,7 +58,7 @@ export function TrpcProvider({ children }: { children: React.ReactNode }) {
         // Non-streaming batch link — Fastify precisa terminar a procedure
         // antes de commitar headers (Set-Cookie da auth.login depende disso).
         httpBatchLink({
-          url: '/api/trpc',
+          url: API_URL,
           transformer: dermaosTransformer,
           headers: () => ({ 'x-trpc-source': 'react' }),
           fetch: (url, options) =>
