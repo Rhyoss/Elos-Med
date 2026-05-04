@@ -20,11 +20,19 @@
 -- BYPASSRLS desativa RLS, mas NÃO substitui USAGE/SELECT de schema/tabela.
 -- Como o OWNER de funções SECURITY DEFINER é dermaos_authn, ela precisa de
 -- USAGE no schema e SELECT/UPDATE nas tabelas que as funções consultam.
-GRANT USAGE ON SCHEMA shared TO dermaos_authn;
-GRANT USAGE ON SCHEMA omni   TO dermaos_authn;
-GRANT SELECT, UPDATE ON shared.users   TO dermaos_authn;
-GRANT SELECT          ON shared.clinics TO dermaos_authn;
-GRANT SELECT          ON omni.channels  TO dermaos_authn;
+-- Grants pré-aplicados por 099z_schema_grants.sql — repetidos aqui para
+-- bancos frescos. Wrapped em exceção para não abortar em caso de permissão
+-- insuficiente (Cloud SQL pode requerer intervenção manual).
+DO $$
+BEGIN
+  GRANT USAGE ON SCHEMA shared TO dermaos_authn;
+  GRANT USAGE ON SCHEMA omni   TO dermaos_authn;
+  GRANT SELECT, UPDATE ON shared.users   TO dermaos_authn;
+  GRANT SELECT          ON shared.clinics TO dermaos_authn;
+  GRANT SELECT          ON omni.channels  TO dermaos_authn;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'GRANTs para dermaos_authn falharam: % — execute manualmente como postgres', SQLERRM;
+END $$;
 
 -- ─── shared.find_user_for_login(email) ───────────────────────────────────────
 -- Lookup do usuário por email para o fluxo de login (auth.router.login).
