@@ -27,10 +27,15 @@ import { getPermissionsForRole } from '@dermaos/shared';
 import type { UserRole } from '@dermaos/shared';
 import { eventBus } from '../../events/event-bus.js';
 
+// COOKIE_DOMAIN must be set to e.g. ".elosmed.com.br" in production so that
+// cookies set by api.elosmed.com.br are readable by app.elosmed.com.br (Next.js SSR).
+const COOKIE_DOMAIN = process.env['COOKIE_DOMAIN'] ?? undefined;
+
 const COOKIE_OPTS_BASE = {
   httpOnly: true,
   secure: process.env['NODE_ENV'] === 'production',
   sameSite: 'lax' as const,
+  ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
 };
 
 /**
