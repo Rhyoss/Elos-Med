@@ -65,6 +65,19 @@ async function main(): Promise<void> {
   // dermaos_authn tem BYPASSRLS — necessário p/ inserir sem clinic_id GUC
   await client.query('SET ROLE dermaos_authn');
 
+  const diag = await client.query<{
+    current_user: string; current_role: string; bypass: boolean;
+    sel_clinics: boolean; sel_users: boolean; ins_clinics: boolean; ins_users: boolean;
+  }>(
+    `SELECT current_user, current_setting('role') AS current_role,
+            (SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user) AS bypass,
+            has_table_privilege(current_user, 'shared.clinics', 'SELECT') AS sel_clinics,
+            has_table_privilege(current_user, 'shared.users',   'SELECT') AS sel_users,
+            has_table_privilege(current_user, 'shared.clinics', 'INSERT') AS ins_clinics,
+            has_table_privilege(current_user, 'shared.users',   'INSERT') AS ins_users`,
+  );
+  console.log('Diagnostics after SET ROLE:', diag.rows[0]);
+
   try {
     // ─── Clínica (idempotente por slug) ──────────────────────────────────────
     const existingClinic = await client.query<{ id: string }>(
