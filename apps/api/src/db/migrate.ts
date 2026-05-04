@@ -53,9 +53,15 @@ function getSqlFiles(): string[] {
   if (!fs.existsSync(MIGRATIONS_DIR)) {
     throw new Error(`Migrations dir not found: ${MIGRATIONS_DIR}`);
   }
+  const isProd = process.env['NODE_ENV'] === 'production';
   return fs
     .readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith('.sql'))
+    .filter((f) => {
+      if (!f.endsWith('.sql')) return false;
+      // Seed data é apenas para desenvolvimento local
+      if (isProd && f.includes('seed')) return false;
+      return true;
+    })
     .sort();
 }
 
